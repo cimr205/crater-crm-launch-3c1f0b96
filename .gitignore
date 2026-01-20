@@ -45,6 +45,9 @@ staticfiles/
 # Env files
 .env
 server/.env
+.env.*
+hr/.env
+hr/.env.*
 .venv
 env/
 venv/
