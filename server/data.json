@@ -1,0 +1,114 @@
+{
+  "users": [
+    {
+      "id": "32255f2f-bd48-4ba2-8822-2ece8c656bff",
+      "email": "test@example.com",
+      "passwordHash": "$2a$12$y2B57gOJjRzfF4L9Hwtqxu94T5rDSoviYQQcvZzABX7wRFLEphkvO",
+      "createdAt": "2026-01-18T11:30:43.942Z"
+    },
+    {
+      "id": "0ddb457d-1de1-46c1-8ce2-945e8e8ec619",
+      "email": "test+1768735881@example.com",
+      "passwordHash": "$2a$12$Sbaq5Ku0T1RNGCZdPC/sTuWHEVFSVxyiAidhrBYiDw4hFxUco1qVy",
+      "createdAt": "2026-01-18T11:31:22.032Z"
+    },
+    {
+      "id": "203150e1-1019-4dc2-aea6-6c5403036ad6",
+      "email": "test+1768735896@example.com",
+      "passwordHash": "$2a$12$.0X1JaDqYh0QSSFPxucemO59bZO16HFh.Zqvim1QfeWiSOoAcNJ1m",
+      "createdAt": "2026-01-18T11:31:37.298Z"
+    },
+    {
+      "id": "cd72b9fd-2957-4730-b701-35c8ad77581e",
+      "email": "test+1768735913@example.com",
+      "passwordHash": "$2a$12$dyuQ1GJPRrKr/o7.6EbzSOCqnhSxVy/ZZ/k8Eja3RULkyqFAGmoYu",
+      "createdAt": "2026-01-18T11:31:53.719Z"
+    },
+    {
+      "id": "6a9aa598-ba68-4d08-b9d0-1993c84ef6bc",
+      "email": "test+1768735953@example.com",
+      "passwordHash": "$2a$12$YZmJHJ4s9x/owGRxGV8F7OV8LTi4vYlRZy4fv4YUwKb6lg4tDdXrO",
+      "createdAt": "2026-01-18T11:32:33.927Z",
+      "emailVerifiedAt": "2026-01-18T11:32:33.932Z"
+    }
+  ],
+  "sessions": [
+    {
+      "id": "3f292857-e487-45d7-b300-21cf9648c8a7",
+      "userId": "6a9aa598-ba68-4d08-b9d0-1993c84ef6bc",
+      "createdAt": "2026-01-18T11:32:34.194Z",
+      "expiresAt": "2026-02-17T11:32:34.194Z"
+    }
+  ],
+  "emailVerifications": [
+    {
+      "id": "9928cc57-6cf0-4993-aa10-82c15faf460c",
+      "userId": "32255f2f-bd48-4ba2-8822-2ece8c656bff",
+      "token": "ec154ed7-bafd-4af7-b18f-038a483c2333",
+      "createdAt": "2026-01-18T11:30:43.949Z",
+      "expiresAt": "2026-01-19T11:30:43.949Z"
+    },
+    {
+      "id": "28f8ac2a-aedc-4c1e-a328-2eb101907e06",
+      "userId": "0ddb457d-1de1-46c1-8ce2-945e8e8ec619",
+      "token": "97ced309-1de7-4c10-b035-65ce2c276ac1",
+      "createdAt": "2026-01-18T11:31:22.033Z",
+      "expiresAt": "2026-01-19T11:31:22.033Z"
+    },
+    {
+      "id": "ca4ee579-ae70-47c6-b210-fef5539ecbfb",
+      "userId": "203150e1-1019-4dc2-aea6-6c5403036ad6",
+      "token": "af718a4e-358a-44a6-a68d-f7d8eaa72066",
+      "createdAt": "2026-01-18T11:31:37.299Z",
+      "expiresAt": "2026-01-19T11:31:37.299Z"
+    },
+    {
+      "id": "f00fc68d-645a-406a-ad13-d5aa2660edfb",
+      "userId": "cd72b9fd-2957-4730-b701-35c8ad77581e",
+      "token": "1a57b606-ac12-41de-8746-a954c7ddc1ec",
+      "createdAt": "2026-01-18T11:31:53.720Z",
+      "expiresAt": "2026-01-19T11:31:53.720Z"
+    }
+  ],
+  "leads": [
+    {
+      "id": "77bd0cf0-5862-4883-9050-a149d4210bac",
+      "ownerUserId": "6a9aa598-ba68-4d08-b9d0-1993c84ef6bc",
+      "name": "Lead One",
+      "phone": "+4512345678",
+      "email": "lead1@example.com",
+      "company": "Acme",
+      "status": "cold",
+      "leadScore": 1,
+      "createdAt": "2026-01-18T11:32:34.196Z",
+      "updatedAt": "2026-01-18T11:32:34.196Z"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "d3c4b1cb-6c43-4b72-8331-c846befac649",
+      "ownerUserId": "6a9aa598-ba68-4d08-b9d0-1993c84ef6bc",
+      "type": "Følg op",
+      "title": "Ring tilbage",
+      "status": "open",
+      "dueAt": "2026-01-20T09:00:00.000Z",
+      "leadId": "77bd0cf0-5862-4883-9050-a149d4210bac",
+      "createdAt": "2026-01-18T11:32:34.203Z",
+      "updatedAt": "2026-01-18T11:32:34.203Z"
+    }
+  ],
+  "deals": [
+    {
+      "id": "bbd108cd-3f07-4290-a17e-e091220d0a6f",
+      "ownerUserId": "6a9aa598-ba68-4d08-b9d0-1993c84ef6bc",
+      "title": "Deal One",
+      "value": 5000,
+      "stageId": "contacted",
+      "stageEnteredAt": "2026-01-18T11:32:34.202Z",
+      "leadId": "77bd0cf0-5862-4883-9050-a149d4210bac",
+      "createdAt": "2026-01-18T11:32:34.200Z",
+      "updatedAt": "2026-01-18T11:32:34.202Z"
+    }
+  ],
+  "activities": []
+}
