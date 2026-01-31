@@ -4941,9 +4941,6 @@ msgstr "إعدادات ldap-إعدادات"
 msgid "gmeet-setting"
 msgstr "إعداد الاجتماع"
 
-msgid "whatsapp-credential-view"
-msgstr "واتساب-عرض الاعتماد"
-
 #| msgid "Employee Work Information"
 msgid "Employee Work Info"
 msgstr "معلومات عمل الموظف"
@@ -9234,9 +9231,6 @@ msgstr "Linkedin"
 
 msgid "LDAP"
 msgstr "LDAP"
-
-msgid "Whatsapp"
-msgstr "واتسلاب"
 
 #| msgid "Linkedin Integration"
 msgid "LinkedIn Integration"
@@ -14165,14 +14159,6 @@ msgstr "إعدادات الكل"
 msgid "Linkedin Integration"
 msgstr "تكامل Linkedin"
 
-#| msgid "Configuration"
-msgid "Whatsapp Configuration"
-msgstr "تكوين واتساب"
-
-#| msgid "Check the credentials"
-msgid "Whatsapp Credentials"
-msgstr "بيانات اعتماد Whatsapp"
-
 msgid "My Company"
 msgstr "شركتي"
 
@@ -14203,23 +14189,6 @@ msgstr "رمز Webhook"
 #| msgid "API Token"
 msgid "Token"
 msgstr "الرمز"
-
-#| msgid "Linkedin Integration"
-msgid "Whatsapp Integration"
-msgstr "تكامل Whatsapp"
-
-#| msgid "Enable Face"
-msgid "Enable Whatsapp"
-msgstr "تمكين Whatsapp"
-
-msgid "Enable this to integrate Whatsapp to Horilla."
-msgstr "تمكين هذا لدمج Whatsapp إلى Horilla."
-
-#| msgid ""
-#| " Do you really want to allow this employee to access and log into this "
-#| "webpage?"
-msgid "Do you want to create Templates and Flows in whatsapp manager?"
-msgstr "هل تريد إنشاء قوالب وتدفقات في مدير التطبيقات ماذا؟"
 
 #| msgid "Send Test Email"
 msgid "Send Test Message"

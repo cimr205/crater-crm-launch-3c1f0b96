@@ -5415,9 +5415,6 @@ msgstr "Date & Time Format"
 msgid "gmeet-setting"
 msgstr "General Settings"
 
-msgid "whatsapp-credential-view"
-msgstr ""
-
 #, fuzzy
 #| msgid "employee"
 msgid "Employee Work Info"
@@ -10254,9 +10251,6 @@ msgid "Linkedin"
 msgstr ""
 
 msgid "LDAP"
-msgstr ""
-
-msgid "Whatsapp"
 msgstr ""
 
 #, fuzzy
@@ -15863,14 +15857,6 @@ msgstr "Settings"
 msgid "Linkedin Integration"
 msgstr ""
 
-#, fuzzy
-#| msgid "configuration"
-msgid "Whatsapp Configuration"
-msgstr "Configuration"
-
-msgid "Whatsapp Credentials"
-msgstr ""
-
 msgid "My Company"
 msgstr ""
 
@@ -15898,20 +15884,6 @@ msgid "Webhook Token"
 msgstr ""
 
 msgid "Token"
-msgstr ""
-
-#, fuzzy
-#| msgid "configuration"
-msgid "Whatsapp Integration"
-msgstr "Configuration"
-
-msgid "Enable Whatsapp"
-msgstr ""
-
-msgid "Enable this to integrate Whatsapp to Horilla."
-msgstr ""
-
-msgid "Do you want to create Templates and Flows in whatsapp manager?"
 msgstr ""
 
 #, fuzzy

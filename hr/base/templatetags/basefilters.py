@@ -287,7 +287,6 @@ def show_section(context):
             user.has_perm("horilla_ldap.update_ldapsettings"),
             user.has_perm("employee.view_actiontype"),
             user.has_perm("helpdesk.view_tag"),
-            user.has_perm("whatsapp.view_whatsappcredentials"),
             user.has_perm("base.view_company"),
             user.has_perm("base.view_tags"),
             user.has_perm("base.view_dynamicemailconfiguration"),
@@ -307,7 +306,6 @@ def show_section(context):
             user.has_perm("horilla_ldap.add_ldapsettings"),
             user.has_perm("horilla_ldap.update_ldapsettings"),
             user.has_perm("horilla_meet.view_googlecloudcredential"),
-            user.has_perm("whatsapp.add_whatsappcredentials"),
             user.has_perm("horilla_theme.view_horillacolortheme"),
         ]
     )

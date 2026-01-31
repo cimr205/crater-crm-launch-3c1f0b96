@@ -15882,10 +15882,6 @@ msgstr ""
 msgid "gmeet-setting"
 msgstr ""
 
-#: base/translator.py:373
-msgid "whatsapp-credential-view"
-msgstr ""
-
 #: base/views.py:197
 msgid "Employee Work Info"
 msgstr ""
@@ -22417,12 +22413,6 @@ msgstr ""
 msgid "Add attachments"
 msgstr ""
 
-#: horilla_theme/templates/helpdesk/ticket/ticket_detail.html:560
-#: onboarding/templates/onboarding/send_mail_form.html:12
-#: whatsapp/templates/whatsapp/send_test_message_form.html:23
-msgid "Send"
-msgstr ""
-
 #: horilla_theme/templates/horilla_theme/components/dashboard.html:38
 msgid "Todays's New Joiners"
 msgstr ""
@@ -24313,10 +24303,6 @@ msgstr ""
 
 #: horilla_theme/templates/settings.html:662
 msgid "LDAP"
-msgstr ""
-
-#: horilla_theme/templates/settings.html:688
-msgid "Whatsapp"
 msgstr ""
 
 #: horilla_theme/templates/settings/linkedin/linkedin_setting_section.html:7
@@ -31456,11 +31442,6 @@ msgstr ""
 msgid "Rating visibility is disabled "
 msgstr ""
 
-#: templates/animation.html:201
-#: whatsapp/templates/whatsapp/whatsapp_animation.html:90
-msgid "Trying to connect..."
-msgstr ""
-
 #: templates/announcement_single_view.html:27
 msgid "Add Comment."
 msgstr ""
@@ -31618,14 +31599,6 @@ msgstr ""
 msgid "Linkedin Integration"
 msgstr ""
 
-#: templates/settings.html:684
-msgid "Whatsapp Configuration"
-msgstr ""
-
-#: templates/settings.html:695
-msgid "Whatsapp Credentials"
-msgstr ""
-
 #: templates/sidebar.html:111
 msgid "My Company"
 msgstr ""
@@ -31640,28 +31613,4 @@ msgstr ""
 
 #: templates/sidebar.html:459
 msgid "Please upload a valid XLSX file."
-msgstr ""
-
-#: whatsapp/templates/whatsapp/credentials_view.html:8
-msgid "Whatsapp Integration"
-msgstr ""
-
-#: whatsapp/templates/whatsapp/credentials_view.html:15
-msgid "Enable Whatsapp"
-msgstr ""
-
-#: whatsapp/templates/whatsapp/credentials_view.html:16
-msgid "Enable this to integrate Whatsapp to Horilla."
-msgstr ""
-
-#: whatsapp/templates/whatsapp/option_buttons.html:9
-msgid "Do you want to create Templates and Flows in whatsapp manager?"
-msgstr ""
-
-#: whatsapp/templates/whatsapp/send_test_message_form.html:5
-msgid "Send Test Message"
-msgstr ""
-
-#: whatsapp/templates/whatsapp/send_test_message_form.html:16
-msgid "Phone number"
 msgstr ""

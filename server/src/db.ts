@@ -31,6 +31,22 @@ export interface StoreOAuthState {
   expiresAt: string;
 }
 
+export interface StoreEmailOAuthState {
+  id: string;
+  state: string;
+  ownerUserId: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface StoreMetaOAuthState {
+  id: string;
+  state: string;
+  companyId: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
 export interface StoreInvitation {
   id: string;
   companyId: string;
@@ -145,10 +161,161 @@ export interface StoreActivity {
   createdAt: string;
 }
 
+export interface StoreEmailAccount {
+  id: string;
+  ownerUserId: string;
+  companyId?: string;
+  provider: 'gmail' | 'smtp';
+  email: string;
+  accessToken?: string;
+  refreshToken?: string;
+  tokenExpiresAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoreEmailMessage {
+  id: string;
+  ownerUserId: string;
+  accountId: string;
+  direction: 'inbound' | 'outbound';
+  from: string;
+  to: string[];
+  subject: string;
+  body: string;
+  threadId?: string;
+  messageId?: string;
+  receivedAt?: string;
+  sentAt?: string;
+  handledAt?: string;
+  handledStatus?: string;
+  handledReason?: string;
+  handledBy?: string;
+  isRead?: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoreTodo {
+  id: string;
+  ownerUserId: string;
+  companyId?: string;
+  title: string;
+  description?: string;
+  status: 'open' | 'done' | 'overdue';
+  priorityBucket?: 'now' | 'next' | 'later';
+  assignedUserId?: string;
+  department?: string;
+  source?: string;
+  visibilityScope?: 'personal' | 'company';
+  actionType?: string;
+  recommendedAction?: string;
+  actionAlternatives?: string[];
+  actionState?: string;
+  actionMeta?: Record<string, unknown>;
+  dueAt?: string;
+  rationale?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoreCampaign {
+  id: string;
+  ownerUserId: string;
+  companyId?: string;
+  name: string;
+  status: 'draft' | 'queued' | 'sending' | 'sent' | 'failed';
+  templateId?: string;
+  scheduledAt?: string;
+  sentCount: number;
+  failedCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoreCampaignRecipient {
+  id: string;
+  campaignId: string;
+  name: string;
+  email: string;
+  status: 'pending' | 'sent' | 'failed';
+  sentAt?: string;
+  error?: string;
+}
+
+export interface StoreCampaignJob {
+  id: string;
+  campaignId: string;
+  status: 'queued' | 'running' | 'done' | 'failed';
+  startedAt?: string;
+  finishedAt?: string;
+  lastError?: string;
+  createdAt: string;
+}
+
+export interface StoreEmailTemplate {
+  id: string;
+  companyId: string;
+  name: string;
+  subject: string;
+  body: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoreInviteCode {
+  id: string;
+  code: string;
+  companyId: string;
+  role: 'admin' | 'user';
+  createdAt: string;
+  expiresAt: string;
+  usedAt?: string;
+  usedByUserId?: string;
+}
+
+export interface StoreEmailAnalysisJob {
+  id: string;
+  emailId: string;
+  status: 'pending' | 'running' | 'done' | 'failed';
+  error?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoreMetaConnection {
+  companyId: string;
+  metaAccessToken: string;
+  metaAdAccountId: string;
+  metaBusinessId: string;
+  tokenExpiresAt: string;
+  connectedAt: string;
+}
+
+export interface StoreMetaEntityChange {
+  id: string;
+  companyId: string;
+  entityType: 'campaign' | 'adset' | 'ad';
+  entityId: string;
+  action: string;
+  createdAt: string;
+}
+
+export interface StoreMetaAutomationLog {
+  id: string;
+  companyId: string;
+  action: string;
+  status: 'ok' | 'error';
+  message: string;
+  createdAt: string;
+}
+
 export interface StoreData {
   users: StoreUser[];
   companies: StoreCompany[];
   oauthStates: StoreOAuthState[];
+  emailOauthStates: StoreEmailOAuthState[];
+  metaOauthStates: StoreMetaOAuthState[];
   invitations: StoreInvitation[];
   messages: StoreMessage[];
   notifications: StoreNotification[];
@@ -159,12 +326,26 @@ export interface StoreData {
   tasks: StoreTask[];
   deals: StoreDeal[];
   activities: StoreActivity[];
+  emailAccounts: StoreEmailAccount[];
+  emails: StoreEmailMessage[];
+  todos: StoreTodo[];
+  campaigns: StoreCampaign[];
+  campaignRecipients: StoreCampaignRecipient[];
+  campaignJobs: StoreCampaignJob[];
+  emailTemplates: StoreEmailTemplate[];
+  inviteCodes: StoreInviteCode[];
+  emailAnalysisJobs: StoreEmailAnalysisJob[];
+  metaConnections: StoreMetaConnection[];
+  metaEntityChanges: StoreMetaEntityChange[];
+  metaAutomationLogs: StoreMetaAutomationLog[];
 }
 
 const emptyStore: StoreData = {
   users: [],
   companies: [],
   oauthStates: [],
+  emailOauthStates: [],
+  metaOauthStates: [],
   invitations: [],
   messages: [],
   notifications: [],
@@ -175,6 +356,18 @@ const emptyStore: StoreData = {
   tasks: [],
   deals: [],
   activities: [],
+  emailAccounts: [],
+  emails: [],
+  todos: [],
+  campaigns: [],
+  campaignRecipients: [],
+  campaignJobs: [],
+  emailTemplates: [],
+  inviteCodes: [],
+  emailAnalysisJobs: [],
+  metaConnections: [],
+  metaEntityChanges: [],
+  metaAutomationLogs: [],
 };
 
 function loadStore(): StoreData {
@@ -192,6 +385,8 @@ function loadStore(): StoreData {
     users,
     companies: parsed.companies || [],
     oauthStates: parsed.oauthStates || [],
+    emailOauthStates: parsed.emailOauthStates || [],
+    metaOauthStates: parsed.metaOauthStates || [],
     invitations: parsed.invitations || [],
     messages: parsed.messages || [],
     notifications: parsed.notifications || [],
@@ -202,6 +397,18 @@ function loadStore(): StoreData {
     tasks: parsed.tasks || [],
     deals: parsed.deals || [],
     activities: parsed.activities || [],
+    emailAccounts: parsed.emailAccounts || [],
+    emails: parsed.emails || [],
+    todos: parsed.todos || [],
+    campaigns: parsed.campaigns || [],
+    campaignRecipients: parsed.campaignRecipients || [],
+    campaignJobs: parsed.campaignJobs || [],
+    emailTemplates: parsed.emailTemplates || [],
+    inviteCodes: parsed.inviteCodes || [],
+    emailAnalysisJobs: parsed.emailAnalysisJobs || [],
+    metaConnections: parsed.metaConnections || [],
+    metaEntityChanges: parsed.metaEntityChanges || [],
+    metaAutomationLogs: parsed.metaAutomationLogs || [],
   };
 }
 

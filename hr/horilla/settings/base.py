@@ -82,7 +82,6 @@ INSTALLED_APPS = [
     "project",
     "horilla_meet",
     "report",
-    "whatsapp",
     "horilla_ldap",
 ]
 

@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://crater-crm-launch-production.up.railway.app/api/v1';
+const API_BASE_URL = 'https://www.aiagencydanmark.dk/api';
 
 interface ApiOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';

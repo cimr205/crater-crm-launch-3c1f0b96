@@ -5212,9 +5212,6 @@ msgstr "日期设置"
 msgid "gmeet-setting"
 msgstr "通用设置"
 
-msgid "whatsapp-credential-view"
-msgstr ""
-
 #, fuzzy
 #| msgid "Employee Work Information"
 msgid "Employee Work Info"
@@ -9945,9 +9942,6 @@ msgid "Linkedin"
 msgstr ""
 
 msgid "LDAP"
-msgstr ""
-
-msgid "Whatsapp"
 msgstr ""
 
 #, fuzzy
@@ -15463,14 +15457,6 @@ msgstr "所有设置"
 msgid "Linkedin Integration"
 msgstr "银行信息"
 
-#, fuzzy
-#| msgid "Configuration"
-msgid "Whatsapp Configuration"
-msgstr "配置"
-
-msgid "Whatsapp Credentials"
-msgstr ""
-
 msgid "My Company"
 msgstr "我的公司"
 
@@ -15503,26 +15489,6 @@ msgstr ""
 #| msgid "API Key"
 msgid "Token"
 msgstr "API密钥"
-
-#, fuzzy
-#| msgid "Configuration"
-msgid "Whatsapp Integration"
-msgstr "配置"
-
-#, fuzzy
-#| msgid "Enable Face"
-msgid "Enable Whatsapp"
-msgstr "启用人脸识别"
-
-msgid "Enable this to integrate Whatsapp to Horilla."
-msgstr ""
-
-#, fuzzy
-#| msgid ""
-#| " Do you really want to allow this employee to access and log into this "
-#| "webpage?"
-msgid "Do you want to create Templates and Flows in whatsapp manager?"
-msgstr "您确定要允许此员工访问并登录此网页吗？"
 
 #, fuzzy
 #| msgid "Send Test Email"

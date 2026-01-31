@@ -169,7 +169,6 @@ sidebar_urls = [
     "linkedin-integration-setting",
     "ldap-settings",
     "gmeet-setting",
-    "whatsapp-credential-view",
     "cbv-pipeline",
 ]
 remove_urls = [

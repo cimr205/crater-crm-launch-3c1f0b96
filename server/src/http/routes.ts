@@ -20,6 +20,7 @@ import { scoreLead } from '../services/leadScoring';
 import { EmailService } from '../services/email/emailService';
 import { createCompany, listCompaniesWithCounts } from '../repositories/companyRepository';
 import { readStore } from '../db';
+import { listTodosByOwner, updateTodoStatus } from '../repositories/todoRepository';
 import {
   createInvitation,
   deleteInvitation,
@@ -39,6 +40,12 @@ import {
   listCalendarEventsForUser,
 } from '../repositories/calendarRepository';
 import { createOAuthState, deleteOAuthState, findOAuthState } from '../repositories/oauthStateRepository';
+import { metaConfig } from '../meta-ads-ai/config';
+import { buildMetaAuthUrl, exchangeLongLivedToken, exchangeMetaCode } from '../meta-ads-ai/meta/oauth';
+import { metaGet } from '../meta-ads-ai/meta/apiClient';
+import { createMetaOAuthState, deleteMetaOAuthState, findMetaOAuthState } from '../meta-ads-ai/tenancy/metaOAuthStateRepository';
+import { getMetaConnection, removeMetaConnection, upsertMetaConnection } from '../meta-ads-ai/tenancy/metaConnectionRepository';
+import { registerMetaAdsMcpRoutes } from '../meta-ads-mcp';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -61,6 +68,99 @@ const stageIdSchema = z.enum([
   'won',
   'lost',
 ]);
+
+type WorkHistoryItem = {
+  id: string;
+  type: 'todo' | 'task' | 'campaign';
+  title: string;
+  status: string;
+  category?: string;
+  source?: string;
+  completedAt?: string;
+};
+
+function resolveMonthPrefix(month?: string) {
+  return month && /^\d{4}-\d{2}$/.test(month) ? month : new Date().toISOString().slice(0, 7);
+}
+
+function buildHistoryItems(input: {
+  monthPrefix: string;
+  userId?: string;
+  companyId?: string;
+}) {
+  const store = readStore();
+  let todos = store.todos as typeof store.todos;
+  let tasks = store.tasks as typeof store.tasks;
+  let campaigns = store.campaigns as typeof store.campaigns;
+
+  if (input.userId) {
+    todos = todos.filter((todo) => todo.ownerUserId === input.userId);
+    tasks = tasks.filter((task) => task.ownerUserId === input.userId);
+    campaigns = campaigns.filter((campaign) => campaign.ownerUserId === input.userId);
+  }
+
+  if (input.companyId) {
+    const companyUsers = new Set(store.users.filter((u) => u.companyId === input.companyId).map((u) => u.id));
+    todos = todos.filter((todo) => todo.companyId === input.companyId || companyUsers.has(todo.ownerUserId));
+    tasks = tasks.filter((task) => companyUsers.has(task.ownerUserId));
+    campaigns = campaigns.filter((campaign) => campaign.companyId === input.companyId);
+  }
+
+  const todoItems: WorkHistoryItem[] = todos
+    .filter((todo) => todo.status === 'done' && todo.updatedAt.startsWith(input.monthPrefix))
+    .map((todo) => ({
+      id: todo.id,
+      type: 'todo',
+      title: todo.title,
+      status: todo.status,
+      category: todo.actionType || todo.recommendedAction,
+      source: todo.source,
+      completedAt: todo.updatedAt,
+    }));
+
+  const taskItems: WorkHistoryItem[] = tasks
+    .filter((task) => task.status === 'done' && task.completedAt?.startsWith(input.monthPrefix))
+    .map((task) => ({
+      id: task.id,
+      type: 'task',
+      title: task.title,
+      status: task.status,
+      category: task.type,
+      source: 'task',
+      completedAt: task.completedAt,
+    }));
+
+  const campaignItems: WorkHistoryItem[] = campaigns
+    .filter((campaign) => campaign.status === 'sent' && campaign.updatedAt.startsWith(input.monthPrefix))
+    .map((campaign) => ({
+      id: campaign.id,
+      type: 'campaign',
+      title: `Campaign: ${campaign.name}`,
+      status: campaign.status,
+      category: 'campaign',
+      source: 'campaign',
+      completedAt: campaign.updatedAt,
+    }));
+
+  return [...todoItems, ...taskItems, ...campaignItems];
+}
+
+function summarizeHistory(items: WorkHistoryItem[]) {
+  const counts: Record<string, number> = {};
+  items.forEach((item) => {
+    const key = item.category || 'uncategorized';
+    counts[key] = (counts[key] || 0) + 1;
+  });
+  return counts;
+}
+
+function csvEscape(value: string | undefined) {
+  const text = value ?? '';
+  if (text.includes('"') || text.includes(',') || text.includes('\n')) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
 
 export function registerRoutes(app: Application, deps: { email: EmailService }) {
   const taskRepo = new TaskRepositorySqlite();
@@ -302,6 +402,135 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
         company_id: user!.companyId,
       },
     });
+  });
+
+  app.get('/api/meta/connect', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    if (!metaConfig.appId || !metaConfig.redirectUri || !metaConfig.appSecret) {
+      res.status(400).json({ error: 'Meta OAuth is not configured' });
+      return;
+    }
+    if (!metaConfig.tokenEncryptionKey) {
+      res.status(400).json({ error: 'Meta token encryption key is not configured' });
+      return;
+    }
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 10).toISOString();
+    const state = createMetaOAuthState(user.companyId, expiresAt);
+    const authUrl = buildMetaAuthUrl(state.state);
+    res.status(200).json({ auth_url: authUrl, state: state.state });
+  });
+
+  app.get('/api/meta/callback', async (req: Request, res: Response) => {
+    const code = typeof req.query.code === 'string' ? req.query.code : undefined;
+    const state = typeof req.query.state === 'string' ? req.query.state : undefined;
+    if (!code || !state) {
+      res.status(400).json({ error: 'Missing code or state' });
+      return;
+    }
+
+    const stateRecord = findMetaOAuthState(state);
+    if (!stateRecord || stateRecord.expiresAt < new Date().toISOString()) {
+      res.status(400).json({ error: 'Invalid or expired state' });
+      return;
+    }
+
+    try {
+      const shortLived = await exchangeMetaCode(code);
+      const longLived = await exchangeLongLivedToken(shortLived.access_token);
+      const expiresAt = new Date(Date.now() + longLived.expires_in * 1000).toISOString();
+
+      const adAccounts = await metaGet<{ data: Array<{ account_id: string }> }>(
+        'me/adaccounts',
+        longLived.access_token,
+        { fields: 'account_id' }
+      );
+      const businesses = await metaGet<{ data: Array<{ id: string }> }>(
+        'me/businesses',
+        longLived.access_token,
+        { fields: 'id' }
+      );
+
+      const adAccountId = adAccounts.data?.[0]?.account_id || '';
+      const businessId = businesses.data?.[0]?.id || '';
+      if (!adAccountId || !businessId) {
+        res.status(400).json({ error: 'Missing ad account or business ID' });
+        return;
+      }
+
+      upsertMetaConnection({
+        companyId: stateRecord.companyId,
+        accessToken: longLived.access_token,
+        adAccountId,
+        businessId,
+        tokenExpiresAt: expiresAt,
+      });
+      deleteMetaOAuthState(stateRecord.id);
+      res.status(200).json({
+        status: 'connected',
+        meta_ad_account_id: adAccountId,
+        meta_business_id: businessId,
+        token_expires_at: expiresAt,
+      });
+    } catch (error) {
+      res.status(400).json({ error: (error as Error).message || 'Meta callback failed' });
+    }
+  });
+
+  app.get('/api/meta/status', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const connection = getMetaConnection(user.companyId);
+    if (!connection) {
+      res.status(200).json({ connected: false });
+      return;
+    }
+    res.status(200).json({
+      connected: true,
+      meta_ad_account_id: connection.metaAdAccountId,
+      meta_business_id: connection.metaBusinessId,
+      token_expires_at: connection.tokenExpiresAt,
+    });
+  });
+
+  app.post('/api/meta/disconnect', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    removeMetaConnection(user.companyId);
+    res.status(200).json({ status: 'disconnected' });
+  });
+
+  app.post('/api/meta/insights', async (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const connection = getMetaConnection(user.companyId);
+    if (!connection) {
+      res.status(400).json({ error: 'Meta not connected' });
+      return;
+    }
+    const fields = typeof req.body?.fields === 'string' ? req.body.fields : 'spend,cpa,conversions,impressions,ctr,frequency';
+    const response = await metaGet(
+      `act_${connection.metaAdAccountId}/insights`,
+      connection.metaAccessToken,
+      { fields }
+    );
+    res.status(200).json(response);
   });
 
   app.post('/api/admin/bootstrap', async (req: Request, res: Response) => {
@@ -803,6 +1032,129 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
     res.status(200).json({ data: updated });
   });
 
+  app.get('/api/todos', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const todos = listTodosByOwner(user.id);
+    res.status(200).json({ data: todos });
+  });
+
+  app.patch('/api/todos/:id', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const schema = z.object({ status: z.enum(['open', 'done', 'overdue']) });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+    const updated = updateTodoStatus(req.params.id, { status: parsed.data.status });
+    if (!updated) {
+      res.status(404).json({ error: 'Todo not found' });
+      return;
+    }
+    res.status(200).json({ data: updated });
+  });
+
+  app.get('/api/work-items', async (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const store = readStore();
+    const todos = listTodosByOwner(user.id).map((todo) => ({
+      id: todo.id,
+      type: 'todo',
+      title: todo.title,
+      status: todo.status,
+      priorityBucket: todo.priorityBucket,
+      recommendedAction: todo.recommendedAction,
+      source: todo.source,
+      dueAt: todo.dueAt,
+      createdAt: todo.createdAt,
+    }));
+    const tasks = await taskRepo.listByOwner(user.id).then((rows) =>
+      rows.map((task) => ({
+        id: task.id,
+        type: 'task',
+        title: task.title,
+        status: task.status,
+        priorityBucket: undefined,
+        recommendedAction: task.type,
+        source: 'task',
+        dueAt: task.dueAt,
+        createdAt: task.createdAt,
+      }))
+    );
+    const campaigns = store.campaigns
+      .filter((campaign) => campaign.ownerUserId === user.id && campaign.status !== 'sent')
+      .map((campaign) => ({
+        id: campaign.id,
+        type: 'campaign',
+        title: `Campaign: ${campaign.name}`,
+        status: campaign.status,
+        priorityBucket: 'next',
+        recommendedAction: 'Review campaign',
+        source: 'campaign',
+        dueAt: campaign.scheduledAt,
+        createdAt: campaign.createdAt,
+      }));
+    res.status(200).json({ data: [...todos, ...tasks, ...campaigns] });
+  });
+
+  app.get('/api/work-items/history', async (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const month = typeof req.query.month === 'string' ? req.query.month : undefined;
+    const monthPrefix = resolveMonthPrefix(month);
+    const data = buildHistoryItems({ monthPrefix, userId: user.id });
+    res.status(200).json({ month: monthPrefix, data });
+  });
+
+  app.get('/api/work-items/history/summary', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const month = typeof req.query.month === 'string' ? req.query.month : undefined;
+    const monthPrefix = resolveMonthPrefix(month);
+    const data = buildHistoryItems({ monthPrefix, userId: user.id });
+    res.status(200).json({ month: monthPrefix, totals: summarizeHistory(data) });
+  });
+
+  app.get('/api/work-items/history/export', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const month = typeof req.query.month === 'string' ? req.query.month : undefined;
+    const monthPrefix = resolveMonthPrefix(month);
+    const data = buildHistoryItems({ monthPrefix, userId: user.id });
+    const header = ['id', 'type', 'title', 'status', 'category', 'source', 'completed_at'];
+    const rows = data.map((item) =>
+      [
+        csvEscape(item.id),
+        csvEscape(item.type),
+        csvEscape(item.title),
+        csvEscape(item.status),
+        csvEscape(item.category),
+        csvEscape(item.source),
+        csvEscape(item.completedAt),
+      ].join(',')
+    );
+    const csv = [header.join(','), ...rows].join('\n');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="work-history-${monthPrefix}.csv"`);
+    res.status(200).send(csv);
+  });
+
+  app.get('/api/company/work-items/history', (req: Request, res: Response) => {
+    const admin = requireAdmin(req, res);
+    if (!admin) return;
+    if (!admin.companyId) {
+      res.status(400).json({ error: 'Admin has no company' });
+      return;
+    }
+    const month = typeof req.query.month === 'string' ? req.query.month : undefined;
+    const monthPrefix = resolveMonthPrefix(month);
+    const data = buildHistoryItems({ monthPrefix, companyId: admin.companyId });
+    res.status(200).json({ month: monthPrefix, data });
+  });
+
   app.get('/api/dashboard', async (req: Request, res: Response) => {
     const user = requireAuth(req, res);
     if (!user) return;
@@ -931,5 +1283,7 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
     const events = listCalendarEventsForCompany(user.companyId);
     res.status(200).json({ data: events });
   });
+
+  registerMetaAdsMcpRoutes(app);
 }
 
