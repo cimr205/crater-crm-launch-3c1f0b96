@@ -1,0 +1,172 @@
+{
+  "appName": "AIAgency CRM",
+  "common": {
+    "search": "Search",
+    "notifications": "Notifications",
+    "save": "Save",
+    "cancel": "Cancel",
+    "loading": "Loading",
+    "signOut": "Sign out",
+    "adminOnly": "Admin only"
+  },
+  "language": {
+    "label": "Language",
+    "en": "English",
+    "da": "Danish",
+    "de": "German"
+  },
+  "theme": {
+    "label": "Theme",
+    "light": "Light",
+    "dark": "Dark"
+  },
+  "auth": {
+    "loginTitle": "Welcome back",
+    "loginSubtitle": "Sign in to your workspace",
+    "email": "Email",
+    "password": "Password",
+    "loginCta": "Sign in",
+    "registerCompanyTitle": "Create your company",
+    "registerCompanySubtitle": "Start a new tenant workspace",
+    "companyName": "Company name",
+    "adminName": "Admin name",
+    "name": "Name",
+    "joinCode": "Join code",
+    "createCompanyCta": "Create company",
+    "joinCompanyTitle": "Join your company",
+    "joinCompanySubtitle": "Enter the join code from your admin",
+    "joinCompanyCta": "Join company"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "crm": "CRM",
+    "leads": "Leads",
+    "deals": "Deals",
+    "hr": "HR",
+    "employees": "Employees",
+    "settings": "Settings",
+    "company": "Company"
+  },
+  "dashboard": {
+    "title": "Overview",
+    "subtitle": "Tenant performance at a glance",
+    "statPipeline": "Pipeline value",
+    "statLeads": "New leads",
+    "statTasks": "Open tasks",
+    "statRevenue": "Revenue forecast"
+  },
+  "crm": {
+    "leadsTitle": "Leads",
+    "dealsTitle": "Deals",
+    "pipelineTitle": "Pipeline",
+    "empty": "No records yet",
+    "status": "Status",
+    "score": "Score",
+    "pipelineNew": "New",
+    "pipelineContacted": "Contacted",
+    "pipelineProposal": "Proposal",
+    "pipelineNegotiation": "Negotiation"
+  },
+  "hr": {
+    "employeesTitle": "Employees",
+    "empty": "No employees yet",
+    "role": "Role",
+    "status": "Status"
+  },
+  "aiInbox": {
+    "title": "AI Inbox",
+    "subtitle": "Prioritized actions from inbound email",
+    "empty": "No AI actions yet"
+  },
+  "settings": {
+    "companyTitle": "Company settings",
+    "companySubtitle": "Tenant defaults and join code",
+    "tenantId": "Tenant ID",
+    "joinCode": "Join code",
+    "defaultLanguage": "Default language",
+    "defaultTheme": "Default theme",
+    "updateCta": "Update company",
+    "integrationsTitle": "Integrations",
+    "integrationsSubtitle": "Connect Meta Ads and website tracking",
+    "metaStatus": "Meta Ads",
+    "metaConnected": "Connected",
+    "metaNotConnected": "Not connected",
+    "metaConnect": "Connect Meta",
+    "metaReconnect": "Reconnect Meta",
+    "metaPixelId": "Meta Pixel ID",
+    "metaCapiToken": "Meta CAPI token",
+    "metaCapiTokenSet": "Token saved",
+    "allowedDomains": "Allowed website domains",
+    "trackingKey": "Tracking key",
+    "rotateTrackingKey": "Rotate key",
+    "trackingScript": "Tracking script",
+    "saveIntegrations": "Save integrations",
+    "useCurrentDomain": "Use current domain",
+    "copyScript": "Copy script",
+    "scriptCopied": "Script copied",
+    "scriptCopyFailed": "Could not copy script",
+    "aiActionsTitle": "AI Actions Library",
+    "aiActionsSubtitle": "Enable smart actions per workflow",
+    "aiTone": "Tone of voice",
+    "aiTonePlaceholder": "Professional, friendly, concise",
+    "aiAutoSend": "Auto send mode",
+    "aiAutoSendDraft": "Draft for approval",
+    "aiAutoSendAuto": "Auto send",
+    "aiBookingStart": "Booking window start",
+    "aiBookingEnd": "Booking window end",
+    "aiTimezone": "Timezone",
+    "aiEnable": "Enable",
+    "aiEnabled": "Enabled",
+    "aiInputs": "Inputs",
+    "aiOutputs": "Outputs",
+    "aiSave": "Save AI settings",
+    "aiSaved": "AI settings saved"
+  },
+  "onboarding": {
+    "title": "Get your workspace ready",
+    "subtitle": "Set the essentials so everything works right away",
+    "next": "Next",
+    "back": "Back",
+    "finish": "Finish setup",
+    "finishChecklist": "You can revisit these settings anytime in Company settings.",
+    "adminOnlyTitle": "Admin setup required",
+    "adminOnlySubtitle": "Ask your admin to complete onboarding first.",
+    "backToDashboard": "Back to dashboard",
+    "invitePlaceholder": "Invite email",
+    "roleUser": "User",
+    "roleAdmin": "Admin",
+    "addInvite": "Add invite",
+    "steps": {
+      "basics": {
+        "label": "Basics",
+        "title": "Company defaults",
+        "subtitle": "Choose the default language and theme"
+      },
+      "team": {
+        "label": "Team",
+        "title": "Invite your team",
+        "subtitle": "Add teammates so they can access the workspace"
+      },
+      "integrations": {
+        "label": "Integrations",
+        "title": "Connect marketing + tracking",
+        "subtitle": "Meta Ads, website domains, and tracking script"
+      },
+      "finish": {
+        "label": "Finish",
+        "title": "You are ready",
+        "subtitle": "Your workspace is configured"
+      }
+    }
+  },
+  "work": {
+    "historyTitle": "Work history",
+    "exportCta": "Export CSV"
+  },
+  "notFound": {
+    "title": "404",
+    "subtitle": "Page not found",
+    "back": "Return to Home"
+  }
+}
+

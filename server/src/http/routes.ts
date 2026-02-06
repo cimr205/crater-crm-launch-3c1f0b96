@@ -18,7 +18,12 @@ import { TaskRepositorySqlite } from '../repositories/taskRepository';
 import { TaskService } from '../services/tasks/taskService';
 import { scoreLead } from '../services/leadScoring';
 import { EmailService } from '../services/email/emailService';
-import { createCompany, listCompaniesWithCounts } from '../repositories/companyRepository';
+import {
+  createCompany,
+  findCompanyByJoinCode,
+  listCompaniesWithCounts,
+  updateCompanySettings,
+} from '../repositories/companyRepository';
 import { readStore } from '../db';
 import { listTodosByOwner, updateTodoStatus } from '../repositories/todoRepository';
 import {
@@ -41,11 +46,19 @@ import {
 } from '../repositories/calendarRepository';
 import { createOAuthState, deleteOAuthState, findOAuthState } from '../repositories/oauthStateRepository';
 import { metaConfig } from '../meta-ads-ai/config';
+import { env } from '../config/env';
 import { buildMetaAuthUrl, exchangeLongLivedToken, exchangeMetaCode } from '../meta-ads-ai/meta/oauth';
 import { metaGet } from '../meta-ads-ai/meta/apiClient';
 import { createMetaOAuthState, deleteMetaOAuthState, findMetaOAuthState } from '../meta-ads-ai/tenancy/metaOAuthStateRepository';
 import { getMetaConnection, removeMetaConnection, upsertMetaConnection } from '../meta-ads-ai/tenancy/metaConnectionRepository';
 import { registerMetaAdsMcpRoutes } from '../meta-ads-mcp';
+import { ensureAiActionConfig, listAiActions, upsertAiActionConfig } from '../repositories/aiActionRepository';
+import {
+  ensureTenantIntegration,
+  findTenantIntegrationByKey,
+  logWebsiteEvent,
+  updateTenantIntegration,
+} from '../repositories/tenantIntegrationRepository';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -162,6 +175,39 @@ function csvEscape(value: string | undefined) {
   return text;
 }
 
+const JOIN_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+function generateJoinCode() {
+  const pick = () => JOIN_CODE_CHARS[Math.floor(Math.random() * JOIN_CODE_CHARS.length)];
+  return `${pick()}${pick()}${pick()}-${pick()}${pick()}${pick()}`;
+}
+
+function generateUniqueJoinCode() {
+  const store = readStore();
+  let code = generateJoinCode();
+  let attempts = 0;
+  while (store.companies.some((company) => company.joinCode.toLowerCase() === code.toLowerCase())) {
+    code = generateJoinCode();
+    attempts += 1;
+    if (attempts > 20) {
+      code = `${generateJoinCode()}-${Math.floor(Math.random() * 9)}`;
+      break;
+    }
+  }
+  return code;
+}
+
+function isOriginAllowed(origin: string | undefined, domains: string[]) {
+  if (!origin) return false;
+  if (!domains.length) return true;
+  try {
+    const host = new URL(origin).hostname.toLowerCase();
+    return domains.some((domain) => host === domain || host.endsWith(`.${domain}`));
+  } catch {
+    return false;
+  }
+}
+
 export function registerRoutes(app: Application, deps: { email: EmailService }) {
   const taskRepo = new TaskRepositorySqlite();
   const taskService = new TaskService(taskRepo);
@@ -188,7 +234,13 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
     const userId = randomUUID();
     let companyId: string | undefined;
     if (parsed.data.company_name) {
-      const company = createCompany({ name: parsed.data.company_name, ownerUserId: userId });
+      const company = createCompany({
+        name: parsed.data.company_name,
+        ownerUserId: userId,
+        joinCode: generateUniqueJoinCode(),
+        defaultLanguage: 'en',
+        defaultTheme: 'light',
+      });
       companyId = company.id;
     }
     const passwordHash = await hashPassword(parsed.data.password);
@@ -210,6 +262,121 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
       company_id: companyId,
       verification_required: true,
       verification_token: token,
+    });
+  });
+
+  app.post('/api/auth/register-company', async (req: Request, res: Response) => {
+    const schema = z.object({
+      company_name: z.string().min(2),
+      admin_name: z.string().min(2),
+      email: z.string().email(),
+      password: z.string().min(8),
+      language: z.string().min(2),
+      theme: z.enum(['light', 'dark']),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+
+    const existing = findUserByEmail(parsed.data.email);
+    if (existing) {
+      res.status(409).json({ error: 'Email already registered' });
+      return;
+    }
+
+    const joinCode = generateUniqueJoinCode();
+    const userId = randomUUID();
+    const company = createCompany({
+      name: parsed.data.company_name,
+      ownerUserId: userId,
+      joinCode,
+      defaultLanguage: parsed.data.language,
+      defaultTheme: parsed.data.theme,
+    });
+
+    const passwordHash = await hashPassword(parsed.data.password);
+    createUser({
+      id: userId,
+      name: parsed.data.admin_name,
+      email: parsed.data.email,
+      passwordHash,
+      role: 'admin',
+      companyId: company.id,
+      emailVerifiedAt: new Date().toISOString(),
+    });
+
+    res.status(201).json({
+      tenant: {
+        id: company.id,
+        name: company.name,
+        join_code: company.joinCode,
+        default_language: company.defaultLanguage,
+        default_theme: company.defaultTheme,
+      },
+      user: {
+        id: userId,
+        name: parsed.data.admin_name,
+        email: parsed.data.email,
+        role: 'admin',
+        company_id: company.id,
+      },
+    });
+  });
+
+  app.post('/api/auth/join-company', async (req: Request, res: Response) => {
+    const schema = z.object({
+      join_code: z.string().min(3),
+      name: z.string().min(2),
+      email: z.string().email(),
+      password: z.string().min(8),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+
+    const company = findCompanyByJoinCode(parsed.data.join_code);
+    if (!company) {
+      res.status(404).json({ error: 'Invalid join code' });
+      return;
+    }
+
+    const existing = findUserByEmail(parsed.data.email);
+    if (existing) {
+      res.status(409).json({ error: 'Email already registered' });
+      return;
+    }
+
+    const userId = randomUUID();
+    const passwordHash = await hashPassword(parsed.data.password);
+    createUser({
+      id: userId,
+      name: parsed.data.name,
+      email: parsed.data.email,
+      passwordHash,
+      role: 'user',
+      companyId: company.id,
+      emailVerifiedAt: new Date().toISOString(),
+    });
+
+    res.status(201).json({
+      tenant: {
+        id: company.id,
+        name: company.name,
+        join_code: company.joinCode,
+        default_language: company.defaultLanguage,
+        default_theme: company.defaultTheme,
+      },
+      user: {
+        id: userId,
+        name: parsed.data.name,
+        email: parsed.data.email,
+        role: 'user',
+        company_id: company.id,
+      },
     });
   });
 
@@ -270,8 +437,8 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
   });
 
   app.get('/api/auth/google/start', (req: Request, res: Response) => {
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+    const clientId = env.googleClientId;
+    const redirectUri = env.googleRedirectUri;
     if (!clientId || !redirectUri) {
       res.status(400).json({ error: 'Google OAuth is not configured' });
       return;
@@ -302,9 +469,9 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
       res.status(400).json({ error: 'Invalid payload' });
       return;
     }
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI;
+    const clientId = env.googleClientId;
+    const clientSecret = env.googleClientSecret;
+    const redirectUri = env.googleRedirectUri;
     if (!clientId || !clientSecret || !redirectUri) {
       res.status(400).json({ error: 'Google OAuth is not configured' });
       return;
@@ -531,6 +698,196 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
       { fields }
     );
     res.status(200).json(response);
+  });
+
+  app.patch('/api/company/settings', (req: Request, res: Response) => {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+
+    const schema = z.object({
+      language: z.string().min(2).optional(),
+      theme: z.enum(['light', 'dark']).optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+
+    const updated = updateCompanySettings(user.companyId, {
+      defaultLanguage: parsed.data.language,
+      defaultTheme: parsed.data.theme,
+    });
+    if (!updated) {
+      res.status(404).json({ error: 'Company not found' });
+      return;
+    }
+
+    res.status(200).json({
+      tenant: {
+        id: updated.id,
+        name: updated.name,
+        join_code: updated.joinCode,
+        default_language: updated.defaultLanguage,
+        default_theme: updated.defaultTheme,
+      },
+    });
+  });
+
+  app.get('/api/ai/actions', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    res.status(200).json({ data: listAiActions() });
+  });
+
+  app.get('/api/ai/settings', (req: Request, res: Response) => {
+    const admin = requireAdmin(req, res);
+    if (!admin) return;
+    if (!admin.companyId) {
+      res.status(400).json({ error: 'Admin has no company' });
+      return;
+    }
+    const config = ensureAiActionConfig(admin.companyId);
+    res.status(200).json({ data: config });
+  });
+
+  app.patch('/api/ai/settings', (req: Request, res: Response) => {
+    const admin = requireAdmin(req, res);
+    if (!admin) return;
+    if (!admin.companyId) {
+      res.status(400).json({ error: 'Admin has no company' });
+      return;
+    }
+    const schema = z.object({
+      enabled_actions: z.array(z.string()).optional(),
+      tone_of_voice: z.string().min(2).optional(),
+      auto_send_mode: z.enum(['draft', 'auto']).optional(),
+      booking_window_start: z.string().min(4).optional(),
+      booking_window_end: z.string().min(4).optional(),
+      booking_timezone: z.string().min(3).optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+    const updated = upsertAiActionConfig(admin.companyId, {
+      enabledActions: parsed.data.enabled_actions,
+      toneOfVoice: parsed.data.tone_of_voice,
+      autoSendMode: parsed.data.auto_send_mode,
+      bookingWindowStart: parsed.data.booking_window_start,
+      bookingWindowEnd: parsed.data.booking_window_end,
+      bookingTimezone: parsed.data.booking_timezone,
+    });
+    res.status(200).json({ data: updated });
+  });
+
+  app.get('/api/tenant/integrations', (req: Request, res: Response) => {
+    const admin = requireAdmin(req, res);
+    if (!admin) return;
+    if (!admin.companyId) {
+      res.status(400).json({ error: 'Admin has no company' });
+      return;
+    }
+
+    const integration = ensureTenantIntegration(admin.companyId);
+    const metaConnection = getMetaConnection(admin.companyId);
+    res.status(200).json({
+      metaConnected: Boolean(metaConnection),
+      metaAdAccountId: metaConnection?.metaAdAccountId || null,
+      metaBusinessId: metaConnection?.metaBusinessId || null,
+      metaTokenExpiresAt: metaConnection?.tokenExpiresAt || null,
+      websiteTrackingKey: integration.websiteTrackingKey,
+      websiteDomains: integration.websiteDomains || [],
+      metaPixelId: integration.metaPixelId || null,
+      metaCapiTokenSet: Boolean(integration.metaCapiToken),
+    });
+  });
+
+  app.patch('/api/tenant/integrations', (req: Request, res: Response) => {
+    const admin = requireAdmin(req, res);
+    if (!admin) return;
+    if (!admin.companyId) {
+      res.status(400).json({ error: 'Admin has no company' });
+      return;
+    }
+
+    const schema = z.object({
+      website_domains: z.array(z.string()).optional(),
+      meta_pixel_id: z.string().min(3).optional().nullable(),
+      meta_capi_token: z.string().min(5).optional().nullable(),
+      rotate_tracking_key: z.boolean().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+
+    const updated = updateTenantIntegration(admin.companyId, {
+      websiteDomains: parsed.data.website_domains,
+      metaPixelId: parsed.data.meta_pixel_id,
+      metaCapiToken: parsed.data.meta_capi_token,
+      rotateKey: parsed.data.rotate_tracking_key,
+    });
+
+    res.status(200).json({
+      websiteTrackingKey: updated.websiteTrackingKey,
+      websiteDomains: updated.websiteDomains,
+      metaPixelId: updated.metaPixelId || null,
+      metaCapiTokenSet: Boolean(updated.metaCapiToken),
+    });
+  });
+
+  app.options('/api/track', (_req: Request, res: Response) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.status(204).send();
+  });
+
+  app.post('/api/track', (req: Request, res: Response) => {
+    const schema = z.object({
+      key: z.string().min(10),
+      event: z.string().min(2),
+      url: z.string().optional(),
+      referrer: z.string().optional(),
+      payload: z.record(z.unknown()).optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+
+    const integration = findTenantIntegrationByKey(parsed.data.key);
+    if (!integration) {
+      res.status(401).json({ error: 'Invalid tracking key' });
+      return;
+    }
+
+    const origin = typeof req.headers.origin === 'string' ? req.headers.origin : undefined;
+    if (!isOriginAllowed(origin, integration.websiteDomains)) {
+      res.status(403).json({ error: 'Origin not allowed' });
+      return;
+    }
+
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Vary', 'Origin');
+
+    logWebsiteEvent({
+      companyId: integration.companyId,
+      eventName: parsed.data.event,
+      url: parsed.data.url,
+      referrer: parsed.data.referrer,
+      payload: parsed.data.payload,
+    });
+
+    res.status(200).json({ ok: true });
   });
 
   app.post('/api/admin/bootstrap', async (req: Request, res: Response) => {

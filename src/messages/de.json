@@ -1,0 +1,172 @@
+{
+  "appName": "AIAgency CRM",
+  "common": {
+    "search": "Suche",
+    "notifications": "Benachrichtigungen",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "loading": "Lädt",
+    "signOut": "Abmelden",
+    "adminOnly": "Nur Admin"
+  },
+  "language": {
+    "label": "Sprache",
+    "en": "Englisch",
+    "da": "Dänisch",
+    "de": "Deutsch"
+  },
+  "theme": {
+    "label": "Thema",
+    "light": "Hell",
+    "dark": "Dunkel"
+  },
+  "auth": {
+    "loginTitle": "Willkommen zurück",
+    "loginSubtitle": "Melde dich in deinem Workspace an",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "loginCta": "Anmelden",
+    "registerCompanyTitle": "Unternehmen erstellen",
+    "registerCompanySubtitle": "Neuen Tenant-Workspace starten",
+    "companyName": "Unternehmensname",
+    "adminName": "Admin Name",
+    "name": "Name",
+    "joinCode": "Join-Code",
+    "createCompanyCta": "Unternehmen erstellen",
+    "joinCompanyTitle": "Unternehmen beitreten",
+    "joinCompanySubtitle": "Code vom Admin eingeben",
+    "joinCompanyCta": "Unternehmen beitreten"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "crm": "CRM",
+    "leads": "Leads",
+    "deals": "Deals",
+    "hr": "HR",
+    "employees": "Mitarbeiter",
+    "settings": "Einstellungen",
+    "company": "Unternehmen"
+  },
+  "dashboard": {
+    "title": "Übersicht",
+    "subtitle": "Tenant-Performance auf einen Blick",
+    "statPipeline": "Pipeline-Wert",
+    "statLeads": "Neue Leads",
+    "statTasks": "Offene Aufgaben",
+    "statRevenue": "Umsatzprognose"
+  },
+  "crm": {
+    "leadsTitle": "Leads",
+    "dealsTitle": "Deals",
+    "pipelineTitle": "Pipeline",
+    "empty": "Noch keine Daten",
+    "status": "Status",
+    "score": "Score",
+    "pipelineNew": "Neu",
+    "pipelineContacted": "Kontaktiert",
+    "pipelineProposal": "Angebot",
+    "pipelineNegotiation": "Verhandlung"
+  },
+  "hr": {
+    "employeesTitle": "Mitarbeiter",
+    "empty": "Noch keine Mitarbeiter",
+    "role": "Rolle",
+    "status": "Status"
+  },
+  "aiInbox": {
+    "title": "AI Inbox",
+    "subtitle": "Priorisierte Aktionen aus E-Mails",
+    "empty": "Noch keine AI-Aktionen"
+  },
+  "settings": {
+    "companyTitle": "Unternehmens­einstellungen",
+    "companySubtitle": "Tenant-Standards und Join-Code",
+    "tenantId": "Tenant ID",
+    "joinCode": "Join-Code",
+    "defaultLanguage": "Standard­sprache",
+    "defaultTheme": "Standard­thema",
+    "updateCta": "Unternehmen aktualisieren",
+    "integrationsTitle": "Integrationen",
+    "integrationsSubtitle": "Meta Ads und Website-Tracking verbinden",
+    "metaStatus": "Meta Ads",
+    "metaConnected": "Verbunden",
+    "metaNotConnected": "Nicht verbunden",
+    "metaConnect": "Meta verbinden",
+    "metaReconnect": "Erneut verbinden",
+    "metaPixelId": "Meta Pixel ID",
+    "metaCapiToken": "Meta CAPI Token",
+    "metaCapiTokenSet": "Token gespeichert",
+    "allowedDomains": "Erlaubte Domains",
+    "trackingKey": "Tracking-Schlüssel",
+    "rotateTrackingKey": "Schlüssel rotieren",
+    "trackingScript": "Tracking-Skript",
+    "saveIntegrations": "Integrationen speichern",
+    "useCurrentDomain": "Aktuelle Domain verwenden",
+    "copyScript": "Skript kopieren",
+    "scriptCopied": "Skript kopiert",
+    "scriptCopyFailed": "Skript konnte nicht kopiert werden",
+    "aiActionsTitle": "AI Actions Library",
+    "aiActionsSubtitle": "Smarte Actions pro Workflow aktivieren",
+    "aiTone": "Tone of voice",
+    "aiTonePlaceholder": "Professionell, freundlich, knapp",
+    "aiAutoSend": "Auto-Senden",
+    "aiAutoSendDraft": "Entwurf zur Freigabe",
+    "aiAutoSendAuto": "Automatisch senden",
+    "aiBookingStart": "Buchungsstart",
+    "aiBookingEnd": "Buchungsende",
+    "aiTimezone": "Zeitzone",
+    "aiEnable": "Aktivieren",
+    "aiEnabled": "Aktiv",
+    "aiInputs": "Eingaben",
+    "aiOutputs": "Ausgaben",
+    "aiSave": "AI-Einstellungen speichern",
+    "aiSaved": "AI-Einstellungen gespeichert"
+  },
+  "onboarding": {
+    "title": "Workspace vorbereiten",
+    "subtitle": "Richte die wichtigsten Punkte ein, damit alles sofort läuft",
+    "next": "Weiter",
+    "back": "Zurück",
+    "finish": "Setup abschließen",
+    "finishChecklist": "Du kannst diese Einstellungen jederzeit in den Firmeneinstellungen ändern.",
+    "adminOnlyTitle": "Admin-Setup erforderlich",
+    "adminOnlySubtitle": "Bitte den Admin, das Onboarding zuerst abzuschließen.",
+    "backToDashboard": "Zurück zum Dashboard",
+    "invitePlaceholder": "E-Mail für Einladung",
+    "roleUser": "Benutzer",
+    "roleAdmin": "Admin",
+    "addInvite": "Einladung hinzufügen",
+    "steps": {
+      "basics": {
+        "label": "Basics",
+        "title": "Unternehmensstandards",
+        "subtitle": "Standardsprache und Thema wählen"
+      },
+      "team": {
+        "label": "Team",
+        "title": "Team einladen",
+        "subtitle": "Füge Teammitglieder für den Zugriff hinzu"
+      },
+      "integrations": {
+        "label": "Integrationen",
+        "title": "Marketing + Tracking verbinden",
+        "subtitle": "Meta Ads, Domains und Tracking-Skript"
+      },
+      "finish": {
+        "label": "Fertig",
+        "title": "Alles bereit",
+        "subtitle": "Dein Workspace ist konfiguriert"
+      }
+    }
+  },
+  "work": {
+    "historyTitle": "Arbeitshistorie",
+    "exportCta": "CSV exportieren"
+  },
+  "notFound": {
+    "title": "404",
+    "subtitle": "Seite nicht gefunden",
+    "back": "Zur Startseite"
+  }
+}
+

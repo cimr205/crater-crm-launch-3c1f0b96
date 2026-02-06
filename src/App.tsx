@@ -2,71 +2,100 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import Layout from "@/components/Layout";
-import Login from "@/pages/Login";
-import Dashboard from "@/pages/Dashboard";
-import Customers from "@/pages/Customers";
-import Invoices from "@/pages/Invoices";
-import Payments from "@/pages/Payments";
 import NotFound from "./pages/NotFound";
+import LoginPage from "@/pages/auth/Login";
+import RegisterCompanyPage from "@/pages/auth/RegisterCompany";
+import JoinCompanyPage from "@/pages/auth/JoinCompany";
+import DashboardPage from "@/pages/app/Dashboard";
+import LeadsPage from "@/pages/app/crm/Leads";
+import DealsPage from "@/pages/app/crm/Deals";
+import EmployeesPage from "@/pages/app/hr/Employees";
+import CompanySettingsPage from "@/pages/app/settings/CompanySettings";
+import OnboardingPage from "@/pages/app/Onboarding";
+import AppShell from "@/components/AppShell";
+import { I18nProvider, isLocale } from "@/lib/i18n";
+import { TenantProvider } from "@/contexts/TenantContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { useTenant } from "@/contexts/TenantContext";
+import { isOnboardingComplete } from "@/lib/onboarding";
+import { useEffect } from "react";
 
 const queryClient = new QueryClient();
+
+const LocaleLayout = () => {
+  const params = useParams();
+  const locale = isLocale(params.locale) ? params.locale : 'en';
+  return (
+    <I18nProvider locale={locale}>
+      <Outlet />
+    </I18nProvider>
+  );
+};
+
+const AppRouteLayout = () => {
+  const params = useParams();
+  const locale = isLocale(params.locale) ? params.locale : 'en';
+  const { user } = useAuth();
+  const { tenant } = useTenant();
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!user || !tenant) return;
+    if (user.role !== 'admin') return;
+    if (isOnboardingComplete(tenant.tenantId)) return;
+    const onboardingPath = `/${locale}/app/onboarding`;
+    if (location.pathname !== onboardingPath) {
+      navigate(onboardingPath, { replace: true });
+    }
+  }, [user, tenant, locale, location.pathname, navigate]);
+
+  return (
+    <AppShell basePath={`/${locale}/app`}>
+      <Outlet />
+    </AppShell>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Dashboard />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/customers"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Customers />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/invoices"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Invoices />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/payments"
-              element={
-                <ProtectedRoute>
-                  <Layout>
-                    <Payments />
-                  </Layout>
-                </ProtectedRoute>
-              }
-            />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <TenantProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Navigate to="/en" replace />} />
+              <Route path="/:locale" element={<LocaleLayout />}>
+                <Route path="" element={<Navigate to="auth/login" replace />} />
+                <Route path="auth/login" element={<LoginPage />} />
+                <Route path="auth/register-company" element={<RegisterCompanyPage />} />
+                <Route path="auth/join-company" element={<JoinCompanyPage />} />
+                <Route
+                  path="app"
+                  element={
+                    <ProtectedRoute>
+                      <AppRouteLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route path="dashboard" element={<DashboardPage />} />
+                  <Route path="onboarding" element={<OnboardingPage />} />
+                  <Route path="crm/leads" element={<LeadsPage />} />
+                  <Route path="crm/deals" element={<DealsPage />} />
+                  <Route path="hr/employees" element={<EmployeesPage />} />
+                  <Route path="settings/company" element={<CompanySettingsPage />} />
+                  <Route path="*" element={<NotFound />} />
+                </Route>
+              </Route>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TenantProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

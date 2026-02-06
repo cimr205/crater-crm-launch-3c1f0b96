@@ -1,0 +1,172 @@
+{
+  "appName": "AIAgency CRM",
+  "common": {
+    "search": "Søg",
+    "notifications": "Notifikationer",
+    "save": "Gem",
+    "cancel": "Annuller",
+    "loading": "Indlæser",
+    "signOut": "Log ud",
+    "adminOnly": "Kun admin"
+  },
+  "language": {
+    "label": "Sprog",
+    "en": "Engelsk",
+    "da": "Dansk",
+    "de": "Tysk"
+  },
+  "theme": {
+    "label": "Tema",
+    "light": "Lys",
+    "dark": "Mørk"
+  },
+  "auth": {
+    "loginTitle": "Velkommen tilbage",
+    "loginSubtitle": "Log ind på dit workspace",
+    "email": "Email",
+    "password": "Adgangskode",
+    "loginCta": "Log ind",
+    "registerCompanyTitle": "Opret din virksomhed",
+    "registerCompanySubtitle": "Start et nyt tenant-workspace",
+    "companyName": "Virksomhedsnavn",
+    "adminName": "Admin navn",
+    "name": "Navn",
+    "joinCode": "Join-kode",
+    "createCompanyCta": "Opret virksomhed",
+    "joinCompanyTitle": "Tilslut virksomheden",
+    "joinCompanySubtitle": "Indtast koden fra din admin",
+    "joinCompanyCta": "Tilslut virksomhed"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "crm": "CRM",
+    "leads": "Leads",
+    "deals": "Deals",
+    "hr": "HR",
+    "employees": "Medarbejdere",
+    "settings": "Indstillinger",
+    "company": "Virksomhed"
+  },
+  "dashboard": {
+    "title": "Overblik",
+    "subtitle": "Tenant performance på et øjeblik",
+    "statPipeline": "Pipeline værdi",
+    "statLeads": "Nye leads",
+    "statTasks": "Åbne opgaver",
+    "statRevenue": "Omsætningsprognose"
+  },
+  "crm": {
+    "leadsTitle": "Leads",
+    "dealsTitle": "Deals",
+    "pipelineTitle": "Pipeline",
+    "empty": "Ingen data endnu",
+    "status": "Status",
+    "score": "Score",
+    "pipelineNew": "Ny",
+    "pipelineContacted": "Kontaktet",
+    "pipelineProposal": "Tilbud",
+    "pipelineNegotiation": "Forhandling"
+  },
+  "hr": {
+    "employeesTitle": "Medarbejdere",
+    "empty": "Ingen medarbejdere endnu",
+    "role": "Rolle",
+    "status": "Status"
+  },
+  "aiInbox": {
+    "title": "AI Inbox",
+    "subtitle": "Prioriterede handlinger fra emails",
+    "empty": "Ingen AI-handlinger endnu"
+  },
+  "settings": {
+    "companyTitle": "Virksomhedsindstillinger",
+    "companySubtitle": "Tenant standarder og join-kode",
+    "tenantId": "Tenant ID",
+    "joinCode": "Join-kode",
+    "defaultLanguage": "Standard sprog",
+    "defaultTheme": "Standard tema",
+    "updateCta": "Opdater virksomhed",
+    "integrationsTitle": "Integrationer",
+    "integrationsSubtitle": "Forbind Meta Ads og website tracking",
+    "metaStatus": "Meta Ads",
+    "metaConnected": "Forbundet",
+    "metaNotConnected": "Ikke forbundet",
+    "metaConnect": "Forbind Meta",
+    "metaReconnect": "Forbind igen",
+    "metaPixelId": "Meta Pixel ID",
+    "metaCapiToken": "Meta CAPI token",
+    "metaCapiTokenSet": "Token gemt",
+    "allowedDomains": "Tilladte domæner",
+    "trackingKey": "Tracking-nøgle",
+    "rotateTrackingKey": "Skift nøgle",
+    "trackingScript": "Tracking-script",
+    "saveIntegrations": "Gem integrationer",
+    "useCurrentDomain": "Brug nuværende domæne",
+    "copyScript": "Kopier script",
+    "scriptCopied": "Script kopieret",
+    "scriptCopyFailed": "Kunne ikke kopiere script",
+    "aiActionsTitle": "AI Actions Library",
+    "aiActionsSubtitle": "Aktiver smarte actions pr. workflow",
+    "aiTone": "Tone of voice",
+    "aiTonePlaceholder": "Professionel, venlig, kortfattet",
+    "aiAutoSend": "Auto-send",
+    "aiAutoSendDraft": "Kladde til godkendelse",
+    "aiAutoSendAuto": "Send automatisk",
+    "aiBookingStart": "Booking start",
+    "aiBookingEnd": "Booking slut",
+    "aiTimezone": "Tidszone",
+    "aiEnable": "Aktiver",
+    "aiEnabled": "Aktiv",
+    "aiInputs": "Input",
+    "aiOutputs": "Output",
+    "aiSave": "Gem AI-indstillinger",
+    "aiSaved": "AI-indstillinger gemt"
+  },
+  "onboarding": {
+    "title": "Gør dit workspace klar",
+    "subtitle": "Sæt det vigtigste op så alt virker med det samme",
+    "next": "Næste",
+    "back": "Tilbage",
+    "finish": "Afslut opsætning",
+    "finishChecklist": "Du kan altid ændre dette senere i virksomhedsindstillinger.",
+    "adminOnlyTitle": "Admin-opsætning kræves",
+    "adminOnlySubtitle": "Bed din admin om at færdiggøre onboarding først.",
+    "backToDashboard": "Tilbage til dashboard",
+    "invitePlaceholder": "Email til invitation",
+    "roleUser": "Bruger",
+    "roleAdmin": "Admin",
+    "addInvite": "Tilføj invitation",
+    "steps": {
+      "basics": {
+        "label": "Basis",
+        "title": "Virksomhedsstandarder",
+        "subtitle": "Vælg standardsprog og tema"
+      },
+      "team": {
+        "label": "Team",
+        "title": "Inviter dit team",
+        "subtitle": "Tilføj kolleger så de kan få adgang"
+      },
+      "integrations": {
+        "label": "Integrationer",
+        "title": "Forbind marketing + tracking",
+        "subtitle": "Meta Ads, domæner og tracking-script"
+      },
+      "finish": {
+        "label": "Færdig",
+        "title": "Du er klar",
+        "subtitle": "Dit workspace er konfigureret"
+      }
+    }
+  },
+  "work": {
+    "historyTitle": "Arbejdshistorik",
+    "exportCta": "Eksporter CSV"
+  },
+  "notFound": {
+    "title": "404",
+    "subtitle": "Siden blev ikke fundet",
+    "back": "Tilbage til forsiden"
+  }
+}
+

@@ -2,7 +2,14 @@ import { randomUUID } from 'crypto';
 import { readStore, updateStore } from '../db';
 import type { StoreCompany, StoreData } from '../db';
 
-export function createCompany(input: { name: string; ownerUserId?: string; userLimit?: number }) {
+export function createCompany(input: {
+  name: string;
+  ownerUserId?: string;
+  userLimit?: number;
+  joinCode: string;
+  defaultLanguage: string;
+  defaultTheme: 'light' | 'dark';
+}) {
   const id = randomUUID();
   const createdAt = new Date().toISOString();
   updateStore((store: StoreData) => {
@@ -11,10 +18,22 @@ export function createCompany(input: { name: string; ownerUserId?: string; userL
       name: input.name,
       ownerUserId: input.ownerUserId,
       userLimit: input.userLimit,
+      joinCode: input.joinCode,
+      defaultLanguage: input.defaultLanguage,
+      defaultTheme: input.defaultTheme,
       createdAt,
     });
   });
-  return { id, name: input.name, ownerUserId: input.ownerUserId, userLimit: input.userLimit, createdAt };
+  return {
+    id,
+    name: input.name,
+    ownerUserId: input.ownerUserId,
+    userLimit: input.userLimit,
+    joinCode: input.joinCode,
+    defaultLanguage: input.defaultLanguage,
+    defaultTheme: input.defaultTheme,
+    createdAt,
+  };
 }
 
 export function listCompanies() {
@@ -25,6 +44,24 @@ export function listCompanies() {
 export function findCompanyById(id: string): StoreCompany | null {
   const store: StoreData = readStore();
   return store.companies.find((item) => item.id === id) || null;
+}
+
+export function findCompanyByJoinCode(joinCode: string): StoreCompany | null {
+  const store: StoreData = readStore();
+  return store.companies.find((item) => item.joinCode.toLowerCase() === joinCode.toLowerCase()) || null;
+}
+
+export function updateCompanySettings(
+  companyId: string,
+  input: { defaultLanguage?: string; defaultTheme?: 'light' | 'dark' }
+) {
+  updateStore((store: StoreData) => {
+    const company = store.companies.find((item) => item.id === companyId);
+    if (!company) return;
+    if (input.defaultLanguage) company.defaultLanguage = input.defaultLanguage;
+    if (input.defaultTheme) company.defaultTheme = input.defaultTheme;
+  });
+  return findCompanyById(companyId);
 }
 
 export function listCompaniesWithCounts() {

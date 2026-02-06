@@ -38,6 +38,17 @@ class ApiClient {
     if (token) {
       requestHeaders['Authorization'] = `Bearer ${token}`;
     }
+    const tenantRaw = localStorage.getItem('tenant_defaults');
+    if (tenantRaw) {
+      try {
+        const tenant = JSON.parse(tenantRaw) as { tenantId?: string };
+        if (tenant.tenantId) {
+          requestHeaders['X-Tenant-Id'] = tenant.tenantId;
+        }
+      } catch {
+        // ignore invalid tenant storage
+      }
+    }
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method,
@@ -79,6 +90,157 @@ class ApiClient {
     return this.request<{ data: User }>('/me');
   }
 
+  async registerCompany(input: {
+    companyName: string;
+    adminName: string;
+    email: string;
+    password: string;
+    language: string;
+    theme: string;
+  }) {
+    return this.request<{ tenant: TenantSettings; user: User }>('/auth/register-company', {
+      method: 'POST',
+      body: {
+        company_name: input.companyName,
+        admin_name: input.adminName,
+        email: input.email,
+        password: input.password,
+        language: input.language,
+        theme: input.theme,
+      },
+    });
+  }
+
+  async joinCompany(input: { joinCode: string; name: string; email: string; password: string }) {
+    return this.request<{ tenant: TenantSettings; user: User }>('/auth/join-company', {
+      method: 'POST',
+      body: {
+        join_code: input.joinCode,
+        name: input.name,
+        email: input.email,
+        password: input.password,
+      },
+    });
+  }
+
+  async updateCompanySettings(input: { language: string; theme: string }) {
+    return this.request<{ tenant: TenantSettings }>('/company/settings', {
+      method: 'PATCH',
+      body: input,
+    });
+  }
+
+  async getTenantIntegrations() {
+    return this.request<{
+      metaConnected: boolean;
+      metaAdAccountId: string | null;
+      metaBusinessId: string | null;
+      metaTokenExpiresAt: string | null;
+      websiteTrackingKey: string;
+      websiteDomains: string[];
+      metaPixelId: string | null;
+      metaCapiTokenSet: boolean;
+    }>('/tenant/integrations');
+  }
+
+  async updateTenantIntegrations(input: {
+    websiteDomains?: string[];
+    metaPixelId?: string | null;
+    metaCapiToken?: string | null;
+    rotateTrackingKey?: boolean;
+  }) {
+    return this.request<{
+      websiteTrackingKey: string;
+      websiteDomains: string[];
+      metaPixelId: string | null;
+      metaCapiTokenSet: boolean;
+    }>('/tenant/integrations', {
+      method: 'PATCH',
+      body: {
+        website_domains: input.websiteDomains,
+        meta_pixel_id: input.metaPixelId,
+        meta_capi_token: input.metaCapiToken,
+        rotate_tracking_key: input.rotateTrackingKey,
+      },
+    });
+  }
+
+  async getMetaStatus() {
+    return this.request<{
+      connected: boolean;
+      meta_ad_account_id?: string;
+      meta_business_id?: string;
+      token_expires_at?: string;
+    }>('/meta/status');
+  }
+
+  async startMetaConnect() {
+    return this.request<{ auth_url: string; state: string }>('/meta/connect');
+  }
+
+  async createInvitation(email: string, role: 'admin' | 'user' = 'user') {
+    return this.request<{ invitation_id: string; token: string; expires_at: string }>('/admin/invitations', {
+      method: 'POST',
+      body: { email, role },
+    });
+  }
+
+  async listAiActions() {
+    return this.request<{
+      data: Array<{
+        id: string;
+        name: string;
+        description: string;
+        inputs: string[];
+        outputs: string[];
+        defaultMode: 'draft' | 'auto';
+      }>;
+    }>('/ai/actions');
+  }
+
+  async getAiSettings() {
+    return this.request<{
+      data: {
+        enabledActions: string[];
+        toneOfVoice: string;
+        autoSendMode: 'draft' | 'auto';
+        bookingWindowStart: string;
+        bookingWindowEnd: string;
+        bookingTimezone: string;
+      };
+    }>('/ai/settings');
+  }
+
+  async updateAiSettings(input: {
+    enabledActions?: string[];
+    toneOfVoice?: string;
+    autoSendMode?: 'draft' | 'auto';
+    bookingWindowStart?: string;
+    bookingWindowEnd?: string;
+    bookingTimezone?: string;
+  }) {
+    return this.request<{
+      data: {
+        enabledActions: string[];
+        toneOfVoice: string;
+        autoSendMode: 'draft' | 'auto';
+        bookingWindowStart: string;
+        bookingWindowEnd: string;
+        bookingTimezone: string;
+      };
+    }>('/ai/settings', {
+      method: 'PATCH',
+      body: {
+        enabled_actions: input.enabledActions,
+        tone_of_voice: input.toneOfVoice,
+        auto_send_mode: input.autoSendMode,
+        booking_window_start: input.bookingWindowStart,
+        booking_window_end: input.bookingWindowEnd,
+        booking_timezone: input.bookingTimezone,
+      },
+    });
+  }
+
   // Customers
   async getCustomers(params?: { page?: number; limit?: number }) {
     const query = params ? `?page=${params.page || 1}&limit=${params.limit || 10}` : '';
@@ -117,13 +279,19 @@ class ApiClient {
 
 // Types
 export interface User {
-  id: number;
+  id: string;
   name: string;
   email: string;
-  role: string;
-  company?: {
-    name: string;
-  };
+  role: 'admin' | 'user';
+  company_id?: string;
+}
+
+export interface TenantSettings {
+  id: string;
+  name: string;
+  join_code: string;
+  default_language: string;
+  default_theme: string;
 }
 
 export interface Customer {

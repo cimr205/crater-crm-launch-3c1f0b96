@@ -1,7 +1,8 @@
 import { ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { isLocale } from '@/lib/i18n';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -9,6 +10,8 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { isAuthenticated, isLoading } = useAuth();
+  const params = useParams();
+  const locale = isLocale(params.locale) ? params.locale : 'en';
 
   if (isLoading) {
     return (
@@ -19,7 +22,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={`/${locale}/auth/login`} replace />;
   }
 
   return <>{children}</>;

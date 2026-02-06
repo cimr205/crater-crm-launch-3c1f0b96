@@ -20,6 +20,9 @@ export interface StoreCompany {
   name: string;
   ownerUserId?: string;
   userLimit?: number;
+  joinCode: string;
+  defaultLanguage: string;
+  defaultTheme: 'light' | 'dark';
   createdAt: string;
 }
 
@@ -310,6 +313,38 @@ export interface StoreMetaAutomationLog {
   createdAt: string;
 }
 
+export interface StoreTenantIntegration {
+  companyId: string;
+  websiteTrackingKey: string;
+  websiteDomains: string[];
+  metaPixelId?: string;
+  metaCapiToken?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoreWebsiteEvent {
+  id: string;
+  companyId: string;
+  eventName: string;
+  url?: string;
+  referrer?: string;
+  payload?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface StoreAiActionConfig {
+  companyId: string;
+  enabledActions: string[];
+  toneOfVoice: string;
+  autoSendMode: 'draft' | 'auto';
+  bookingWindowStart: string;
+  bookingWindowEnd: string;
+  bookingTimezone: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface StoreData {
   users: StoreUser[];
   companies: StoreCompany[];
@@ -338,6 +373,9 @@ export interface StoreData {
   metaConnections: StoreMetaConnection[];
   metaEntityChanges: StoreMetaEntityChange[];
   metaAutomationLogs: StoreMetaAutomationLog[];
+  tenantIntegrations: StoreTenantIntegration[];
+  websiteEvents: StoreWebsiteEvent[];
+  aiActionConfigs: StoreAiActionConfig[];
 }
 
 const emptyStore: StoreData = {
@@ -368,6 +406,9 @@ const emptyStore: StoreData = {
   metaConnections: [],
   metaEntityChanges: [],
   metaAutomationLogs: [],
+  tenantIntegrations: [],
+  websiteEvents: [],
+  aiActionConfigs: [],
 };
 
 function loadStore(): StoreData {
@@ -381,9 +422,15 @@ function loadStore(): StoreData {
     ...user,
     role: user.role || 'user',
   }));
+  const companies = (parsed.companies || []).map((company) => ({
+    ...company,
+    joinCode: company.joinCode || company.id.slice(0, 8).toUpperCase(),
+    defaultLanguage: company.defaultLanguage || 'en',
+    defaultTheme: company.defaultTheme === 'dark' ? 'dark' : 'light',
+  }));
   return {
     users,
-    companies: parsed.companies || [],
+    companies,
     oauthStates: parsed.oauthStates || [],
     emailOauthStates: parsed.emailOauthStates || [],
     metaOauthStates: parsed.metaOauthStates || [],
@@ -409,6 +456,9 @@ function loadStore(): StoreData {
     metaConnections: parsed.metaConnections || [],
     metaEntityChanges: parsed.metaEntityChanges || [],
     metaAutomationLogs: parsed.metaAutomationLogs || [],
+    tenantIntegrations: parsed.tenantIntegrations || [],
+    websiteEvents: parsed.websiteEvents || [],
+    aiActionConfigs: parsed.aiActionConfigs || [],
   };
 }
 
