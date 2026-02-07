@@ -44,7 +44,11 @@ app.use((req, res, next) => {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Vary', 'Origin');
       res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      const requestedHeaders = req.headers['access-control-request-headers'];
+      res.setHeader(
+        'Access-Control-Allow-Headers',
+        requestedHeaders ? String(requestedHeaders) : 'Content-Type, Authorization, X-Tenant-Id'
+      );
       res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,PUT,DELETE,OPTIONS');
     }
   }
