@@ -505,6 +505,19 @@ class ApiClient {
     }>(`/leads${query}`);
   }
 
+  async createLead(input: {
+    name: string;
+    phone: string;
+    email?: string;
+    company?: string;
+    status?: string;
+  }) {
+    return this.request<{ data: unknown }>('/leads', {
+      method: 'POST',
+      body: input,
+    });
+  }
+
   async updateLead(id: string, input: { status?: string; notes?: string; lastContactedAt?: string }) {
     return this.request<{ data: unknown }>(`/leads/${id}`, {
       method: 'PATCH',

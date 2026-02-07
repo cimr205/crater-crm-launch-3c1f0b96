@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { readStore, updateStore } from '../db';
+import { upsertCompany } from '../services/postgresCompanies';
 import type { StoreCompany, StoreData } from '../db';
 
 export function createCompany(input: {
@@ -23,6 +24,16 @@ export function createCompany(input: {
       defaultTheme: input.defaultTheme,
       createdAt,
     });
+  });
+  void upsertCompany({
+    id,
+    name: input.name,
+    ownerUserId: input.ownerUserId,
+    userLimit: input.userLimit,
+    joinCode: input.joinCode,
+    defaultLanguage: input.defaultLanguage,
+    defaultTheme: input.defaultTheme,
+    createdAt,
   });
   return {
     id,
@@ -55,12 +66,16 @@ export function updateCompanySettings(
   companyId: string,
   input: { defaultLanguage?: string; defaultTheme?: 'light' | 'dark' }
 ) {
-  updateStore((store: StoreData) => {
+  const updated = updateStore((store: StoreData) => {
     const company = store.companies.find((item) => item.id === companyId);
-    if (!company) return;
+    if (!company) return null;
     if (input.defaultLanguage) company.defaultLanguage = input.defaultLanguage;
     if (input.defaultTheme) company.defaultTheme = input.defaultTheme;
+    return { ...company };
   });
+  if (updated) {
+    void upsertCompany(updated);
+  }
   return findCompanyById(companyId);
 }
 

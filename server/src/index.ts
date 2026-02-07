@@ -5,6 +5,7 @@ import { registerRoutes } from './http/routes';
 import { ActivityRepositorySqlite } from './repositories/activityRepository';
 import { ManagedEmailService } from './services/email/emailService';
 import { syncUsers } from './services/postgresUsers';
+import { syncCompanies } from './services/postgresCompanies';
 import { startCampaignWorker } from './jobs/campaignWorker';
 import { startEmailAnalysisWorker } from './jobs/emailAnalysisWorker';
 import { startDeadlineWorker } from './jobs/deadlineWorker';
@@ -22,6 +23,7 @@ void (async () => {
   try {
     const store = readStore();
     await syncUsers(store.users);
+    await syncCompanies(store.companies);
   } catch (error) {
     console.error('Postgres user sync failed:', error);
   }

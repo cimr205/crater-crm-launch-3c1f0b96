@@ -31,6 +31,11 @@ export default function LeadsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingNotes, setEditingNotes] = useState('');
   const [editingStatus, setEditingStatus] = useState('cold');
+  const [newLeadName, setNewLeadName] = useState('');
+  const [newLeadPhone, setNewLeadPhone] = useState('');
+  const [newLeadEmail, setNewLeadEmail] = useState('');
+  const [newLeadCompany, setNewLeadCompany] = useState('');
+  const [newLeadStatus, setNewLeadStatus] = useState('cold');
 
   const loadLeads = useCallback(async () => {
     setLoading(true);
@@ -76,6 +81,28 @@ export default function LeadsPage() {
     }
   };
 
+  const createLead = async () => {
+    if (!newLeadName.trim() || !newLeadPhone.trim()) return;
+    setLoading(true);
+    try {
+      await api.createLead({
+        name: newLeadName.trim(),
+        phone: newLeadPhone.trim(),
+        email: newLeadEmail.trim() || undefined,
+        company: newLeadCompany.trim() || undefined,
+        status: newLeadStatus,
+      });
+      setNewLeadName('');
+      setNewLeadPhone('');
+      setNewLeadEmail('');
+      setNewLeadCompany('');
+      setNewLeadStatus('cold');
+      await loadLeads();
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -83,6 +110,49 @@ export default function LeadsPage() {
         <Button variant="outline" onClick={() => loadLeads()} disabled={loading}>
           Refresh
         </Button>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card/70 backdrop-blur p-4 space-y-3">
+        <div className="text-sm font-semibold">Add lead</div>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Input
+            placeholder="Name"
+            value={newLeadName}
+            onChange={(event) => setNewLeadName(event.target.value)}
+          />
+          <Input
+            placeholder="Phone"
+            value={newLeadPhone}
+            onChange={(event) => setNewLeadPhone(event.target.value)}
+          />
+          <Input
+            placeholder="Email"
+            value={newLeadEmail}
+            onChange={(event) => setNewLeadEmail(event.target.value)}
+          />
+          <Input
+            placeholder="Company"
+            value={newLeadCompany}
+            onChange={(event) => setNewLeadCompany(event.target.value)}
+          />
+          <select
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            value={newLeadStatus}
+            onChange={(event) => setNewLeadStatus(event.target.value)}
+          >
+            {statusOptions.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+          <div className="flex items-center gap-2">
+            <Button onClick={createLead} disabled={loading || !newLeadName.trim() || !newLeadPhone.trim()}>
+              Save lead
+            </Button>
+            <div className="text-xs text-muted-foreground">Name + phone required</div>
+          </div>
+        </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
