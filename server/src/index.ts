@@ -1,9 +1,10 @@
 import express from 'express';
-import { initStore } from './db';
+import { initStore, readStore } from './db';
 import { env } from './config/env';
 import { registerRoutes } from './http/routes';
 import { ActivityRepositorySqlite } from './repositories/activityRepository';
 import { ManagedEmailService } from './services/email/emailService';
+import { syncUsers } from './services/postgresUsers';
 import { startCampaignWorker } from './jobs/campaignWorker';
 import { startEmailAnalysisWorker } from './jobs/emailAnalysisWorker';
 import { startDeadlineWorker } from './jobs/deadlineWorker';
@@ -17,6 +18,14 @@ import { startAiAnalysisCron } from './services/ai/aiAnalysis';
 import { startAiDailyFocusCron } from './services/ai/aiDailyFocus';
 
 initStore();
+void (async () => {
+  try {
+    const store = readStore();
+    await syncUsers(store.users);
+  } catch (error) {
+    console.error('Postgres user sync failed:', error);
+  }
+})();
 
 const app = express();
 app.use(express.json({ limit: '10mb' }));

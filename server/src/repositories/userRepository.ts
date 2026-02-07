@@ -1,4 +1,5 @@
 import { readStore, updateStore } from '../db';
+import { upsertUser } from '../services/postgresUsers';
 
 export interface UserRecord {
   id: string;
@@ -65,30 +66,40 @@ export function createUser(input: {
       createdAt,
     });
   });
+  void upsertUser({ ...input, createdAt });
   return { ...input, createdAt };
 }
 
 export function updateUser(id: string, updates: Partial<UserRecord>) {
-  updateStore((store) => {
+  const updated = updateStore((store) => {
     const user = store.users.find((item) => item.id === id);
-    if (!user) return;
+    if (!user) return null;
     if (updates.name !== undefined) user.name = updates.name;
     if (updates.email !== undefined) user.email = updates.email;
     if (updates.passwordHash !== undefined) user.passwordHash = updates.passwordHash;
     if (updates.emailVerifiedAt !== undefined) user.emailVerifiedAt = updates.emailVerifiedAt;
     if (updates.role !== undefined) user.role = updates.role;
     if (updates.companyId !== undefined) user.companyId = updates.companyId;
+    return { ...user };
   });
+  if (updated) {
+    void upsertUser(updated);
+  }
 }
 
 export function markUserEmailVerified(userId: string) {
   const verifiedAt = new Date().toISOString();
-  updateStore((store) => {
+  const updated = updateStore((store) => {
     const user = store.users.find((item) => item.id === userId);
     if (user) {
       user.emailVerifiedAt = verifiedAt;
+      return { ...user };
     }
+    return null;
   });
+  if (updated) {
+    void upsertUser(updated);
+  }
   return verifiedAt;
 }
 
