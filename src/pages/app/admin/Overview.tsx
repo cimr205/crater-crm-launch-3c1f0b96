@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import StatCards from '@/components/StatCards';
 import DataTable from '@/components/DataTable';
 import { useI18n } from '@/lib/i18n';
@@ -13,6 +15,8 @@ export default function AdminOverviewPage() {
   const { t } = useI18n();
   const [data, setData] = useState<OverviewData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -37,6 +41,23 @@ export default function AdminOverviewPage() {
       active = false;
     };
   }, [t]);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const blob = await api.downloadAdminCompaniesHistoryCsv(month);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `all-companies-history-${month}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('admin.exportError'));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const stats = useMemo(() => {
     const companies = data?.companies ?? [];
@@ -79,9 +100,28 @@ export default function AdminOverviewPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">{t('admin.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('admin.subtitle')}</p>
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">{t('admin.title')}</h1>
+          <p className="text-sm text-muted-foreground">{t('admin.subtitle')}</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col">
+            <label className="text-xs text-muted-foreground" htmlFor="admin-export-month">
+              {t('admin.exportLabel')}
+            </label>
+            <Input
+              id="admin-export-month"
+              type="month"
+              value={month}
+              onChange={(event) => setMonth(event.target.value)}
+              className="w-40"
+            />
+          </div>
+          <Button onClick={handleExport} disabled={exporting}>
+            {exporting ? t('common.loading') : t('admin.exportCta')}
+          </Button>
+        </div>
       </div>
 
       {loading ? (

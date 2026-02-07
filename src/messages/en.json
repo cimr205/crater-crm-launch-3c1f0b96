@@ -128,6 +128,9 @@
     "title": "Admin overview",
     "subtitle": "All companies and users in the system",
     "loadError": "Could not load admin overview",
+    "exportLabel": "History month",
+    "exportCta": "Export all companies",
+    "exportError": "Could not export history",
     "stats": {
       "companies": "Companies",
       "users": "Users",
@@ -198,12 +201,22 @@
     "companyHistoryTitle": "Company history",
     "companyHistorySubtitle": "All completed work for your company",
     "monthLabel": "Month",
+    "yearLabel": "Year",
     "exportCta": "Export CSV",
     "loadError": "Could not load history",
     "exportError": "Could not export history",
     "empty": "No completed work for this period",
+    "emptyUsers": "No employee history for this period",
+    "emptyYear": "No history for this year",
     "stats": {
-      "total": "Completed"
+      "total": "Completed",
+      "users": "Employees",
+      "yearTotal": "Year completed"
+    },
+    "tabs": {
+      "company": "Company",
+      "users": "Employees",
+      "year": "Year"
     },
     "columns": {
       "type": "Type",
@@ -211,7 +224,12 @@
       "category": "Category",
       "source": "Source",
       "status": "Status",
-      "completed": "Completed"
+      "completed": "Completed",
+      "userName": "Employee",
+      "email": "Email",
+      "total": "Total",
+      "topCategory": "Top category",
+      "month": "Month"
     }
   },
   "notFound": {

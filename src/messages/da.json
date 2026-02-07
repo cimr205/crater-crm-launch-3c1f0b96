@@ -128,6 +128,9 @@
     "title": "Admin overblik",
     "subtitle": "Alle virksomheder og brugere i systemet",
     "loadError": "Kunne ikke hente admin overblik",
+    "exportLabel": "Historik måned",
+    "exportCta": "Eksporter alle virksomheder",
+    "exportError": "Kunne ikke eksportere historik",
     "stats": {
       "companies": "Virksomheder",
       "users": "Brugere",
@@ -198,12 +201,22 @@
     "companyHistoryTitle": "Virksomhedshistorik",
     "companyHistorySubtitle": "Alt afsluttet arbejde i din virksomhed",
     "monthLabel": "Måned",
+    "yearLabel": "År",
     "exportCta": "Eksporter CSV",
     "loadError": "Kunne ikke hente historik",
     "exportError": "Kunne ikke eksportere historik",
     "empty": "Ingen afsluttet arbejde i denne periode",
+    "emptyUsers": "Ingen medarbejderhistorik i denne periode",
+    "emptyYear": "Ingen historik for dette år",
     "stats": {
-      "total": "Afsluttet"
+      "total": "Afsluttet",
+      "users": "Medarbejdere",
+      "yearTotal": "År afsluttet"
+    },
+    "tabs": {
+      "company": "Virksomhed",
+      "users": "Medarbejdere",
+      "year": "År"
     },
     "columns": {
       "type": "Type",
@@ -211,7 +224,12 @@
       "category": "Kategori",
       "source": "Kilde",
       "status": "Status",
-      "completed": "Afsluttet"
+      "completed": "Afsluttet",
+      "userName": "Medarbejder",
+      "email": "Email",
+      "total": "Total",
+      "topCategory": "Top kategori",
+      "month": "Måned"
     }
   },
   "notFound": {

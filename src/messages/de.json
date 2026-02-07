@@ -124,6 +124,41 @@
     "aiSave": "AI-Einstellungen speichern",
     "aiSaved": "AI-Einstellungen gespeichert"
   },
+  "admin": {
+    "title": "Admin-Übersicht",
+    "subtitle": "Alle Unternehmen und Nutzer im System",
+    "loadError": "Admin-Übersicht konnte nicht geladen werden",
+    "exportLabel": "Historienmonat",
+    "exportCta": "Alle Unternehmen exportieren",
+    "exportError": "Historie konnte nicht exportiert werden",
+    "stats": {
+      "companies": "Unternehmen",
+      "users": "Benutzer",
+      "verifiedUsers": "Verifizierte Benutzer",
+      "admins": "Admins"
+    },
+    "tables": {
+      "companiesTitle": "Unternehmen",
+      "usersTitle": "Benutzer"
+    },
+    "columns": {
+      "companyName": "Unternehmen",
+      "joinCode": "Join-Code",
+      "users": "Benutzer",
+      "language": "Sprache",
+      "theme": "Theme",
+      "created": "Erstellt",
+      "userName": "Name",
+      "email": "E-Mail",
+      "role": "Rolle",
+      "companyId": "Unternehmens-ID",
+      "verified": "Verifiziert"
+    },
+    "emptyCompanies": "Noch keine Unternehmen",
+    "emptyUsers": "Noch keine Benutzer",
+    "verifiedYes": "Ja",
+    "verifiedNo": "Nein"
+  },
   "onboarding": {
     "title": "Workspace vorbereiten",
     "subtitle": "Richte die wichtigsten Punkte ein, damit alles sofort läuft",
@@ -166,12 +201,22 @@
     "companyHistoryTitle": "Unternehmenshistorie",
     "companyHistorySubtitle": "Alle abgeschlossenen Arbeiten im Unternehmen",
     "monthLabel": "Monat",
+    "yearLabel": "Jahr",
     "exportCta": "CSV exportieren",
     "loadError": "Historie konnte nicht geladen werden",
     "exportError": "Historie konnte nicht exportiert werden",
     "empty": "Keine abgeschlossene Arbeit in diesem Zeitraum",
+    "emptyUsers": "Keine Mitarbeiterhistorie in diesem Zeitraum",
+    "emptyYear": "Keine Historie für dieses Jahr",
     "stats": {
-      "total": "Abgeschlossen"
+      "total": "Abgeschlossen",
+      "users": "Mitarbeitende",
+      "yearTotal": "Jahresabschluss"
+    },
+    "tabs": {
+      "company": "Unternehmen",
+      "users": "Mitarbeitende",
+      "year": "Jahr"
     },
     "columns": {
       "type": "Typ",
@@ -179,7 +224,12 @@
       "category": "Kategorie",
       "source": "Quelle",
       "status": "Status",
-      "completed": "Abgeschlossen"
+      "completed": "Abgeschlossen",
+      "userName": "Mitarbeitende",
+      "email": "E-Mail",
+      "total": "Total",
+      "topCategory": "Top-Kategorie",
+      "month": "Monat"
     }
   },
   "notFound": {

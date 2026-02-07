@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import DataTable from '@/components/DataTable';
 import StatCards from '@/components/StatCards';
 import { useI18n } from '@/lib/i18n';
-import { api, WorkHistoryItem, WorkHistorySummary } from '@/lib/api';
+import { api, WorkHistoryItem, WorkHistoryMonth, WorkHistorySummary, WorkHistoryUser } from '@/lib/api';
 
 type HistoryResponse = {
   month: string;
@@ -14,8 +15,12 @@ type HistoryResponse = {
 export default function HistoryPage() {
   const { t } = useI18n();
   const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [year, setYear] = useState(() => new Date().getFullYear().toString());
+  const [tab, setTab] = useState('company');
   const [data, setData] = useState<HistoryResponse | null>(null);
   const [summary, setSummary] = useState<WorkHistorySummary | null>(null);
+  const [users, setUsers] = useState<WorkHistoryUser[] | null>(null);
+  const [yearData, setYearData] = useState<WorkHistoryMonth[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,11 +29,18 @@ export default function HistoryPage() {
     let active = true;
     setLoading(true);
     setError(null);
-    Promise.all([api.getCompanyHistory(month), api.getCompanyHistorySummary(month)])
-      .then(([history, totals]) => {
+    Promise.all([
+      api.getCompanyHistory(month),
+      api.getCompanyHistorySummary(month),
+      api.getCompanyHistoryByUser(month),
+      api.getCompanyHistoryYear(year),
+    ])
+      .then(([history, totals, byUser, yearResponse]) => {
         if (!active) return;
         setData(history);
         setSummary(totals.totals);
+        setUsers(byUser.users);
+        setYearData(yearResponse.months);
       })
       .catch((err) => {
         if (!active) return;
@@ -41,7 +53,7 @@ export default function HistoryPage() {
     return () => {
       active = false;
     };
-  }, [month, t]);
+  }, [month, year, t]);
 
   const stats = useMemo(() => {
     const totals = summary || {};
@@ -65,6 +77,31 @@ export default function HistoryPage() {
       })),
     [data]
   );
+
+  const userRows = useMemo(() => {
+    const pickTop = (totals: WorkHistorySummary) => {
+      const entry = Object.entries(totals).sort((a, b) => b[1] - a[1])[0];
+      return entry ? `${entry[0]} (${entry[1]})` : '—';
+    };
+    return (users ?? []).map((item) => ({
+      name: item.name || '—',
+      email: item.email,
+      total: String(item.total),
+      topCategory: pickTop(item.totals),
+    }));
+  }, [users]);
+
+  const yearRows = useMemo(() => {
+    const pickTop = (totals: WorkHistorySummary) => {
+      const entry = Object.entries(totals).sort((a, b) => b[1] - a[1])[0];
+      return entry ? `${entry[0]} (${entry[1]})` : '—';
+    };
+    return (yearData ?? []).map((item) => ({
+      month: item.month,
+      total: String(item.total),
+      topCategory: pickTop(item.totals),
+    }));
+  }, [yearData]);
 
   const handleExport = async () => {
     setExporting(true);
@@ -103,6 +140,20 @@ export default function HistoryPage() {
               className="w-40"
             />
           </div>
+          <div className="flex flex-col">
+            <label className="text-xs text-muted-foreground" htmlFor="history-year">
+              {t('work.yearLabel')}
+            </label>
+            <Input
+              id="history-year"
+              type="number"
+              min="2000"
+              max="2100"
+              value={year}
+              onChange={(event) => setYear(event.target.value)}
+              className="w-28"
+            />
+          </div>
           <Button onClick={handleExport} disabled={exporting}>
             {exporting ? t('common.loading') : t('work.exportCta')}
           </Button>
@@ -115,19 +166,65 @@ export default function HistoryPage() {
         <div className="text-sm text-destructive">{error}</div>
       ) : (
         <>
-          <StatCards items={stats} />
-          <DataTable
-            columns={[
-              { key: 'type', label: t('work.columns.type') },
-              { key: 'title', label: t('work.columns.title') },
-              { key: 'category', label: t('work.columns.category') },
-              { key: 'source', label: t('work.columns.source') },
-              { key: 'status', label: t('work.columns.status') },
-              { key: 'completed', label: t('work.columns.completed') },
-            ]}
-            rows={rows}
-            emptyLabel={t('work.empty')}
-          />
+          <Tabs value={tab} onValueChange={setTab}>
+            <TabsList>
+              <TabsTrigger value="company">{t('work.tabs.company')}</TabsTrigger>
+              <TabsTrigger value="users">{t('work.tabs.users')}</TabsTrigger>
+              <TabsTrigger value="year">{t('work.tabs.year')}</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="company" className="space-y-6">
+              <StatCards items={stats} />
+              <DataTable
+                columns={[
+                  { key: 'type', label: t('work.columns.type') },
+                  { key: 'title', label: t('work.columns.title') },
+                  { key: 'category', label: t('work.columns.category') },
+                  { key: 'source', label: t('work.columns.source') },
+                  { key: 'status', label: t('work.columns.status') },
+                  { key: 'completed', label: t('work.columns.completed') },
+                ]}
+                rows={rows}
+                emptyLabel={t('work.empty')}
+              />
+            </TabsContent>
+
+            <TabsContent value="users" className="space-y-6">
+              <StatCards
+                items={[
+                  { title: t('work.stats.users'), value: String(users?.length ?? 0) },
+                  { title: t('work.stats.total'), value: String(data?.data.length ?? 0) },
+                ]}
+              />
+              <DataTable
+                columns={[
+                  { key: 'name', label: t('work.columns.userName') },
+                  { key: 'email', label: t('work.columns.email') },
+                  { key: 'total', label: t('work.columns.total') },
+                  { key: 'topCategory', label: t('work.columns.topCategory') },
+                ]}
+                rows={userRows}
+                emptyLabel={t('work.emptyUsers')}
+              />
+            </TabsContent>
+
+            <TabsContent value="year" className="space-y-6">
+              <StatCards
+                items={[
+                  { title: t('work.stats.yearTotal'), value: String(yearRows.reduce((sum, row) => sum + Number(row.total), 0)) },
+                ]}
+              />
+              <DataTable
+                columns={[
+                  { key: 'month', label: t('work.columns.month') },
+                  { key: 'total', label: t('work.columns.total') },
+                  { key: 'topCategory', label: t('work.columns.topCategory') },
+                ]}
+                rows={yearRows}
+                emptyLabel={t('work.emptyYear')}
+              />
+            </TabsContent>
+          </Tabs>
         </>
       )}
     </div>

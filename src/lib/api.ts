@@ -291,6 +291,16 @@ class ApiClient {
     );
   }
 
+  async getCompanyHistoryByUser(month?: string) {
+    const query = month ? `?month=${month}` : '';
+    return this.request<{ month: string; users: WorkHistoryUser[] }>(`/company/work-items/history/users${query}`);
+  }
+
+  async getCompanyHistoryYear(year?: string) {
+    const query = year ? `?year=${year}` : '';
+    return this.request<{ year: string; months: WorkHistoryMonth[] }>(`/company/work-items/history/year${query}`);
+  }
+
   async downloadCompanyHistoryCsv(month?: string) {
     const token = this.getToken();
     const query = month ? `?month=${month}` : '';
@@ -299,6 +309,24 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
     const response = await fetch(`${API_BASE_URL}/company/work-items/history/export${query}`, {
+      method: 'GET',
+      headers,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to export CSV' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+    return response.blob();
+  }
+
+  async downloadAdminCompaniesHistoryCsv(month?: string) {
+    const token = this.getToken();
+    const query = month ? `?month=${month}` : '';
+    const headers: Record<string, string> = { Accept: 'text/csv' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const response = await fetch(`${API_BASE_URL}/admin/companies/history/export${query}`, {
       method: 'GET',
       headers,
     });
@@ -426,5 +454,19 @@ export interface WorkHistoryItem {
 }
 
 export type WorkHistorySummary = Record<string, number>;
+
+export interface WorkHistoryUser {
+  id: string;
+  name?: string;
+  email: string;
+  total: number;
+  totals: WorkHistorySummary;
+}
+
+export interface WorkHistoryMonth {
+  month: string;
+  total: number;
+  totals: WorkHistorySummary;
+}
 
 export const api = new ApiClient();

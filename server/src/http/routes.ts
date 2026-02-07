@@ -950,6 +950,45 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
     res.status(200).json({ companies, users });
   });
 
+  app.get('/api/admin/companies/history/export', (req: Request, res: Response) => {
+    const admin = requireAdmin(req, res);
+    if (!admin) return;
+    const month = typeof req.query.month === 'string' ? req.query.month : undefined;
+    const monthPrefix = resolveMonthPrefix(month);
+    const store = readStore();
+    const header = [
+      'company_id',
+      'company_name',
+      'id',
+      'type',
+      'title',
+      'status',
+      'category',
+      'source',
+      'completed_at',
+    ];
+    const rows = store.companies.flatMap((company) => {
+      const items = buildHistoryItems({ monthPrefix, companyId: company.id });
+      return items.map((item) =>
+        [
+          csvEscape(company.id),
+          csvEscape(company.name),
+          csvEscape(item.id),
+          csvEscape(item.type),
+          csvEscape(item.title),
+          csvEscape(item.status),
+          csvEscape(item.category),
+          csvEscape(item.source),
+          csvEscape(item.completedAt),
+        ].join(',')
+      );
+    });
+    const csv = [header.join(','), ...rows].join('\n');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="all-companies-history-${monthPrefix}.csv"`);
+    res.status(200).send(csv);
+  });
+
   app.get('/api/admin/companies/:id/users', (req: Request, res: Response) => {
     const admin = requireAdmin(req, res);
     if (!admin) return;
@@ -1523,6 +1562,54 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
     const monthPrefix = resolveMonthPrefix(month);
     const data = buildHistoryItems({ monthPrefix, companyId: user.companyId });
     res.status(200).json({ month: monthPrefix, totals: summarizeHistory(data) });
+  });
+
+  app.get('/api/company/work-items/history/users', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const month = typeof req.query.month === 'string' ? req.query.month : undefined;
+    const monthPrefix = resolveMonthPrefix(month);
+    const store = readStore();
+    const users = store.users
+      .filter((item) => item.companyId === user.companyId)
+      .map((item) => {
+        const items = buildHistoryItems({ monthPrefix, userId: item.id });
+        return {
+          id: item.id,
+          name: item.name,
+          email: item.email,
+          total: items.length,
+          totals: summarizeHistory(items),
+        };
+      });
+    res.status(200).json({ month: monthPrefix, users });
+  });
+
+  app.get('/api/company/work-items/history/year', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const year =
+      typeof req.query.year === 'string' && /^\d{4}$/.test(req.query.year)
+        ? req.query.year
+        : new Date().getFullYear().toString();
+    const months = Array.from({ length: 12 }, (_, idx) => `${year}-${String(idx + 1).padStart(2, '0')}`);
+    const data = months.map((monthPrefix) => {
+      const items = buildHistoryItems({ monthPrefix, companyId: user.companyId });
+      return {
+        month: monthPrefix,
+        total: items.length,
+        totals: summarizeHistory(items),
+      };
+    });
+    res.status(200).json({ year, months: data });
   });
 
   app.get('/api/company/work-items/history/export', (req: Request, res: Response) => {
