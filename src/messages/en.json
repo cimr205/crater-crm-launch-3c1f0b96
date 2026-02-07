@@ -45,7 +45,8 @@
     "hr": "HR",
     "employees": "Employees",
     "settings": "Settings",
-    "company": "Company"
+    "company": "Company",
+    "admin": "Admin"
   },
   "dashboard": {
     "title": "Overview",
@@ -121,6 +122,38 @@
     "aiOutputs": "Outputs",
     "aiSave": "Save AI settings",
     "aiSaved": "AI settings saved"
+  },
+  "admin": {
+    "title": "Admin overview",
+    "subtitle": "All companies and users in the system",
+    "loadError": "Could not load admin overview",
+    "stats": {
+      "companies": "Companies",
+      "users": "Users",
+      "verifiedUsers": "Verified users",
+      "admins": "Admins"
+    },
+    "tables": {
+      "companiesTitle": "Companies",
+      "usersTitle": "Users"
+    },
+    "columns": {
+      "companyName": "Company",
+      "joinCode": "Join code",
+      "users": "Users",
+      "language": "Language",
+      "theme": "Theme",
+      "created": "Created",
+      "userName": "Name",
+      "email": "Email",
+      "role": "Role",
+      "companyId": "Company ID",
+      "verified": "Verified"
+    },
+    "emptyCompanies": "No companies yet",
+    "emptyUsers": "No users yet",
+    "verifiedYes": "Yes",
+    "verifiedNo": "No"
   },
   "onboarding": {
     "title": "Get your workspace ready",

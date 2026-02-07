@@ -14,6 +14,7 @@ import LeadsPage from "@/pages/app/crm/Leads";
 import DealsPage from "@/pages/app/crm/Deals";
 import EmployeesPage from "@/pages/app/hr/Employees";
 import CompanySettingsPage from "@/pages/app/settings/CompanySettings";
+import AdminOverviewPage from "@/pages/app/admin/Overview";
 import OnboardingPage from "@/pages/app/Onboarding";
 import AppShell from "@/components/AppShell";
 import { I18nProvider, isLocale } from "@/lib/i18n";
@@ -22,6 +23,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useTenant } from "@/contexts/TenantContext";
 import { isOnboardingComplete } from "@/lib/onboarding";
 import { useEffect } from "react";
+import RoleGate from "@/components/RoleGate";
 
 const queryClient = new QueryClient();
 
@@ -89,6 +91,14 @@ const App = () => (
                   <Route path="crm/deals" element={<DealsPage />} />
                   <Route path="hr/employees" element={<EmployeesPage />} />
                   <Route path="settings/company" element={<CompanySettingsPage />} />
+                  <Route
+                    path="admin/overview"
+                    element={
+                      <RoleGate>
+                        <AdminOverviewPage />
+                      </RoleGate>
+                    }
+                  />
                   <Route path="*" element={<NotFound />} />
                 </Route>
               </Route>

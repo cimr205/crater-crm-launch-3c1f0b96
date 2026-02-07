@@ -15,9 +15,15 @@ initStore();
 const app = express();
 app.use(express.json({ limit: '10mb' }));
 
-const publicBaseUrl = process.env.PUBLIC_BASE_URL || 'https://www.aiagencydanmark.dk';
+const publicBaseUrl = process.env.PUBLIC_BASE_URL || 'https://aiagencydanmark.dk';
 const allowedOrigins = new Set(
-  [publicBaseUrl, 'http://localhost:5173', 'http://localhost:3000', 'http://localhost:8080'].filter(Boolean)
+  [
+    publicBaseUrl,
+    publicBaseUrl.replace('https://', 'https://www.'),
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'http://localhost:8080',
+  ].filter(Boolean)
 );
 const originPatterns = [
   /^https?:\/\/.*\.lovable\.app$/i,

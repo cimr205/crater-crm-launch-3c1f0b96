@@ -1,5 +1,4 @@
-const API_BASE_URL = 'https://www.aiagencydanmark.dk/api';
-
+const API_BASE_URL = 'https://api.aiagencydanmark.dk/api';
 interface ApiOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   body?: unknown;
@@ -88,6 +87,10 @@ class ApiClient {
 
   async getMe() {
     return this.request<{ data: User }>('/me');
+  }
+
+  async getAdminOverview() {
+    return this.request<{ companies: AdminCompany[]; users: AdminUser[] }>('/admin/overview');
   }
 
   async registerCompany(input: {
@@ -292,6 +295,26 @@ export interface TenantSettings {
   join_code: string;
   default_language: string;
   default_theme: string;
+}
+
+export interface AdminCompany {
+  id: string;
+  name: string;
+  joinCode?: string;
+  defaultLanguage?: string;
+  defaultTheme?: string;
+  userCount: number;
+  createdAt?: string;
+}
+
+export interface AdminUser {
+  id: string;
+  name?: string;
+  email: string;
+  role: string;
+  company_id?: string;
+  created_at: string;
+  email_verified: boolean;
 }
 
 export interface Customer {

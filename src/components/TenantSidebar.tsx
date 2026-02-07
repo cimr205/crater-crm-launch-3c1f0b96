@@ -1,7 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, Briefcase, Settings, UserSquare2 } from 'lucide-react';
+import { LayoutDashboard, Users, Briefcase, Settings, UserSquare2, ShieldCheck } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
+import { useAuth } from '@/contexts/AuthContext';
 
 const navItems = [
   { href: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard },
@@ -14,6 +15,8 @@ const navItems = [
 export default function TenantSidebar({ basePath }: { basePath: string }) {
   const location = useLocation();
   const { t } = useI18n();
+  const { user } = useAuth();
+  const adminItems = user?.role === 'admin' ? [{ href: 'admin/overview', labelKey: 'nav.admin', icon: ShieldCheck }] : [];
 
   return (
     <aside className="hidden lg:flex lg:flex-col w-64 border-r border-border bg-card/80 backdrop-blur">
@@ -22,7 +25,7 @@ export default function TenantSidebar({ basePath }: { basePath: string }) {
         <div className="text-xs text-muted-foreground mt-1">{t('nav.dashboard')}</div>
       </div>
       <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => {
+        {[...navItems, ...adminItems].map((item) => {
           const path = `${basePath}/${item.href}`;
           const isActive = location.pathname.startsWith(path);
           return (

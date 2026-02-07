@@ -45,7 +45,8 @@
     "hr": "HR",
     "employees": "Medarbejdere",
     "settings": "Indstillinger",
-    "company": "Virksomhed"
+    "company": "Virksomhed",
+    "admin": "Admin"
   },
   "dashboard": {
     "title": "Overblik",
@@ -121,6 +122,38 @@
     "aiOutputs": "Output",
     "aiSave": "Gem AI-indstillinger",
     "aiSaved": "AI-indstillinger gemt"
+  },
+  "admin": {
+    "title": "Admin overblik",
+    "subtitle": "Alle virksomheder og brugere i systemet",
+    "loadError": "Kunne ikke hente admin overblik",
+    "stats": {
+      "companies": "Virksomheder",
+      "users": "Brugere",
+      "verifiedUsers": "Bekræftede brugere",
+      "admins": "Admins"
+    },
+    "tables": {
+      "companiesTitle": "Virksomheder",
+      "usersTitle": "Brugere"
+    },
+    "columns": {
+      "companyName": "Virksomhed",
+      "joinCode": "Join-kode",
+      "users": "Brugere",
+      "language": "Sprog",
+      "theme": "Tema",
+      "created": "Oprettet",
+      "userName": "Navn",
+      "email": "Email",
+      "role": "Rolle",
+      "companyId": "Virksomheds-ID",
+      "verified": "Bekræftet"
+    },
+    "emptyCompanies": "Ingen virksomheder endnu",
+    "emptyUsers": "Ingen brugere endnu",
+    "verifiedYes": "Ja",
+    "verifiedNo": "Nej"
   },
   "onboarding": {
     "title": "Gør dit workspace klar",
