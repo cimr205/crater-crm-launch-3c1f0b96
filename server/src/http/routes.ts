@@ -12,7 +12,14 @@ import {
   deleteEmailVerification,
   findEmailVerification,
 } from '../repositories/emailVerificationRepository';
-import { createLead, listLeadsByOwner, updateLeadScore } from '../repositories/leadRepository';
+import {
+  createLead,
+  findLeadById,
+  listLeadsByCompany,
+  listLeadsByOwner,
+  updateLead,
+  updateLeadScore,
+} from '../repositories/leadRepository';
 import { createDeal, listDealsByOwner, summarizePipeline, updateDealStage } from '../repositories/dealRepository';
 import { TaskRepositorySqlite } from '../repositories/taskRepository';
 import { TaskService } from '../services/tasks/taskService';
@@ -59,6 +66,53 @@ import {
   logWebsiteEvent,
   updateTenantIntegration,
 } from '../repositories/tenantIntegrationRepository';
+import { getIntegrationProviders, findIntegrationProvider } from '../integrations/providers';
+import {
+  createIntegrationOAuthState,
+  deleteIntegrationOAuthState,
+  findIntegrationOAuthState,
+} from '../repositories/integrationOAuthStateRepository';
+import {
+  listIntegrationConnections,
+  removeIntegrationConnection,
+  upsertIntegrationConnection,
+} from '../repositories/integrationRepository';
+import { getUserFromSession } from '../auth';
+import { createSearchJob, listSearchJobs, updateSearchJob } from '../repositories/searchJobRepository';
+import { countIntegrationErrors } from '../repositories/integrationLogRepository';
+import {
+  createWorkflow,
+  listWorkflowSteps,
+  listWorkflows,
+  replaceWorkflowSteps,
+  updateWorkflow,
+} from '../repositories/workflowRepository';
+import { createWorkflowRun } from '../repositories/workflowRepository';
+import { triggerIntegrationConnected, triggerWorkflowsForLead, runWorkflowStep } from '../services/workflowEngine';
+import { listAiSuggestions, updateAiSuggestionStatus } from '../repositories/aiSuggestionRepository';
+import { createAiActivity, listAiActivity } from '../repositories/aiActivityRepository';
+import { approveWorkflowSuggestion } from '../services/ai/aiSuggestions';
+import { askAI } from '../services/ai/openaiClient';
+import { handleAiAction } from '../services/ai/aiActions';
+import { getCompanyContext } from '../services/ai/agentContext';
+import { getAiMemory, upsertAiMemory } from '../repositories/aiMemoryRepository';
+import { canRefreshDailyFocus, getLatestDailyFocus } from '../repositories/aiDailyFocusRepository';
+import { generateDailyFocus as generateDailyFocusService } from '../services/ai/aiDailyFocus';
+import {
+  createClowdBotSearchJob,
+  findClowdBotSearchJob,
+  listClowdBotSearchJobs,
+  updateClowdBotSearchJob,
+} from '../repositories/clowdBotSearchJobRepository';
+import { listClowdBotSearchRuns } from '../repositories/clowdBotSearchRunRepository';
+import { listClowdBotDeliveries } from '../repositories/clowdBotDeliveryRepository';
+import {
+  listClowdBotIntegrations,
+  removeClowdBotIntegration,
+  upsertClowdBotIntegration,
+} from '../repositories/clowdBotIntegrationRepository';
+import { runClowdBotJob } from '../services/clowdbot/clowdBotService';
+import { syncMetaLeadsForCompany } from '../jobs/metaLeadWorker';
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -173,6 +227,24 @@ function csvEscape(value: string | undefined) {
     return `"${text.replace(/"/g, '""')}"`;
   }
   return text;
+}
+
+function getDateKeyInTimezone(timeZone: string) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = formatter.formatToParts(new Date());
+  const map = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${map.year}-${map.month}-${map.day}`;
+}
+
+function getUserFromQueryToken(req: Request) {
+  const token = typeof req.query.token === 'string' ? req.query.token : undefined;
+  if (!token) return null;
+  return getUserFromSession(token);
 }
 
 const JOIN_CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -700,6 +772,278 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
     res.status(200).json(response);
   });
 
+  app.post('/api/meta/leads/sync', async (req: Request, res: Response) => {
+    const admin = requireAdmin(req, res);
+    if (!admin) return;
+    if (!admin.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    await syncMetaLeadsForCompany(admin.companyId);
+    res.status(200).json({ status: 'ok' });
+  });
+
+  app.get('/api/clowdbot/integrations', (req: Request, res: Response) => {
+    const admin = requireAdmin(req, res);
+    if (!admin) return;
+    if (!admin.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    res.status(200).json({ data: listClowdBotIntegrations(admin.companyId) });
+  });
+
+  app.post('/api/clowdbot/integrations/:provider', (req: Request, res: Response) => {
+    const admin = requireAdmin(req, res);
+    if (!admin) return;
+    if (!admin.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const schema = z.object({
+      auth_type: z.enum(['api_key', 'oauth', 'token']),
+      api_key: z.string().min(5).optional(),
+      access_token: z.string().min(5).optional(),
+      refresh_token: z.string().min(5).optional(),
+      instance_url: z.string().min(8).optional(),
+      project_id: z.string().min(2).optional(),
+      additional: z.record(z.string()).optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+    const provider = req.params.provider as
+      | 'apollo'
+      | 'google_places'
+      | 'hubspot'
+      | 'salesforce'
+      | 'hunter'
+      | 'clearbit';
+    try {
+      upsertClowdBotIntegration({
+        companyId: admin.companyId,
+        provider,
+        authType: parsed.data.auth_type,
+        config: {
+          apiKey: parsed.data.api_key,
+          accessToken: parsed.data.access_token,
+          refreshToken: parsed.data.refresh_token,
+          instanceUrl: parsed.data.instance_url,
+          projectId: parsed.data.project_id,
+          additional: parsed.data.additional,
+        },
+      });
+      res.status(200).json({ status: 'connected' });
+    } catch (error) {
+      res.status(400).json({ error: (error as Error).message });
+    }
+  });
+
+  app.delete('/api/clowdbot/integrations/:provider', (req: Request, res: Response) => {
+    const admin = requireAdmin(req, res);
+    if (!admin) return;
+    if (!admin.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const provider = req.params.provider as
+      | 'apollo'
+      | 'google_places'
+      | 'hubspot'
+      | 'salesforce'
+      | 'hunter'
+      | 'clearbit';
+    removeClowdBotIntegration(admin.companyId, provider);
+    res.status(200).json({ status: 'removed' });
+  });
+
+  app.get('/api/clowdbot/jobs', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    res.status(200).json({ data: listClowdBotSearchJobs(user.companyId) });
+  });
+
+  app.post('/api/clowdbot/jobs', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const schema = z.object({
+      name: z.string().min(2),
+      criteria: z
+        .object({
+          keywords: z.array(z.string()).optional(),
+          industries: z.array(z.string()).optional(),
+          countries: z.array(z.string()).optional(),
+          locations: z.array(z.string()).optional(),
+          company_size: z.string().optional(),
+          roles: z.array(z.string()).optional(),
+        })
+        .optional(),
+      sources: z.array(z.enum(['apollo', 'google_places', 'hubspot', 'salesforce', 'hunter', 'clearbit'])).min(1),
+      schedule: z
+        .object({
+          interval_minutes: z.number().min(10).max(1440).optional(),
+          deliver_hour: z.number().min(0).max(23).optional(),
+          deliver_timezone: z.string().min(3).optional(),
+        })
+        .optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+    const schedule = parsed.data.schedule || {};
+    const job = createClowdBotSearchJob({
+      companyId: user.companyId,
+      createdByUserId: user.id,
+      name: parsed.data.name,
+      status: 'active',
+      criteria: {
+        keywords: parsed.data.criteria?.keywords,
+        industries: parsed.data.criteria?.industries,
+        countries: parsed.data.criteria?.countries,
+        locations: parsed.data.criteria?.locations,
+        companySize: parsed.data.criteria?.company_size,
+        roles: parsed.data.criteria?.roles,
+      },
+      sources: parsed.data.sources,
+      schedule: {
+        intervalMinutes: schedule.interval_minutes || 30,
+        deliverHour: schedule.deliver_hour ?? 8,
+        deliverTimezone: schedule.deliver_timezone || 'Europe/Copenhagen',
+      },
+      lastDeliveryDate: getDateKeyInTimezone(schedule.deliver_timezone || 'Europe/Copenhagen'),
+    });
+    res.status(201).json({ data: job });
+  });
+
+  app.patch('/api/clowdbot/jobs/:id', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const schema = z.object({
+      status: z.enum(['active', 'paused']).optional(),
+      schedule: z
+        .object({
+          interval_minutes: z.number().min(10).max(1440).optional(),
+          deliver_hour: z.number().min(0).max(23).optional(),
+          deliver_timezone: z.string().min(3).optional(),
+        })
+        .optional(),
+      criteria: z
+        .object({
+          keywords: z.array(z.string()).optional(),
+          industries: z.array(z.string()).optional(),
+          countries: z.array(z.string()).optional(),
+          locations: z.array(z.string()).optional(),
+          company_size: z.string().optional(),
+          roles: z.array(z.string()).optional(),
+        })
+        .optional(),
+      sources: z.array(z.enum(['apollo', 'google_places', 'hubspot', 'salesforce', 'hunter', 'clearbit'])).optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+    const job = findClowdBotSearchJob(user.companyId, req.params.id);
+    if (!job) {
+      res.status(404).json({ error: 'Job not found' });
+      return;
+    }
+    const updated = updateClowdBotSearchJob(user.companyId, req.params.id, {
+      status: parsed.data.status ?? job.status,
+      criteria: parsed.data.criteria
+        ? {
+            keywords: parsed.data.criteria.keywords,
+            industries: parsed.data.criteria.industries,
+            countries: parsed.data.criteria.countries,
+            locations: parsed.data.criteria.locations,
+            companySize: parsed.data.criteria.company_size,
+            roles: parsed.data.criteria.roles,
+          }
+        : job.criteria,
+      sources: parsed.data.sources || job.sources,
+      schedule: parsed.data.schedule
+        ? {
+            intervalMinutes: parsed.data.schedule.interval_minutes ?? job.schedule.intervalMinutes,
+            deliverHour: parsed.data.schedule.deliver_hour ?? job.schedule.deliverHour,
+            deliverTimezone: parsed.data.schedule.deliver_timezone ?? job.schedule.deliverTimezone,
+          }
+        : job.schedule,
+    });
+    res.status(200).json({ data: updated });
+  });
+
+  app.post('/api/clowdbot/jobs/:id/run', async (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const job = findClowdBotSearchJob(user.companyId, req.params.id);
+    if (!job) {
+      res.status(404).json({ error: 'Job not found' });
+      return;
+    }
+    const created = await runClowdBotJob(job);
+    res.status(200).json({ status: 'ok', created });
+  });
+
+  app.get('/api/clowdbot/runs', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const jobId = typeof req.query.job_id === 'string' ? req.query.job_id : undefined;
+    res.status(200).json({ data: listClowdBotSearchRuns(user.companyId, jobId) });
+  });
+
+  app.get('/api/clowdbot/deliveries', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const jobId = typeof req.query.job_id === 'string' ? req.query.job_id : undefined;
+    res.status(200).json({ data: listClowdBotDeliveries(user.companyId, jobId) });
+  });
+
+  app.get('/api/clowdbot/status', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const jobs = listClowdBotSearchJobs(user.companyId);
+    res.status(200).json({
+      totals: {
+        jobs: jobs.length,
+        active_jobs: jobs.filter((job) => job.status === 'active').length,
+      },
+      integrations: listClowdBotIntegrations(user.companyId),
+    });
+  });
+
   app.patch('/api/company/settings', (req: Request, res: Response) => {
     const user = requireAdmin(req, res);
     if (!user) return;
@@ -808,6 +1152,395 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
     });
   });
 
+  app.get('/api/integrations/providers', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const providers = getIntegrationProviders().map((provider) => ({
+      id: provider.id,
+      label: provider.label,
+      supportsOAuth: provider.supportsOAuth,
+    }));
+    const connections = listIntegrationConnections(user.id);
+    res.status(200).json({ providers, connections });
+  });
+
+  app.get('/workflows', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const companyId = user.companyId || user.id;
+    const workflows = listWorkflows(companyId).map((workflow) => ({
+      ...workflow,
+      steps: listWorkflowSteps(workflow.id),
+    }));
+    const suggestions = listAiSuggestions(companyId, 'pending');
+    res.status(200).json({ data: workflows, suggestions });
+  });
+
+  app.post('/workflows', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const schema = z.object({
+      name: z.string().min(2),
+      trigger_type: z.enum(['new_lead_created', 'integration_connected', 'manual_trigger']),
+      steps: z.array(
+        z.object({
+          type: z.enum(['condition', 'action', 'delay']),
+          config: z.record(z.unknown()),
+          step_order: z.number().min(0),
+        })
+      ),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+    const workflow = createWorkflow({
+      userId: user.companyId || user.id,
+      name: parsed.data.name,
+      status: 'active',
+      triggerType: parsed.data.trigger_type,
+    });
+    const steps = parsed.data.steps.map((step) => ({
+      id: randomUUID(),
+      workflowId: workflow.id,
+      type: step.type,
+      config: step.config,
+      stepOrder: step.step_order,
+    }));
+    replaceWorkflowSteps(workflow.id, steps);
+    res.status(201).json({ data: { ...workflow, steps } });
+  });
+
+  app.post('/workflows/:id/activate', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const workflow = listWorkflows(user.companyId || user.id).find((item) => item.id === req.params.id);
+    if (!workflow) {
+      res.status(404).json({ error: 'Workflow not found' });
+      return;
+    }
+    const updated = updateWorkflow(req.params.id, { status: 'active' });
+    res.status(200).json({ data: updated });
+  });
+
+  app.post('/workflows/:id/pause', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const workflow = listWorkflows(user.companyId || user.id).find((item) => item.id === req.params.id);
+    if (!workflow) {
+      res.status(404).json({ error: 'Workflow not found' });
+      return;
+    }
+    const updated = updateWorkflow(req.params.id, { status: 'paused' });
+    res.status(200).json({ data: updated });
+  });
+
+  app.post('/workflow/run/test', async (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const schema = z.object({
+      workflow_id: z.string().min(4),
+      lead_id: z.string().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+    const workflow = listWorkflows(user.companyId || user.id).find((item) => item.id === parsed.data.workflow_id);
+    if (!workflow) {
+      res.status(404).json({ error: 'Workflow not found' });
+      return;
+    }
+    const run = createWorkflowRun({
+      workflowId: workflow.id,
+      leadId: parsed.data.lead_id,
+      status: 'running',
+      currentStep: 0,
+    });
+    await runWorkflowStep(run.id, workflow.id, parsed.data.lead_id);
+    res.status(200).json({ status: 'ok', run_id: run.id });
+  });
+
+  app.post('/ai/approve/:id', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const companyId = user.companyId || user.id;
+    const suggestion = listAiSuggestions(companyId).find((item) => item.id === req.params.id);
+    if (!suggestion) {
+      res.status(404).json({ error: 'Suggestion not found' });
+      return;
+    }
+    if (suggestion.type !== 'workflow') {
+      updateAiSuggestionStatus(suggestion.id, 'approved');
+      res.status(200).json({ status: 'approved' });
+      return;
+    }
+    const workflowJson = suggestion.json as { name: string; trigger: string; steps: Array<Record<string, unknown>> };
+    approveWorkflowSuggestion({
+      suggestionId: suggestion.id,
+      companyId,
+      workflowJson,
+    });
+    res.status(200).json({ status: 'approved' });
+  });
+
+  app.post('/ai/reject/:id', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const companyId = user.companyId || user.id;
+    const suggestion = listAiSuggestions(companyId).find((item) => item.id === req.params.id);
+    if (!suggestion) {
+      res.status(404).json({ error: 'Suggestion not found' });
+      return;
+    }
+    updateAiSuggestionStatus(suggestion.id, 'rejected');
+    res.status(200).json({ status: 'rejected' });
+  });
+
+  app.get('/api/ai/activity', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const companyId = user.companyId || user.id;
+    res.status(200).json({ data: listAiActivity(companyId) });
+  });
+
+  app.post('/api/ai/chat', async (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const schema = z.object({ prompt: z.string().min(2) });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+    const companyId = user.companyId || user.id;
+    const context = getCompanyContext(companyId);
+    const memory = getAiMemory(companyId);
+    const system = `You are an assistant for a SaaS lead system. 
+Use the provided context and memory summary to answer. 
+Return JSON only: { "message": "...", "action": { "type": "suggest_workflow|create_workflow", "payload": { "name": "...", "trigger": "...", "steps": [], "title": "...", "description": "..." } } }.
+Only include action when explicitly asked.`;
+    try {
+      const content = await askAI(
+        JSON.stringify({ prompt: parsed.data.prompt, context, memory: memory?.summary || '' }),
+        system
+      );
+      const parsedResponse = JSON.parse(content) as {
+        message: string;
+        action?: { type: 'suggest_workflow' | 'create_workflow'; payload: Record<string, unknown> };
+      };
+      handleAiAction(companyId, parsedResponse);
+      upsertAiMemory(companyId, parsedResponse.message.slice(0, 1000));
+      res.status(200).json(parsedResponse);
+    } catch (error) {
+      res.status(400).json({ error: (error as Error).message });
+    }
+  });
+
+  app.get('/api/ai/daily-focus', async (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const companyId = user.companyId || user.id;
+    const existing = getLatestDailyFocus(companyId);
+    const focus = existing || (await generateDailyFocusService(companyId));
+    res.status(200).json({ data: focus });
+  });
+
+  app.post('/api/ai/daily-focus/refresh', async (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const companyId = user.companyId || user.id;
+    if (!canRefreshDailyFocus(companyId)) {
+      res.status(429).json({ error: 'Daily focus refresh limit reached' });
+      return;
+    }
+    const focus = await generateDailyFocusService(companyId, true);
+    res.status(200).json({ data: focus });
+  });
+
+  app.get('/api/search-jobs', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    res.status(200).json({ data: listSearchJobs(user.id) });
+  });
+
+  app.post('/api/search-jobs', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const schema = z.object({
+      provider: z.string().min(2),
+      query: z.string().min(2),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+    const job = createSearchJob({
+      userId: user.id,
+      provider: parsed.data.provider,
+      query: parsed.data.query,
+      status: 'active',
+    });
+    res.status(201).json({ data: job });
+  });
+
+  app.patch('/api/search-jobs/:id', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const schema = z.object({
+      status: z.enum(['active', 'paused']).optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+    const job = listSearchJobs(user.id).find((item) => item.id === req.params.id);
+    if (!job) {
+      res.status(404).json({ error: 'Job not found' });
+      return;
+    }
+    const updated = updateSearchJob(req.params.id, {
+      status: parsed.data.status,
+    });
+    res.status(200).json({ data: updated });
+  });
+
+  app.get('/system/status', (_req: Request, res: Response) => {
+    const store = readStore();
+    const activeJobs = store.searchJobs.filter((job) => job.status === 'active');
+    const lastRun = activeJobs
+      .map((job) => job.lastRunAt)
+      .filter(Boolean)
+      .sort()
+      .slice(-1)[0];
+    res.status(200).json({
+      active_jobs: activeJobs.length,
+      last_run: lastRun || null,
+      error_count: countIntegrationErrors(),
+      worker: {
+        leadWorker: true,
+      },
+    });
+  });
+
+  app.get('/auth/:provider/start', (req: Request, res: Response) => {
+    const user = getUserFromQueryToken(req);
+    if (!user) {
+      res.status(401).send('Unauthorized');
+      return;
+    }
+    const provider = findIntegrationProvider(req.params.provider);
+    if (!provider) {
+      res.status(404).send('Provider not found');
+      return;
+    }
+    if (!provider.supportsOAuth || !provider.authorizeUrl || !provider.clientId) {
+      res.status(400).send('Provider does not support OAuth yet');
+      return;
+    }
+    const expiresAt = new Date(Date.now() + 1000 * 60 * 10).toISOString();
+    const stateRecord = createIntegrationOAuthState({
+      userId: user.id,
+      provider: provider.id,
+      expiresAt,
+    });
+    const params = new URLSearchParams({
+      client_id: provider.clientId,
+      response_type: 'code',
+      scope: (provider.scopes || []).join(' '),
+      state: stateRecord.state,
+      redirect_uri: provider.extraParams?.redirect_uri || '',
+    });
+    Object.entries(provider.extraParams || {}).forEach(([key, value]) => {
+      if (key !== 'redirect_uri') params.set(key, value);
+    });
+    const authUrl = `${provider.authorizeUrl}?${params.toString()}`;
+    res.redirect(authUrl);
+  });
+
+  app.get('/auth/:provider/callback', async (req: Request, res: Response) => {
+    const { provider: providerId } = req.params;
+    const code = typeof req.query.code === 'string' ? req.query.code : undefined;
+    const state = typeof req.query.state === 'string' ? req.query.state : undefined;
+    const provider = findIntegrationProvider(providerId);
+    if (!provider || !provider.supportsOAuth) {
+      res.status(400).send('Integration not supported');
+      return;
+    }
+    if (!code || !state) {
+      res.status(400).send('Missing code or state');
+      return;
+    }
+    const stateRecord = findIntegrationOAuthState(state);
+    if (!stateRecord || stateRecord.expiresAt < new Date().toISOString()) {
+      res.status(400).send('Invalid or expired state');
+      return;
+    }
+    if (!provider.tokenUrl || !provider.clientSecret || !provider.clientId) {
+      res.status(400).send('Provider not configured');
+      return;
+    }
+    try {
+      const payload = new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        client_id: provider.clientId,
+        client_secret: provider.clientSecret,
+        redirect_uri: provider.extraParams?.redirect_uri || '',
+      });
+      const tokenResponse = await fetch(provider.tokenUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: payload,
+      });
+      if (!tokenResponse.ok) {
+        res.status(400).send('Token exchange failed');
+        return;
+      }
+      const tokenData = (await tokenResponse.json()) as {
+        access_token?: string;
+        refresh_token?: string;
+        expires_in?: number;
+      };
+      upsertIntegrationConnection({
+        userId: stateRecord.userId,
+        provider: provider.id,
+        tokens: {
+          accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token,
+          expiresAt: tokenData.expires_in ? Date.now() + tokenData.expires_in * 1000 : undefined,
+        },
+      });
+      triggerIntegrationConnected(stateRecord.userId);
+      deleteIntegrationOAuthState(stateRecord.id);
+      res.status(200).send(`<!DOCTYPE html>
+<html>
+  <body>
+    <script>
+      if (window.opener) {
+        window.opener.postMessage({ type: 'integration:connected', provider: '${provider.id}' }, '*');
+        window.close();
+      }
+    </script>
+    Connected. You can close this window.
+  </body>
+</html>`);
+    } catch {
+      res.status(400).send('Integration failed');
+    }
+  });
+
+  app.delete('/api/integrations/:provider', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    removeIntegrationConnection(user.id, req.params.provider);
+    res.status(200).json({ status: 'disconnected' });
+  });
+
   app.patch('/api/tenant/integrations', (req: Request, res: Response) => {
     const admin = requireAdmin(req, res);
     if (!admin) return;
@@ -910,7 +1643,13 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
     }
 
     const userId = randomUUID();
-    const company = createCompany({ name: parsed.data.company_name, ownerUserId: userId });
+    const company = createCompany({
+      name: parsed.data.company_name,
+      ownerUserId: userId,
+      joinCode: generateUniqueJoinCode(),
+      defaultLanguage: 'en',
+      defaultTheme: 'light',
+    });
     const passwordHash = await hashPassword(parsed.data.password);
     createUser({
       id: userId,
@@ -1161,7 +1900,7 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
     res.status(200).json(result);
   });
 
-  app.post('/api/leads', (req: Request, res: Response) => {
+  app.post('/api/leads', async (req: Request, res: Response) => {
     const user = requireAuth(req, res);
     if (!user) return;
 
@@ -1181,12 +1920,14 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
     const lead = createLead({
       id: randomUUID(),
       ownerUserId: user.id,
+      companyId: user.companyId,
       name: parsed.data.name,
       phone: parsed.data.phone,
       email: parsed.data.email,
       company: parsed.data.company,
       status: parsed.data.status || 'cold',
     });
+    await triggerWorkflowsForLead(user.companyId || user.id, lead.id);
 
     if (user.companyId) {
       createNotification({
@@ -1203,11 +1944,23 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
   app.get('/api/leads', (req: Request, res: Response) => {
     const user = requireAuth(req, res);
     if (!user) return;
-    const leads = listLeadsByOwner(user.id);
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+    const source = typeof req.query.source === 'string' ? req.query.source : undefined;
+    const query = typeof req.query.q === 'string' ? req.query.q.toLowerCase() : undefined;
+    const base = user.companyId ? listLeadsByCompany(user.companyId) : listLeadsByOwner(user.id);
+    const leads = base.filter((lead) => {
+      if (status && lead.status !== status) return false;
+      if (source && lead.source !== source) return false;
+      if (query) {
+        const haystack = `${lead.name} ${lead.email || ''} ${lead.company || ''}`.toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+      return true;
+    });
     res.status(200).json({ data: leads });
   });
 
-  app.post('/api/leads/import', upload.single('file'), (req: Request, res: Response) => {
+  app.post('/api/leads/import', upload.single('file'), async (req: Request, res: Response) => {
     const user = requireAuth(req, res);
     if (!user) return;
 
@@ -1246,6 +1999,7 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
         return createLead({
           id: randomUUID(),
           ownerUserId: user.id,
+          companyId: user.companyId,
           name,
           phone,
           email,
@@ -1254,6 +2008,11 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
         });
       })
       .filter(Boolean);
+    for (const lead of created) {
+      if (lead) {
+        await triggerWorkflowsForLead(user.companyId || user.id, lead.id);
+      }
+    }
 
     res.status(201).json({ imported: created.length });
   });
@@ -1286,6 +2045,41 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
 
     updateLeadScore(req.params.id, score);
     res.status(200).json({ lead_id: req.params.id, score });
+  });
+
+  app.patch('/api/leads/:id', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const schema = z.object({
+      status: z.string().optional(),
+      notes: z.string().optional(),
+      last_contacted_at: z.string().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+    const lead = findLeadById(req.params.id);
+    if (!lead) {
+      res.status(404).json({ error: 'Lead not found' });
+      return;
+    }
+    if (user.companyId) {
+      if (lead.companyId !== user.companyId) {
+        res.status(403).json({ error: 'Forbidden' });
+        return;
+      }
+    } else if (lead.ownerUserId !== user.id) {
+      res.status(403).json({ error: 'Forbidden' });
+      return;
+    }
+    const updated = updateLead(req.params.id, {
+      status: parsed.data.status,
+      notes: parsed.data.notes,
+      lastContactedAt: parsed.data.last_contacted_at,
+    });
+    res.status(200).json({ data: updated });
   });
 
   app.post('/api/deals', (req: Request, res: Response) => {
@@ -1652,6 +2446,28 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
         deals: deals.length,
         open_tasks: tasks.length,
       },
+    });
+  });
+
+  app.get('/api/lead-dashboard', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const leads = user.companyId ? listLeadsByCompany(user.companyId) : listLeadsByOwner(user.id);
+    const todayPrefix = new Date().toISOString().slice(0, 10);
+    const leadsToday = leads.filter((lead) => lead.createdAt.startsWith(todayPrefix)).length;
+    const activeJobs = user.companyId
+      ? listClowdBotSearchJobs(user.companyId).filter((job) => job.status === 'active').length
+      : 0;
+    res.status(200).json({
+      totals: {
+        leads: leads.length,
+        leads_today: leadsToday,
+        active_clowdbot_jobs: activeJobs,
+      },
+      recent: leads
+        .slice()
+        .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+        .slice(0, 10),
     });
   });
 

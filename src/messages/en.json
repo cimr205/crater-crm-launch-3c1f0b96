@@ -42,6 +42,9 @@
     "crm": "CRM",
     "leads": "Leads",
     "deals": "Deals",
+    "clowdbot": "ClowdBot",
+    "integrations": "Integrations",
+    "workflows": "Workflows",
     "hr": "HR",
     "employees": "Employees",
     "history": "History",
@@ -55,7 +58,9 @@
     "statPipeline": "Pipeline value",
     "statLeads": "New leads",
     "statTasks": "Open tasks",
-    "statRevenue": "Revenue forecast"
+    "statRevenue": "Revenue forecast",
+    "statLeadsToday": "Leads today",
+    "statActiveJobs": "Active searches"
   },
   "crm": {
     "leadsTitle": "Leads",

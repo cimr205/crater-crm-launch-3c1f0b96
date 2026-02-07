@@ -1,4 +1,5 @@
 const API_BASE_URL = 'https://api.aiagencydanmark.dk/api';
+export const BACKEND_BASE_URL = API_BASE_URL.replace(/\/api$/, '');
 interface ApiOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
   body?: unknown;
@@ -244,6 +245,191 @@ class ApiClient {
     });
   }
 
+  async syncMetaLeads() {
+    return this.request<{ status: string }>('/meta/leads/sync', { method: 'POST' });
+  }
+
+  async getClowdBotStatus() {
+    return this.request<{
+      totals: { jobs: number; active_jobs: number };
+      integrations: Array<{ provider: string; authType: string; status: string; updatedAt: string }>;
+    }>('/clowdbot/status');
+  }
+
+  async listClowdBotIntegrations() {
+    return this.request<{ data: Array<{ provider: string; authType: string; status: string; updatedAt: string }> }>(
+      '/clowdbot/integrations'
+    );
+  }
+
+  async connectClowdBotIntegration(input: {
+    provider: string;
+    authType: 'api_key' | 'oauth' | 'token';
+    apiKey?: string;
+    accessToken?: string;
+    refreshToken?: string;
+    instanceUrl?: string;
+    projectId?: string;
+    additional?: Record<string, string>;
+  }) {
+    return this.request<{ status: string }>(`/clowdbot/integrations/${input.provider}`, {
+      method: 'POST',
+      body: {
+        auth_type: input.authType,
+        api_key: input.apiKey,
+        access_token: input.accessToken,
+        refresh_token: input.refreshToken,
+        instance_url: input.instanceUrl,
+        project_id: input.projectId,
+        additional: input.additional,
+      },
+    });
+  }
+
+  async removeClowdBotIntegration(provider: string) {
+    return this.request<{ status: string }>(`/clowdbot/integrations/${provider}`, { method: 'DELETE' });
+  }
+
+  async listClowdBotJobs() {
+    return this.request<{ data: Array<Record<string, unknown>> }>('/clowdbot/jobs');
+  }
+
+  async createClowdBotJob(input: {
+    name: string;
+    keywords?: string[];
+    industries?: string[];
+    countries?: string[];
+    locations?: string[];
+    companySize?: string;
+    roles?: string[];
+    sources: string[];
+    intervalMinutes?: number;
+    deliverHour?: number;
+    deliverTimezone?: string;
+  }) {
+    return this.request<{ data: Record<string, unknown> }>('/clowdbot/jobs', {
+      method: 'POST',
+      body: {
+        name: input.name,
+        criteria: {
+          keywords: input.keywords,
+          industries: input.industries,
+          countries: input.countries,
+          locations: input.locations,
+          company_size: input.companySize,
+          roles: input.roles,
+        },
+        sources: input.sources,
+        schedule: {
+          interval_minutes: input.intervalMinutes,
+          deliver_hour: input.deliverHour,
+          deliver_timezone: input.deliverTimezone,
+        },
+      },
+    });
+  }
+
+  async updateClowdBotJob(jobId: string, input: { status?: 'active' | 'paused' }) {
+    return this.request<{ data: Record<string, unknown> }>(`/clowdbot/jobs/${jobId}`, {
+      method: 'PATCH',
+      body: input,
+    });
+  }
+
+  async runClowdBotJob(jobId: string) {
+    return this.request<{ status: string; created: number }>(`/clowdbot/jobs/${jobId}/run`, { method: 'POST' });
+  }
+
+  async listIntegrationProviders() {
+    return this.request<{
+      providers: Array<{ id: string; label: string; supportsOAuth: boolean }>;
+      connections: Array<{ provider: string; connectedAt: string; updatedAt: string }>;
+    }>('/integrations/providers');
+  }
+
+  async disconnectIntegration(provider: string) {
+    return this.request<{ status: string }>(`/integrations/${provider}`, { method: 'DELETE' });
+  }
+
+  async listWorkflows() {
+    return this.request<{ data: Array<Record<string, unknown>>; suggestions?: Array<Record<string, unknown>> }>(
+      '/workflows'
+    );
+  }
+
+  async createWorkflow(input: {
+    name: string;
+    triggerType: 'new_lead_created' | 'integration_connected' | 'manual_trigger';
+    steps: Array<{ type: 'condition' | 'action' | 'delay'; config: Record<string, unknown>; stepOrder: number }>;
+  }) {
+    return this.request<{ data: Record<string, unknown> }>('/workflows', {
+      method: 'POST',
+      body: {
+        name: input.name,
+        trigger_type: input.triggerType,
+        steps: input.steps.map((step) => ({
+          type: step.type,
+          config: step.config,
+          step_order: step.stepOrder,
+        })),
+      },
+    });
+  }
+
+  async activateWorkflow(id: string) {
+    return this.request<{ data: Record<string, unknown> }>(`/workflows/${id}/activate`, { method: 'POST' });
+  }
+
+  async pauseWorkflow(id: string) {
+    return this.request<{ data: Record<string, unknown> }>(`/workflows/${id}/pause`, { method: 'POST' });
+  }
+
+  async runWorkflowTest(workflowId: string, leadId?: string) {
+    return this.request<{ status: string; run_id: string }>('/workflow/run/test', {
+      method: 'POST',
+      body: { workflow_id: workflowId, lead_id: leadId },
+    });
+  }
+
+  async approveAiSuggestion(id: string) {
+    return this.request<{ status: string }>(`/ai/approve/${id}`, { method: 'POST' });
+  }
+
+  async rejectAiSuggestion(id: string) {
+    return this.request<{ status: string }>(`/ai/reject/${id}`, { method: 'POST' });
+  }
+
+  async getAiActivity() {
+    return this.request<{ data: Array<{ id: string; message: string; type: string; createdAt: string }> }>(
+      '/api/ai/activity'
+    );
+  }
+
+  async aiChat(message: string) {
+    return this.request<{ message: string; action?: Record<string, unknown> }>('/api/ai/chat', {
+      method: 'POST',
+      body: { prompt: message },
+    });
+  }
+
+  async getDailyFocus() {
+    return this.request<{ data: { json: Array<Record<string, unknown>> } | null }>('/api/ai/daily-focus');
+  }
+
+  async refreshDailyFocus() {
+    return this.request<{ data: { json: Array<Record<string, unknown>> } | null }>(
+      '/api/ai/daily-focus/refresh',
+      { method: 'POST' }
+    );
+  }
+
+  getIntegrationAuthUrl(provider: string) {
+    const token = this.getToken();
+    if (!token) return null;
+    const params = new URLSearchParams({ token });
+    return `${BACKEND_BASE_URL}/auth/${provider}/start?${params.toString()}`;
+  }
+
   // Customers
   async getCustomers(params?: { page?: number; limit?: number }) {
     const query = params ? `?page=${params.page || 1}&limit=${params.limit || 10}` : '';
@@ -277,6 +463,55 @@ class ApiClient {
   // Dashboard
   async getDashboard() {
     return this.request<DashboardData>('/dashboard');
+  }
+
+  async getLeadDashboard() {
+    return this.request<{
+      totals: { leads: number; leads_today: number; active_clowdbot_jobs: number };
+      recent: Array<{
+        id: string;
+        name: string;
+        email?: string;
+        company?: string;
+        status: string;
+        leadScore: number;
+        source?: string;
+        createdAt: string;
+      }>;
+    }>('/lead-dashboard');
+  }
+
+  async listLeads(params?: { status?: string; source?: string; q?: string }) {
+    const search = new URLSearchParams();
+    if (params?.status) search.set('status', params.status);
+    if (params?.source) search.set('source', params.source);
+    if (params?.q) search.set('q', params.q);
+    const query = search.toString() ? `?${search.toString()}` : '';
+    return this.request<{
+      data: Array<{
+        id: string;
+        name: string;
+        email?: string;
+        phone: string;
+        company?: string;
+        status: string;
+        leadScore: number;
+        source?: string;
+        notes?: string;
+        createdAt: string;
+      }>;
+    }>(`/leads${query}`);
+  }
+
+  async updateLead(id: string, input: { status?: string; notes?: string; lastContactedAt?: string }) {
+    return this.request<{ data: unknown }>(`/leads/${id}`, {
+      method: 'PATCH',
+      body: {
+        status: input.status,
+        notes: input.notes,
+        last_contacted_at: input.lastContactedAt,
+      },
+    });
   }
 
   async getCompanyHistory(month?: string) {

@@ -92,3 +92,11 @@ export function markUserEmailVerified(userId: string) {
   return verifiedAt;
 }
 
+export function findCompanyDefaultOwner(companyId: string) {
+  const store = readStore();
+  const admin = store.users.find((item) => item.companyId === companyId && item.role === 'admin');
+  if (admin) return admin.id;
+  const anyUser = store.users.find((item) => item.companyId === companyId);
+  return anyUser?.id || null;
+}
+

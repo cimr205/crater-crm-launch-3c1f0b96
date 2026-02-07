@@ -50,6 +50,15 @@ export interface StoreMetaOAuthState {
   expiresAt: string;
 }
 
+export interface StoreIntegrationOAuthState {
+  id: string;
+  state: string;
+  userId: string;
+  provider: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
 export interface StoreInvitation {
   id: string;
   companyId: string;
@@ -111,12 +120,19 @@ export interface StoreEmailVerification {
 export interface StoreLead {
   id: string;
   ownerUserId: string;
+  companyId?: string;
   name: string;
   phone: string;
   email?: string;
   company?: string;
   status: string;
   leadScore: number;
+  source?: string;
+  sourceRef?: string;
+  sourceMeta?: Record<string, unknown>;
+  notes?: string;
+  lastContactedAt?: string;
+  tags?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -295,6 +311,101 @@ export interface StoreMetaConnection {
   connectedAt: string;
 }
 
+export interface StoreIntegrationConnection {
+  id: string;
+  userId: string;
+  provider: string;
+  access_token?: string;
+  refresh_token?: string;
+  expires_at?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoreSearchJob {
+  id: string;
+  userId: string;
+  provider: string;
+  query: string;
+  status: 'active' | 'paused';
+  lastRunAt?: string;
+  nextRunAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoreIntegrationLog {
+  id: string;
+  userId: string;
+  provider: string;
+  status: 'ok' | 'error' | 'rate_limited';
+  message: string;
+  createdAt: string;
+}
+
+export interface StoreWorkflow {
+  id: string;
+  userId: string;
+  name: string;
+  nodeRedFlowId?: string;
+  status: 'active' | 'paused';
+  triggerType: 'new_lead_created' | 'integration_connected' | 'manual_trigger';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoreWorkflowStep {
+  id: string;
+  workflowId: string;
+  type: 'condition' | 'action' | 'delay';
+  config: Record<string, unknown>;
+  stepOrder: number;
+}
+
+export interface StoreWorkflowRun {
+  id: string;
+  workflowId: string;
+  leadId?: string;
+  status: 'running' | 'waiting' | 'completed' | 'failed';
+  currentStep: number;
+  nextRunAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoreAiSuggestion {
+  id: string;
+  companyId: string;
+  type: 'workflow' | 'crm' | 'hr' | 'insight';
+  title: string;
+  description: string;
+  json: Record<string, unknown>;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
+}
+
+export interface StoreAiActivity {
+  id: string;
+  companyId: string;
+  message: string;
+  type: string;
+  createdAt: string;
+}
+
+export interface StoreAiMemory {
+  companyId: string;
+  summary: string;
+  updatedAt: string;
+}
+
+export interface StoreAiDailyFocus {
+  id: string;
+  companyId: string;
+  date: string;
+  json: Array<Record<string, unknown>>;
+  createdAt: string;
+}
+
 export interface StoreMetaEntityChange {
   id: string;
   companyId: string;
@@ -345,12 +456,78 @@ export interface StoreAiActionConfig {
   updatedAt: string;
 }
 
+export interface StoreClowdBotIntegration {
+  id: string;
+  companyId: string;
+  provider: 'apollo' | 'google_places' | 'hubspot' | 'salesforce' | 'hunter' | 'clearbit';
+  authType: 'api_key' | 'oauth' | 'token';
+  encryptedConfig: string;
+  status: 'connected' | 'error';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoreClowdBotSearchJob {
+  id: string;
+  companyId: string;
+  createdByUserId: string;
+  name: string;
+  status: 'active' | 'paused';
+  criteria: {
+    keywords?: string[];
+    industries?: string[];
+    countries?: string[];
+    locations?: string[];
+    companySize?: string;
+    roles?: string[];
+  };
+  sources: Array<'apollo' | 'google_places' | 'hubspot' | 'salesforce' | 'hunter' | 'clearbit'>;
+  schedule: {
+    intervalMinutes: number;
+    deliverHour: number;
+    deliverTimezone: string;
+  };
+  lastRunAt?: string;
+  lastDeliveryDate?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StoreClowdBotSearchRun {
+  id: string;
+  jobId: string;
+  companyId: string;
+  status: 'running' | 'done' | 'failed';
+  startedAt: string;
+  finishedAt?: string;
+  leadCount?: number;
+  error?: string;
+}
+
+export interface StoreClowdBotDelivery {
+  id: string;
+  jobId: string;
+  companyId: string;
+  dateKey: string;
+  leadCount: number;
+  createdAt: string;
+}
+
+export interface StoreMetaLeadSyncState {
+  id: string;
+  companyId: string;
+  formId: string;
+  lastLeadgenId?: string;
+  lastSyncAt?: string;
+}
+
 export interface StoreData {
   users: StoreUser[];
   companies: StoreCompany[];
   oauthStates: StoreOAuthState[];
   emailOauthStates: StoreEmailOAuthState[];
   metaOauthStates: StoreMetaOAuthState[];
+  integrationOauthStates: StoreIntegrationOAuthState[];
   invitations: StoreInvitation[];
   messages: StoreMessage[];
   notifications: StoreNotification[];
@@ -371,11 +548,26 @@ export interface StoreData {
   inviteCodes: StoreInviteCode[];
   emailAnalysisJobs: StoreEmailAnalysisJob[];
   metaConnections: StoreMetaConnection[];
+  integrationConnections: StoreIntegrationConnection[];
+  searchJobs: StoreSearchJob[];
+  integrationLogs: StoreIntegrationLog[];
+  workflows: StoreWorkflow[];
+  workflowSteps: StoreWorkflowStep[];
+  workflowRuns: StoreWorkflowRun[];
+  aiSuggestions: StoreAiSuggestion[];
+  aiActivity: StoreAiActivity[];
+  aiMemory: StoreAiMemory[];
+  aiDailyFocus: StoreAiDailyFocus[];
   metaEntityChanges: StoreMetaEntityChange[];
   metaAutomationLogs: StoreMetaAutomationLog[];
   tenantIntegrations: StoreTenantIntegration[];
   websiteEvents: StoreWebsiteEvent[];
   aiActionConfigs: StoreAiActionConfig[];
+  clowdBotIntegrations: StoreClowdBotIntegration[];
+  clowdBotSearchJobs: StoreClowdBotSearchJob[];
+  clowdBotSearchRuns: StoreClowdBotSearchRun[];
+  clowdBotDeliveries: StoreClowdBotDelivery[];
+  metaLeadSyncStates: StoreMetaLeadSyncState[];
 }
 
 const emptyStore: StoreData = {
@@ -384,6 +576,7 @@ const emptyStore: StoreData = {
   oauthStates: [],
   emailOauthStates: [],
   metaOauthStates: [],
+  integrationOauthStates: [],
   invitations: [],
   messages: [],
   notifications: [],
@@ -404,11 +597,26 @@ const emptyStore: StoreData = {
   inviteCodes: [],
   emailAnalysisJobs: [],
   metaConnections: [],
+  integrationConnections: [],
+  searchJobs: [],
+  integrationLogs: [],
+  workflows: [],
+  workflowSteps: [],
+  workflowRuns: [],
+  aiSuggestions: [],
+  aiActivity: [],
+  aiMemory: [],
+  aiDailyFocus: [],
   metaEntityChanges: [],
   metaAutomationLogs: [],
   tenantIntegrations: [],
   websiteEvents: [],
   aiActionConfigs: [],
+  clowdBotIntegrations: [],
+  clowdBotSearchJobs: [],
+  clowdBotSearchRuns: [],
+  clowdBotDeliveries: [],
+  metaLeadSyncStates: [],
 };
 
 function loadStore(): StoreData {
@@ -422,11 +630,11 @@ function loadStore(): StoreData {
     ...user,
     role: user.role || 'user',
   }));
-  const companies = (parsed.companies || []).map((company) => ({
+  const companies: StoreCompany[] = (parsed.companies || []).map((company) => ({
     ...company,
     joinCode: company.joinCode || company.id.slice(0, 8).toUpperCase(),
     defaultLanguage: company.defaultLanguage || 'en',
-    defaultTheme: company.defaultTheme === 'dark' ? 'dark' : 'light',
+    defaultTheme: (company.defaultTheme === 'dark' ? 'dark' : 'light') as 'dark' | 'light',
   }));
   return {
     users,
@@ -434,6 +642,7 @@ function loadStore(): StoreData {
     oauthStates: parsed.oauthStates || [],
     emailOauthStates: parsed.emailOauthStates || [],
     metaOauthStates: parsed.metaOauthStates || [],
+    integrationOauthStates: parsed.integrationOauthStates || [],
     invitations: parsed.invitations || [],
     messages: parsed.messages || [],
     notifications: parsed.notifications || [],
@@ -454,11 +663,26 @@ function loadStore(): StoreData {
     inviteCodes: parsed.inviteCodes || [],
     emailAnalysisJobs: parsed.emailAnalysisJobs || [],
     metaConnections: parsed.metaConnections || [],
+    integrationConnections: parsed.integrationConnections || [],
+    searchJobs: parsed.searchJobs || [],
+    integrationLogs: parsed.integrationLogs || [],
+    workflows: parsed.workflows || [],
+    workflowSteps: parsed.workflowSteps || [],
+    workflowRuns: parsed.workflowRuns || [],
+    aiSuggestions: parsed.aiSuggestions || [],
+    aiActivity: parsed.aiActivity || [],
+    aiMemory: parsed.aiMemory || [],
+    aiDailyFocus: parsed.aiDailyFocus || [],
     metaEntityChanges: parsed.metaEntityChanges || [],
     metaAutomationLogs: parsed.metaAutomationLogs || [],
     tenantIntegrations: parsed.tenantIntegrations || [],
     websiteEvents: parsed.websiteEvents || [],
     aiActionConfigs: parsed.aiActionConfigs || [],
+    clowdBotIntegrations: parsed.clowdBotIntegrations || [],
+    clowdBotSearchJobs: parsed.clowdBotSearchJobs || [],
+    clowdBotSearchRuns: parsed.clowdBotSearchRuns || [],
+    clowdBotDeliveries: parsed.clowdBotDeliveries || [],
+    metaLeadSyncStates: parsed.metaLeadSyncStates || [],
   };
 }
 

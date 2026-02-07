@@ -42,6 +42,9 @@
     "crm": "CRM",
     "leads": "Leads",
     "deals": "Deals",
+    "clowdbot": "ClowdBot",
+    "integrations": "Integrationer",
+    "workflows": "Workflows",
     "hr": "HR",
     "employees": "Medarbejdere",
     "history": "Historik",
@@ -55,7 +58,9 @@
     "statPipeline": "Pipeline værdi",
     "statLeads": "Nye leads",
     "statTasks": "Åbne opgaver",
-    "statRevenue": "Omsætningsprognose"
+    "statRevenue": "Omsætningsprognose",
+    "statLeadsToday": "Leads i dag",
+    "statActiveJobs": "Aktive søgninger"
   },
   "crm": {
     "leadsTitle": "Leads",

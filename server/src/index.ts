@@ -9,6 +9,12 @@ import { startEmailAnalysisWorker } from './jobs/emailAnalysisWorker';
 import { startDeadlineWorker } from './jobs/deadlineWorker';
 import { startTodoReminderWorker } from './jobs/todoReminderWorker';
 import { startMetaAdsAutomation } from './meta-ads-ai';
+import { startClowdBotWorker } from './jobs/clowdBotWorker';
+import { startMetaLeadWorker } from './jobs/metaLeadWorker';
+import { startLeadWorker } from './workers/leadWorker';
+import { startWorkflowWorker } from './workers/workflowWorker';
+import { startAiAnalysisCron } from './services/ai/aiAnalysis';
+import { startAiDailyFocusCron } from './services/ai/aiDailyFocus';
 
 initStore();
 
@@ -60,6 +66,12 @@ startEmailAnalysisWorker();
 startDeadlineWorker();
 startTodoReminderWorker();
 startMetaAdsAutomation();
+startClowdBotWorker();
+startMetaLeadWorker();
+startLeadWorker();
+startWorkflowWorker();
+startAiAnalysisCron();
+startAiDailyFocusCron();
 
 app.listen(env.port, () => {
   console.log(`CRM backend running on port ${env.port}`);

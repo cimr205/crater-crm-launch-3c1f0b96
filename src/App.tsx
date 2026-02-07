@@ -14,9 +14,12 @@ import LeadsPage from "@/pages/app/crm/Leads";
 import DealsPage from "@/pages/app/crm/Deals";
 import EmployeesPage from "@/pages/app/hr/Employees";
 import HistoryPage from "@/pages/app/History";
+import ClowdBotPage from "@/pages/app/ClowdBot";
 import CompanySettingsPage from "@/pages/app/settings/CompanySettings";
 import AdminOverviewPage from "@/pages/app/admin/Overview";
 import OnboardingPage from "@/pages/app/Onboarding";
+import IntegrationsPage from "@/pages/app/Integrations";
+import WorkflowsPage from "@/pages/app/Workflows";
 import AppShell from "@/components/AppShell";
 import { I18nProvider, isLocale } from "@/lib/i18n";
 import { TenantProvider } from "@/contexts/TenantContext";
@@ -92,6 +95,9 @@ const App = () => (
                   <Route path="crm/deals" element={<DealsPage />} />
                   <Route path="hr/employees" element={<EmployeesPage />} />
                   <Route path="history" element={<HistoryPage />} />
+                  <Route path="integrations" element={<IntegrationsPage />} />
+                  <Route path="workflows" element={<WorkflowsPage />} />
+                  <Route path="clowdbot" element={<ClowdBotPage />} />
                   <Route path="settings/company" element={<CompanySettingsPage />} />
                   <Route
                     path="admin/overview"

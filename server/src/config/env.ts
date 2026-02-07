@@ -5,6 +5,8 @@ const backendBaseUrl =
 export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT || 4000),
+  publicBaseUrl,
+  backendBaseUrl,
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
   googleRedirectUri: process.env.GOOGLE_REDIRECT_URI || `${backendBaseUrl}/api/auth/google/callback`,
@@ -20,5 +22,11 @@ export const env = {
   metaApiVersion: process.env.META_API_VERSION || 'v18.0',
   metaTokenEncryptionKey: process.env.META_TOKEN_ENCRYPTION_KEY || '',
   metaAutomationEnabled: process.env.META_AUTOMATION_ENABLED === 'true',
+  integrationsGoogleClientId: process.env.INTEGRATIONS_GOOGLE_CLIENT_ID || '',
+  integrationsGoogleClientSecret: process.env.INTEGRATIONS_GOOGLE_CLIENT_SECRET || '',
+  integrationsHubspotClientId: process.env.INTEGRATIONS_HUBSPOT_CLIENT_ID || '',
+  integrationsHubspotClientSecret: process.env.INTEGRATIONS_HUBSPOT_CLIENT_SECRET || '',
+  integrationsApolloClientId: process.env.INTEGRATIONS_APOLLO_CLIENT_ID || '',
+  integrationsApolloClientSecret: process.env.INTEGRATIONS_APOLLO_CLIENT_SECRET || '',
 };
 

@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import TenantSidebar from '@/components/TenantSidebar';
 import Topbar from '@/components/Topbar';
+import AiAgentWidget from '@/components/AiAgentWidget';
 
 export default function AppShell({ basePath, children }: { basePath: string; children: ReactNode }) {
   return (
@@ -12,6 +13,7 @@ export default function AppShell({ basePath, children }: { basePath: string; chi
           <main className="p-6 lg:p-10">{children}</main>
         </div>
       </div>
+      <AiAgentWidget />
     </div>
   );
 }
