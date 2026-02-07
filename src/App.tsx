@@ -13,6 +13,7 @@ import DashboardPage from "@/pages/app/Dashboard";
 import LeadsPage from "@/pages/app/crm/Leads";
 import DealsPage from "@/pages/app/crm/Deals";
 import EmployeesPage from "@/pages/app/hr/Employees";
+import HistoryPage from "@/pages/app/History";
 import CompanySettingsPage from "@/pages/app/settings/CompanySettings";
 import AdminOverviewPage from "@/pages/app/admin/Overview";
 import OnboardingPage from "@/pages/app/Onboarding";
@@ -90,6 +91,7 @@ const App = () => (
                   <Route path="crm/leads" element={<LeadsPage />} />
                   <Route path="crm/deals" element={<DealsPage />} />
                   <Route path="hr/employees" element={<EmployeesPage />} />
+                  <Route path="history" element={<HistoryPage />} />
                   <Route path="settings/company" element={<CompanySettingsPage />} />
                   <Route
                     path="admin/overview"

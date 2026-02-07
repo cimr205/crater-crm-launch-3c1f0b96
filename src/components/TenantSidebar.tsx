@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, Briefcase, Settings, UserSquare2, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Users, Briefcase, Settings, UserSquare2, ShieldCheck, History } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -9,6 +9,7 @@ const navItems = [
   { href: 'crm/leads', labelKey: 'nav.leads', icon: Users },
   { href: 'crm/deals', labelKey: 'nav.deals', icon: Briefcase },
   { href: 'hr/employees', labelKey: 'nav.employees', icon: UserSquare2 },
+  { href: 'history', labelKey: 'nav.history', icon: History },
   { href: 'settings/company', labelKey: 'nav.settings', icon: Settings },
 ];
 

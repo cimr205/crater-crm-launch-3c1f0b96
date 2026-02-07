@@ -278,6 +278,36 @@ class ApiClient {
   async getDashboard() {
     return this.request<DashboardData>('/dashboard');
   }
+
+  async getCompanyHistory(month?: string) {
+    const query = month ? `?month=${month}` : '';
+    return this.request<{ month: string; data: WorkHistoryItem[] }>(`/company/work-items/history${query}`);
+  }
+
+  async getCompanyHistorySummary(month?: string) {
+    const query = month ? `?month=${month}` : '';
+    return this.request<{ month: string; totals: WorkHistorySummary }>(
+      `/company/work-items/history/summary${query}`
+    );
+  }
+
+  async downloadCompanyHistoryCsv(month?: string) {
+    const token = this.getToken();
+    const query = month ? `?month=${month}` : '';
+    const headers: Record<string, string> = { Accept: 'text/csv' };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const response = await fetch(`${API_BASE_URL}/company/work-items/history/export${query}`, {
+      method: 'GET',
+      headers,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to export CSV' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+    return response.blob();
+  }
 }
 
 // Types
@@ -384,5 +414,17 @@ export interface DashboardData {
   recent_invoices: Invoice[];
   recent_customers: Customer[];
 }
+
+export interface WorkHistoryItem {
+  id: string;
+  type: 'todo' | 'task' | 'campaign';
+  title: string;
+  status: string;
+  category?: string;
+  source?: string;
+  completedAt?: string;
+}
+
+export type WorkHistorySummary = Record<string, number>;
 
 export const api = new ApiClient();

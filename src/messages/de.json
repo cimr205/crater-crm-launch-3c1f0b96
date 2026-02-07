@@ -44,8 +44,10 @@
     "deals": "Deals",
     "hr": "HR",
     "employees": "Mitarbeiter",
+    "history": "Historie",
     "settings": "Einstellungen",
-    "company": "Unternehmen"
+    "company": "Unternehmen",
+    "admin": "Admin"
   },
   "dashboard": {
     "title": "Übersicht",
@@ -161,7 +163,24 @@
   },
   "work": {
     "historyTitle": "Arbeitshistorie",
-    "exportCta": "CSV exportieren"
+    "companyHistoryTitle": "Unternehmenshistorie",
+    "companyHistorySubtitle": "Alle abgeschlossenen Arbeiten im Unternehmen",
+    "monthLabel": "Monat",
+    "exportCta": "CSV exportieren",
+    "loadError": "Historie konnte nicht geladen werden",
+    "exportError": "Historie konnte nicht exportiert werden",
+    "empty": "Keine abgeschlossene Arbeit in diesem Zeitraum",
+    "stats": {
+      "total": "Abgeschlossen"
+    },
+    "columns": {
+      "type": "Typ",
+      "title": "Titel",
+      "category": "Kategorie",
+      "source": "Quelle",
+      "status": "Status",
+      "completed": "Abgeschlossen"
+    }
   },
   "notFound": {
     "title": "404",

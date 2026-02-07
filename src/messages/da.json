@@ -44,6 +44,7 @@
     "deals": "Deals",
     "hr": "HR",
     "employees": "Medarbejdere",
+    "history": "Historik",
     "settings": "Indstillinger",
     "company": "Virksomhed",
     "admin": "Admin"
@@ -194,7 +195,24 @@
   },
   "work": {
     "historyTitle": "Arbejdshistorik",
-    "exportCta": "Eksporter CSV"
+    "companyHistoryTitle": "Virksomhedshistorik",
+    "companyHistorySubtitle": "Alt afsluttet arbejde i din virksomhed",
+    "monthLabel": "Måned",
+    "exportCta": "Eksporter CSV",
+    "loadError": "Kunne ikke hente historik",
+    "exportError": "Kunne ikke eksportere historik",
+    "empty": "Ingen afsluttet arbejde i denne periode",
+    "stats": {
+      "total": "Afsluttet"
+    },
+    "columns": {
+      "type": "Type",
+      "title": "Titel",
+      "category": "Kategori",
+      "source": "Kilde",
+      "status": "Status",
+      "completed": "Afsluttet"
+    }
   },
   "notFound": {
     "title": "404",

@@ -44,6 +44,7 @@
     "deals": "Deals",
     "hr": "HR",
     "employees": "Employees",
+    "history": "History",
     "settings": "Settings",
     "company": "Company",
     "admin": "Admin"
@@ -194,7 +195,24 @@
   },
   "work": {
     "historyTitle": "Work history",
-    "exportCta": "Export CSV"
+    "companyHistoryTitle": "Company history",
+    "companyHistorySubtitle": "All completed work for your company",
+    "monthLabel": "Month",
+    "exportCta": "Export CSV",
+    "loadError": "Could not load history",
+    "exportError": "Could not export history",
+    "empty": "No completed work for this period",
+    "stats": {
+      "total": "Completed"
+    },
+    "columns": {
+      "type": "Type",
+      "title": "Title",
+      "category": "Category",
+      "source": "Source",
+      "status": "Status",
+      "completed": "Completed"
+    }
   },
   "notFound": {
     "title": "404",

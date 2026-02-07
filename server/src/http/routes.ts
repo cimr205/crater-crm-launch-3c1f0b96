@@ -1500,16 +1500,57 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
   });
 
   app.get('/api/company/work-items/history', (req: Request, res: Response) => {
-    const admin = requireAdmin(req, res);
-    if (!admin) return;
-    if (!admin.companyId) {
-      res.status(400).json({ error: 'Admin has no company' });
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
       return;
     }
     const month = typeof req.query.month === 'string' ? req.query.month : undefined;
     const monthPrefix = resolveMonthPrefix(month);
-    const data = buildHistoryItems({ monthPrefix, companyId: admin.companyId });
+    const data = buildHistoryItems({ monthPrefix, companyId: user.companyId });
     res.status(200).json({ month: monthPrefix, data });
+  });
+
+  app.get('/api/company/work-items/history/summary', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const month = typeof req.query.month === 'string' ? req.query.month : undefined;
+    const monthPrefix = resolveMonthPrefix(month);
+    const data = buildHistoryItems({ monthPrefix, companyId: user.companyId });
+    res.status(200).json({ month: monthPrefix, totals: summarizeHistory(data) });
+  });
+
+  app.get('/api/company/work-items/history/export', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const month = typeof req.query.month === 'string' ? req.query.month : undefined;
+    const monthPrefix = resolveMonthPrefix(month);
+    const data = buildHistoryItems({ monthPrefix, companyId: user.companyId });
+    const header = ['id', 'type', 'title', 'status', 'category', 'source', 'completed_at'];
+    const rows = data.map((item) =>
+      [
+        csvEscape(item.id),
+        csvEscape(item.type),
+        csvEscape(item.title),
+        csvEscape(item.status),
+        csvEscape(item.category),
+        csvEscape(item.source),
+        csvEscape(item.completedAt),
+      ].join(',')
+    );
+    const csv = [header.join(','), ...rows].join('\n');
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="company-history-${monthPrefix}.csv"`);
+    res.status(200).send(csv);
   });
 
   app.get('/api/dashboard', async (req: Request, res: Response) => {
