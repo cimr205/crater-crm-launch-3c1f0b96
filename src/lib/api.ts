@@ -1,4 +1,6 @@
-const API_BASE_URL = 'https://api.aiagencydanmark.dk/api';
+const resolvedApiBase =
+  typeof window !== 'undefined' ? `${window.location.origin}/api` : 'http://localhost:4000/api';
+const API_BASE_URL = (import.meta as { env?: Record<string, string> }).env?.VITE_API_BASE_URL || resolvedApiBase;
 export const BACKEND_BASE_URL = API_BASE_URL.replace(/\/api$/, '');
 interface ApiOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
