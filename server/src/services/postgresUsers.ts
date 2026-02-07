@@ -29,7 +29,10 @@ function getPool() {
 
 export async function ensureUsersTable() {
   const db = getPool();
-  if (!db) return false;
+  if (!db) {
+    console.warn('Postgres sync skipped: DATABASE_URL not set.');
+    return false;
+  }
   await db.query(`
     CREATE TABLE IF NOT EXISTS app_users (
       id TEXT PRIMARY KEY,
@@ -86,8 +89,10 @@ export async function upsertUser(user: PostgresUserRecord) {
 export async function syncUsers(users: PostgresUserRecord[]) {
   const enabled = await ensureUsersTable();
   if (!enabled) return;
+  console.log(`Postgres sync: syncing ${users.length} users to app_users`);
   for (const user of users) {
     await upsertUser(user);
   }
+  console.log('Postgres sync: complete');
 }
 
