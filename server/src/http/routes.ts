@@ -493,6 +493,111 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
     });
   });
 
+  app.get('/api/company/status', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const company = findCompanyById(user.companyId);
+    if (!company) {
+      res.status(404).json({ error: 'Company not found' });
+      return;
+    }
+    res.status(200).json({
+      status: company.status || 'pending',
+      mode: company.mode || 'setup',
+      compliance_checklist: company.complianceChecklist || [],
+    });
+  });
+
+  app.patch('/api/company/compliance', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const schema = z.object({
+      item_id: z.string().min(2),
+      completed: z.boolean(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+    const updated = updateStore((store) => {
+      const company = store.companies.find((item) => item.id === user.companyId);
+      if (!company) return null;
+      const checklist = company.complianceChecklist || [];
+      const item = checklist.find((entry) => entry.id === parsed.data.item_id);
+      if (!item) return null;
+      item.completed = parsed.data.completed;
+      item.updatedAt = new Date().toISOString();
+      company.complianceChecklist = checklist;
+      return company;
+    });
+    if (!updated) {
+      res.status(404).json({ error: 'Compliance item not found' });
+      return;
+    }
+    res.status(200).json({
+      status: updated.status || 'pending',
+      mode: updated.mode || 'setup',
+      compliance_checklist: updated.complianceChecklist || [],
+    });
+  });
+
+  app.post('/api/company/activate', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const updated = updateStore((store) => {
+      const company = store.companies.find((item) => item.id === user.companyId);
+      if (!company) return null;
+      company.status = 'active';
+      return company;
+    });
+    if (!updated) {
+      res.status(404).json({ error: 'Company not found' });
+      return;
+    }
+    res.status(200).json({ status: updated.status || 'active' });
+  });
+
+  app.patch('/api/company/mode', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const schema = z.object({
+      mode: z.enum(['setup', 'live', 'locked']),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+    const updated = updateStore((store) => {
+      const company = store.companies.find((item) => item.id === user.companyId);
+      if (!company) return null;
+      company.mode = parsed.data.mode;
+      return company;
+    });
+    if (!updated) {
+      res.status(404).json({ error: 'Company not found' });
+      return;
+    }
+    res.status(200).json({ mode: updated.mode || parsed.data.mode });
+  });
+
   app.get('/api/me', (req: Request, res: Response) => {
     const user = requireAuth(req, res);
     if (!user) return;

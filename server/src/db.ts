@@ -24,6 +24,14 @@ export interface StoreCompany {
   defaultLanguage: string;
   defaultTheme: 'light' | 'dark';
   createdAt: string;
+  status?: 'pending' | 'active';
+  mode?: 'setup' | 'live' | 'locked';
+  complianceChecklist?: Array<{
+    id: string;
+    label: string;
+    completed: boolean;
+    updatedAt?: string;
+  }>;
 }
 
 export interface StoreOAuthState {
@@ -619,6 +627,16 @@ const emptyStore: StoreData = {
   metaLeadSyncStates: [],
 };
 
+function defaultComplianceChecklist() {
+  return [
+    { id: 'company_profile', label: 'Complete company profile', completed: false },
+    { id: 'connect_email', label: 'Connect email account', completed: false },
+    { id: 'connect_meta', label: 'Connect Meta Ads', completed: false },
+    { id: 'import_leads', label: 'Import or create first lead', completed: false },
+    { id: 'create_workflow', label: 'Create first workflow', completed: false },
+  ];
+}
+
 function loadStore(): StoreData {
   if (!fs.existsSync(resolvedPath)) {
     return { ...emptyStore };
@@ -635,6 +653,9 @@ function loadStore(): StoreData {
     joinCode: company.joinCode || company.id.slice(0, 8).toUpperCase(),
     defaultLanguage: company.defaultLanguage || 'en',
     defaultTheme: (company.defaultTheme === 'dark' ? 'dark' : 'light') as 'dark' | 'light',
+    status: company.status || 'pending',
+    mode: company.mode || 'setup',
+    complianceChecklist: company.complianceChecklist || defaultComplianceChecklist(),
   }));
   return {
     users,

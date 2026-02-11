@@ -10,6 +10,14 @@ export function createCompany(input: {
   joinCode: string;
   defaultLanguage: string;
   defaultTheme: 'light' | 'dark';
+  status?: 'pending' | 'active';
+  mode?: 'setup' | 'live' | 'locked';
+  complianceChecklist?: Array<{
+    id: string;
+    label: string;
+    completed: boolean;
+    updatedAt?: string;
+  }>;
 }) {
   const id = randomUUID();
   const createdAt = new Date().toISOString();
@@ -23,6 +31,9 @@ export function createCompany(input: {
       defaultLanguage: input.defaultLanguage,
       defaultTheme: input.defaultTheme,
       createdAt,
+      status: input.status || 'pending',
+      mode: input.mode || 'setup',
+      complianceChecklist: input.complianceChecklist,
     });
   });
   void upsertCompany({
@@ -44,6 +55,9 @@ export function createCompany(input: {
     defaultLanguage: input.defaultLanguage,
     defaultTheme: input.defaultTheme,
     createdAt,
+    status: input.status || 'pending',
+    mode: input.mode || 'setup',
+    complianceChecklist: input.complianceChecklist,
   };
 }
 
