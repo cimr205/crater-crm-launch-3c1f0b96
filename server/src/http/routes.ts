@@ -615,6 +615,21 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
     });
   });
 
+  app.get('/api/user', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    res.status(200).json({
+      data: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        email_verified: Boolean(user.emailVerifiedAt),
+        role: user.role,
+        company_id: user.companyId,
+      },
+    });
+  });
+
   app.post('/api/auth/verify-email', (req: Request, res: Response) => {
     const schema = z.object({ token: z.string().min(10) });
     const parsed = schema.safeParse(req.body);
@@ -2265,6 +2280,50 @@ Only include action when explicitly asked.`;
     if (!user) return;
     const deals = listDealsByOwner(user.id);
     res.status(200).json({ data: deals });
+  });
+
+  app.get('/api/customers', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const page = Number(req.query.page || 1);
+    const limit = Number(req.query.limit || 10);
+    res.status(200).json({
+      data: [],
+      meta: {
+        page,
+        limit,
+        total: 0,
+        total_pages: 0,
+      },
+    });
+  });
+
+  app.get('/api/customers/:id', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    res.status(404).json({ error: 'Customer not found' });
+  });
+
+  app.get('/api/payments', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const page = Number(req.query.page || 1);
+    const limit = Number(req.query.limit || 10);
+    res.status(200).json({
+      data: [],
+      meta: {
+        page,
+        limit,
+        total: 0,
+        total_pages: 0,
+      },
+    });
+  });
+
+  app.get('/api/employees', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    res.status(200).json({ data: [] });
   });
 
   app.get('/api/invoices', (req: Request, res: Response) => {
