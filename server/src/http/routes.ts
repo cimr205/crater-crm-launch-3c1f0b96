@@ -474,11 +474,30 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
       res.status(401).json({ error: 'Invalid credentials' });
       return;
     }
+    if (!user.emailVerifiedAt) {
+      res.status(403).json({ error: 'Email not verified' });
+      return;
+    }
 
     const session = createSession(user.id);
     res.status(200).json({
       token: session.id,
       user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        email_verified: Boolean(user.emailVerifiedAt),
+        role: user.role,
+        company_id: user.companyId,
+      },
+    });
+  });
+
+  app.get('/api/me', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    res.status(200).json({
+      data: {
         id: user.id,
         name: user.name,
         email: user.email,
@@ -2445,6 +2464,17 @@ Only include action when explicitly asked.`;
         leads: leads.length,
         deals: deals.length,
         open_tasks: tasks.length,
+      },
+      leads: {
+        total: leads.length,
+        new: leads.filter((lead) => lead.status === 'cold').length,
+        qualified: leads.filter((lead) => lead.status === 'qualified').length,
+      },
+      deals: {
+        total: deals.length,
+      },
+      tasks: {
+        open: tasks.length,
       },
     });
   });
