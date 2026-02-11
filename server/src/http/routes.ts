@@ -27,11 +27,13 @@ import { scoreLead } from '../services/leadScoring';
 import { EmailService } from '../services/email/emailService';
 import {
   createCompany,
+  findCompanyById,
   findCompanyByJoinCode,
   listCompaniesWithCounts,
   updateCompanySettings,
 } from '../repositories/companyRepository';
-import { readStore } from '../db';
+import { readStore, updateStore } from '../db';
+import type { StoreCompany, StoreData } from '../db';
 import { listTodosByOwner, updateTodoStatus } from '../repositories/todoRepository';
 import {
   createInvitation,
@@ -528,11 +530,11 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
       res.status(400).json({ error: 'Invalid payload' });
       return;
     }
-    const updated = updateStore((store) => {
-      const company = store.companies.find((item) => item.id === user.companyId);
+    const updated = updateStore((store: StoreData) => {
+      const company = store.companies.find((item: StoreCompany) => item.id === user.companyId);
       if (!company) return null;
       const checklist = company.complianceChecklist || [];
-      const item = checklist.find((entry) => entry.id === parsed.data.item_id);
+      const item = checklist.find((entry: { id: string }) => entry.id === parsed.data.item_id);
       if (!item) return null;
       item.completed = parsed.data.completed;
       item.updatedAt = new Date().toISOString();
@@ -557,8 +559,8 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
       res.status(400).json({ error: 'User has no company' });
       return;
     }
-    const updated = updateStore((store) => {
-      const company = store.companies.find((item) => item.id === user.companyId);
+    const updated = updateStore((store: StoreData) => {
+      const company = store.companies.find((item: StoreCompany) => item.id === user.companyId);
       if (!company) return null;
       company.status = 'active';
       return company;
@@ -585,8 +587,8 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
       res.status(400).json({ error: 'Invalid payload' });
       return;
     }
-    const updated = updateStore((store) => {
-      const company = store.companies.find((item) => item.id === user.companyId);
+    const updated = updateStore((store: StoreData) => {
+      const company = store.companies.find((item: StoreCompany) => item.id === user.companyId);
       if (!company) return null;
       company.mode = parsed.data.mode;
       return company;
