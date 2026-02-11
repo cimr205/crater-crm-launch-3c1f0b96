@@ -6,7 +6,13 @@ import { parse } from 'csv-parse/sync';
 import xlsx from 'xlsx';
 import { requireAdmin, requireAuth } from './middleware';
 import { hashPassword, verifyPassword, createSession } from '../auth';
-import { createUser, findUserByEmail, markUserEmailVerified, updateUser } from '../repositories/userRepository';
+import {
+  createUser,
+  findUserByEmail,
+  findUserById,
+  markUserEmailVerified,
+  updateUser,
+} from '../repositories/userRepository';
 import {
   createEmailVerification,
   deleteEmailVerification,
@@ -672,12 +678,12 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
     res.status(200).json({ auth_url: authUrl, state: stateRecord.state });
   });
 
-  app.post('/api/auth/google/callback', async (req: Request, res: Response) => {
+  const handleGoogleAuthCallback = async (code: string, state: string, res: Response) => {
     const schema = z.object({
       code: z.string().min(4),
       state: z.string().min(8),
     });
-    const parsed = schema.safeParse(req.body);
+    const parsed = schema.safeParse({ code, state });
     if (!parsed.success) {
       res.status(400).json({ error: 'Invalid payload' });
       return;
@@ -782,6 +788,16 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
         company_id: user!.companyId,
       },
     });
+  };
+
+  app.post('/api/auth/google/callback', async (req: Request, res: Response) => {
+    await handleGoogleAuthCallback(req.body?.code, req.body?.state, res);
+  });
+
+  app.get('/api/auth/google/callback', async (req: Request, res: Response) => {
+    const code = typeof req.query.code === 'string' ? req.query.code : '';
+    const state = typeof req.query.state === 'string' ? req.query.state : '';
+    await handleGoogleAuthCallback(code, state, res);
   });
 
   app.get('/api/meta/connect', (req: Request, res: Response) => {
@@ -1219,6 +1235,29 @@ export function registerRoutes(app: Application, deps: { email: EmailService }) 
         join_code: updated.joinCode,
         default_language: updated.defaultLanguage,
         default_theme: updated.defaultTheme,
+      },
+    });
+  });
+
+  app.get('/api/company/settings', (req: Request, res: Response) => {
+    const user = requireAdmin(req, res);
+    if (!user) return;
+    if (!user.companyId) {
+      res.status(400).json({ error: 'User has no company' });
+      return;
+    }
+    const company = findCompanyById(user.companyId);
+    if (!company) {
+      res.status(404).json({ error: 'Company not found' });
+      return;
+    }
+    res.status(200).json({
+      tenant: {
+        id: company.id,
+        name: company.name,
+        join_code: company.joinCode,
+        default_language: company.defaultLanguage,
+        default_theme: company.defaultTheme,
       },
     });
   });
@@ -1828,6 +1867,38 @@ Only include action when explicitly asked.`;
       email_verified: Boolean(user.emailVerifiedAt),
     }));
     res.status(200).json({ companies, users });
+  });
+
+  app.patch('/api/admin/users/:id/role', (req: Request, res: Response) => {
+    const admin = requireAdmin(req, res);
+    if (!admin) return;
+    if (!admin.companyId) {
+      res.status(400).json({ error: 'Admin has no company' });
+      return;
+    }
+    const schema = z.object({
+      role: z.enum(['admin', 'user']),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid payload' });
+      return;
+    }
+    const target = findUserById(req.params.id);
+    if (!target || target.companyId !== admin.companyId) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+    updateUser(target.id, { role: parsed.data.role });
+    res.status(200).json({
+      user: {
+        id: target.id,
+        name: target.name,
+        email: target.email,
+        role: parsed.data.role,
+        company_id: target.companyId,
+      },
+    });
   });
 
   app.get('/api/admin/companies/history/export', (req: Request, res: Response) => {
