@@ -2064,7 +2064,13 @@ Only include action when explicitly asked.`;
       });
     }
 
-    res.status(201).json({ data: lead });
+    res.status(201).json({
+      data: {
+        ...lead,
+        created_at: lead.createdAt,
+        updated_at: lead.updatedAt,
+      },
+    });
   });
 
   app.get('/api/leads', (req: Request, res: Response) => {
@@ -2083,7 +2089,13 @@ Only include action when explicitly asked.`;
       }
       return true;
     });
-    res.status(200).json({ data: leads });
+    res.status(200).json({
+      data: leads.map((lead) => ({
+        ...lead,
+        created_at: lead.createdAt,
+        updated_at: lead.updatedAt,
+      })),
+    });
   });
 
   app.post('/api/leads/import', upload.single('file'), async (req: Request, res: Response) => {
@@ -2215,7 +2227,7 @@ Only include action when explicitly asked.`;
     const schema = z.object({
       title: z.string().min(2),
       value: z.number().min(0),
-      stage_id: stageIdSchema,
+      stage_id: stageIdSchema.optional(),
       employee_id: z.string().optional(),
       lead_id: z.string().optional(),
       customer_id: z.string().optional(),
@@ -2230,7 +2242,7 @@ Only include action when explicitly asked.`;
       ownerUserId: user.id,
       title: parsed.data.title,
       value: parsed.data.value,
-      stageId: parsed.data.stage_id as typeof pipelineStages[number]['id'],
+      stageId: (parsed.data.stage_id || pipelineStages[0]?.id) as typeof pipelineStages[number]['id'],
       employeeId: parsed.data.employee_id,
       leadId: parsed.data.lead_id,
       customerId: parsed.data.customer_id,
@@ -2253,6 +2265,28 @@ Only include action when explicitly asked.`;
     if (!user) return;
     const deals = listDealsByOwner(user.id);
     res.status(200).json({ data: deals });
+  });
+
+  app.get('/api/invoices', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    const page = Number(req.query.page || 1);
+    const limit = Number(req.query.limit || 10);
+    res.status(200).json({
+      data: [],
+      meta: {
+        page,
+        limit,
+        total: 0,
+        total_pages: 0,
+      },
+    });
+  });
+
+  app.get('/api/invoices/:id', (req: Request, res: Response) => {
+    const user = requireAuth(req, res);
+    if (!user) return;
+    res.status(404).json({ error: 'Invoice not found' });
   });
 
   app.patch('/api/deals/:id/stage', (req: Request, res: Response) => {
