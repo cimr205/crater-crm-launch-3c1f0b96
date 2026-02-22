@@ -1,3 +1,4 @@
+import 'express-async-errors';
 import express from 'express';
 import { env } from './config/env';
 import { registerRoutes } from './http/routes';
@@ -47,6 +48,16 @@ registerRoutes(app);
 const server = app.listen(env.port, () => {
   // eslint-disable-next-line no-console
   console.log(`Railway backend running on port ${env.port}`);
+});
+
+process.on('unhandledRejection', (reason) => {
+  // eslint-disable-next-line no-console
+  console.error('Unhandled promise rejection:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  // eslint-disable-next-line no-console
+  console.error('Uncaught exception:', error);
 });
 
 const shutdown = async () => {
