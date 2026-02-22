@@ -10,30 +10,40 @@ if (!hasSupabaseConfig) {
   console.warn('Supabase env vars missing: SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY');
 }
 
-function createMissingClient(clientName: 'supabaseAnon' | 'supabaseAdmin'): SupabaseClient {
+function createMissingClient(clientName: 'supabaseAnon' | 'supabaseAdmin', reason: string): SupabaseClient {
   return new Proxy({} as SupabaseClient, {
     get() {
-      throw new Error(
-        `Supabase client ${clientName} is unavailable because SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY are not configured.`
-      );
+      throw new Error(`Supabase client ${clientName} is unavailable (${reason}).`);
     },
   });
 }
 
-export const supabaseAnon: SupabaseClient = hasSupabaseConfig
-  ? createClient(env.supabaseUrl, env.supabaseAnonKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    })
-  : createMissingClient('supabaseAnon');
+function createSupabaseClientOrFallback(
+  clientName: 'supabaseAnon' | 'supabaseAdmin',
+  key: string
+): SupabaseClient {
+  if (!hasSupabaseConfig) {
+    return createMissingClient(clientName, 'missing SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY');
+  }
 
-export const supabaseAdmin: SupabaseClient = hasSupabaseConfig
-  ? createClient(env.supabaseUrl, env.supabaseServiceRoleKey, {
+  try {
+    return createClient(env.supabaseUrl, key, {
       auth: {
         persistSession: false,
         autoRefreshToken: false,
       },
-    })
-  : createMissingClient('supabaseAdmin');
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    // eslint-disable-next-line no-console
+    console.warn(`Supabase client ${clientName} init failed: ${message}`);
+    return createMissingClient(clientName, `invalid Supabase configuration: ${message}`);
+  }
+}
+
+export const supabaseAnon: SupabaseClient = createSupabaseClientOrFallback('supabaseAnon', env.supabaseAnonKey);
+
+export const supabaseAdmin: SupabaseClient = createSupabaseClientOrFallback(
+  'supabaseAdmin',
+  env.supabaseServiceRoleKey
+);

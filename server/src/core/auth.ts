@@ -16,9 +16,19 @@ export type AuthUser = {
   permissions: string[];
 };
 
-const jwks = env.supabaseUrl
-  ? createRemoteJWKSet(new URL(`${env.supabaseUrl}/auth/v1/.well-known/jwks.json`))
-  : null;
+let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+
+if (env.supabaseUrl) {
+  try {
+    const base = env.supabaseUrl.endsWith('/') ? env.supabaseUrl.slice(0, -1) : env.supabaseUrl;
+    jwks = createRemoteJWKSet(new URL(`${base}/auth/v1/.well-known/jwks.json`));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    // eslint-disable-next-line no-console
+    console.warn(`Invalid SUPABASE_URL for JWKS setup: ${message}`);
+    jwks = null;
+  }
+}
 
 async function verifySupabaseToken(token: string) {
   if (!jwks || !env.supabaseJwtIssuer) {
