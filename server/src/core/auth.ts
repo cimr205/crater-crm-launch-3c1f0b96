@@ -3,6 +3,7 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { env } from '../config/env';
 import { query } from './database';
 import { fail } from './http';
+import { ServiceUnavailableError, isServiceUnavailableError } from './serviceUnavailable';
 
 export type AuthUser = {
   id: string;
@@ -25,14 +26,14 @@ if (env.supabaseUrl) {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     // eslint-disable-next-line no-console
-    console.warn(`Invalid SUPABASE_URL for JWKS setup: ${message}`);
+    console.log(`Invalid SUPABASE_URL for JWKS setup: ${message}`);
     jwks = null;
   }
 }
 
 async function verifySupabaseToken(token: string) {
   if (!jwks || !env.supabaseJwtIssuer) {
-    throw new Error('Supabase JWT configuration is missing');
+    throw new ServiceUnavailableError('Supabase JWT configuration is missing.');
   }
   const { payload } = await jwtVerify(token, jwks, {
     issuer: env.supabaseJwtIssuer,
@@ -114,6 +115,11 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
     req.authUser = user;
     next();
   } catch (error) {
+    if (isServiceUnavailableError(error)) {
+      fail(res, 503, error.code, error.message);
+      return;
+    }
+
     fail(res, 401, 'unauthorized', 'Invalid or expired token', (error as Error).message);
   }
 }

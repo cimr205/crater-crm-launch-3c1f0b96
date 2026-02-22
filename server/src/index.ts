@@ -62,7 +62,9 @@ process.on('uncaughtException', (error) => {
 
 const shutdown = async () => {
   server.close(async () => {
-    await pool.end();
+    if (pool) {
+      await pool.end();
+    }
     process.exit(0);
   });
 };

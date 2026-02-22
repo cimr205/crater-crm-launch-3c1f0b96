@@ -8,6 +8,7 @@ import { ok, fail } from '../core/http';
 import { generateInviteCode } from '../core/inviteCode';
 import { supabaseAdmin, supabaseAnon } from '../core/supabase';
 import { env } from '../config/env';
+import { isServiceUnavailableError } from '../core/serviceUnavailable';
 
 const paymentStatusSchema = z.enum(['pending', 'active', 'past_due', 'cancelled', 'trial']);
 
@@ -803,6 +804,11 @@ export function registerRoutes(app: Application) {
   });
 
   app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+    if (isServiceUnavailableError(error)) {
+      fail(res, 503, error.code, error.message);
+      return;
+    }
+
     fail(res, 500, 'internal_error', 'Unexpected server error', (error as Error).message);
   });
 }
