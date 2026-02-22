@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useParams, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useParams, Outlet } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
@@ -23,10 +23,7 @@ import WorkflowsPage from "@/pages/app/Workflows";
 import AppShell from "@/components/AppShell";
 import { I18nProvider, isLocale } from "@/lib/i18n";
 import { TenantProvider } from "@/contexts/TenantContext";
-import { useAuth } from "@/contexts/AuthContext";
-import { useTenant } from "@/contexts/TenantContext";
-import { isOnboardingComplete } from "@/lib/onboarding";
-import { useEffect } from "react";
+// onboarding redirect intentionally disabled in rebuild
 import RoleGate from "@/components/RoleGate";
 
 const queryClient = new QueryClient();
@@ -44,20 +41,6 @@ const LocaleLayout = () => {
 const AppRouteLayout = () => {
   const params = useParams();
   const locale = isLocale(params.locale) ? params.locale : 'en';
-  const { user } = useAuth();
-  const { tenant } = useTenant();
-  const location = useLocation();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!user || !tenant) return;
-    if (user.role !== 'admin') return;
-    if (isOnboardingComplete(tenant.tenantId)) return;
-    const onboardingPath = `/${locale}/app/onboarding`;
-    if (location.pathname !== onboardingPath) {
-      navigate(onboardingPath, { replace: true });
-    }
-  }, [user, tenant, locale, location.pathname, navigate]);
 
   return (
     <AppShell basePath={`/${locale}/app`}>
@@ -102,7 +85,7 @@ const App = () => (
                   <Route
                     path="admin/overview"
                     element={
-                      <RoleGate>
+                      <RoleGate role="global_admin">
                         <AdminOverviewPage />
                       </RoleGate>
                     }

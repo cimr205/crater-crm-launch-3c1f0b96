@@ -22,16 +22,18 @@ export default function JoinCompanyPage() {
     event.preventDefault();
     setLoading(true);
     try {
-      const response = await api.joinCompany({ joinCode, name, email, password });
-      const defaultLanguage = response.tenant.default_language as typeof locale;
+      const response = await api.joinCompany({ invitationCode: joinCode, name, email, password });
+
       setTenantDefaults({
         tenantId: response.tenant.id,
         companyName: response.tenant.name,
-        joinCode: response.tenant.join_code,
-        defaultLanguage,
-        defaultTheme: response.tenant.default_theme as 'light' | 'dark',
+        joinCode: response.tenant.invite_code || undefined,
+        inviteCode: response.tenant.invite_code || undefined,
+        defaultLanguage: locale,
+        defaultTheme: 'light',
       });
-      navigate(`/${defaultLanguage}/auth/login`);
+
+      navigate(`/${locale}/app/dashboard`);
     } finally {
       setLoading(false);
     }

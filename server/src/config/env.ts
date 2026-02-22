@@ -2,11 +2,25 @@ const publicBaseUrl = process.env.PUBLIC_BASE_URL || 'https://aiagencydanmark.dk
 const backendBaseUrl =
   process.env.BACKEND_BASE_URL || process.env.PUBLIC_BASE_URL || 'https://api.aiagencydanmark.dk';
 
+const supabaseUrl = process.env.SUPABASE_URL || '';
+
 export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT || 4000),
   publicBaseUrl,
   backendBaseUrl,
+
+  // Core multi-tenant stack
+  databaseUrl: process.env.DATABASE_URL || '',
+  supabaseUrl,
+  supabaseAnonKey: process.env.SUPABASE_ANON_KEY || '',
+  supabaseServiceRoleKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
+  supabaseJwtIssuer: process.env.SUPABASE_JWT_ISSUER || (supabaseUrl ? `${supabaseUrl}/auth/v1` : ''),
+  globalAdminEmails: (process.env.GLOBAL_ADMIN_EMAILS || '')
+    .split(',')
+    .map((entry) => entry.trim().toLowerCase())
+    .filter(Boolean),
+
   googleClientId: process.env.GOOGLE_CLIENT_ID || '',
   googleClientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
   googleRedirectUri: process.env.GOOGLE_REDIRECT_URI || `${backendBaseUrl}/api/auth/google/callback`,

@@ -20,7 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (token) {
       api.getMe()
         .then((response) => setUser(response.data))
-        .catch(() => api.setToken(null))
+        .catch(() => api.setSession(null))
         .finally(() => setIsLoading(false));
     } else {
       setIsLoading(false);

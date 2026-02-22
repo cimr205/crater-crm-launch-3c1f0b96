@@ -1,6 +1,7 @@
 const resolvedApiBase =
   typeof window !== 'undefined' ? `${window.location.origin}/api` : 'http://localhost:4000/api';
-const API_BASE_URL = (import.meta as { env?: Record<string, string> }).env?.VITE_API_BASE_URL || resolvedApiBase;
+export const API_BASE_URL =
+  (import.meta as { env?: Record<string, string> }).env?.VITE_API_BASE_URL || resolvedApiBase;
 export const BACKEND_BASE_URL = API_BASE_URL.replace(/\/api$/, '');
 interface ApiOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
@@ -10,6 +11,24 @@ interface ApiOptions {
 
 class ApiClient {
   private token: string | null = null;
+  private refreshToken: string | null = null;
+
+  setSession(session: { accessToken: string; refreshToken: string } | null) {
+    this.token = session?.accessToken || null;
+    this.refreshToken = session?.refreshToken || null;
+
+    if (this.token) {
+      localStorage.setItem('crater_token', this.token);
+    } else {
+      localStorage.removeItem('crater_token');
+    }
+
+    if (this.refreshToken) {
+      localStorage.setItem('crater_refresh_token', this.refreshToken);
+    } else {
+      localStorage.removeItem('crater_refresh_token');
+    }
+  }
 
   setToken(token: string | null) {
     this.token = token;
@@ -27,44 +46,153 @@ class ApiClient {
     return this.token;
   }
 
-  async request<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
-    const { method = 'GET', body, headers = {} } = options;
-
-    const token = this.getToken();
-    const requestHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-      ...headers,
-    };
-
-    if (token) {
-      requestHeaders['Authorization'] = `Bearer ${token}`;
+  getRefreshToken(): string | null {
+    if (!this.refreshToken) {
+      this.refreshToken = localStorage.getItem('crater_refresh_token');
     }
-    const tenantRaw = localStorage.getItem('tenant_defaults');
-    if (tenantRaw) {
+    return this.refreshToken;
+  }
+
+  private persistTenantDefaults(company: Pick<TenantSettings, 'id' | 'name'> & Partial<TenantSettings>) {
+    const existingRaw = localStorage.getItem('tenant_defaults');
+    let existing: Record<string, unknown> = {};
+
+    if (existingRaw) {
       try {
-        const tenant = JSON.parse(tenantRaw) as { tenantId?: string };
-        if (tenant.tenantId) {
-          requestHeaders['X-Tenant-Id'] = tenant.tenantId;
-        }
+        existing = JSON.parse(existingRaw) as Record<string, unknown>;
       } catch {
-        // ignore invalid tenant storage
+        existing = {};
       }
     }
 
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method,
-      headers: requestHeaders,
-      body: body ? JSON.stringify(body) : undefined,
+    localStorage.setItem(
+      'tenant_defaults',
+      JSON.stringify({
+        ...existing,
+        tenantId: company.id,
+        companyName: company.name,
+        joinCode: company.invite_code || existing.joinCode || null,
+        inviteCode: company.invite_code || existing.inviteCode || null,
+        defaultLanguage: existing.defaultLanguage || 'en',
+        defaultTheme: existing.defaultTheme || 'light',
+      })
+    );
+  }
+
+  private async hydrateTenant(company: { id: string; name: string }) {
+    try {
+      const settings = await this.getCompanySettings();
+      this.persistTenantDefaults(settings.tenant);
+      return settings.tenant;
+    } catch {
+      const fallbackTenant: TenantSettings = {
+        id: company.id,
+        name: company.name,
+        plan: 'starter',
+        payment_status: 'pending',
+        is_active: true,
+        created_at: new Date().toISOString(),
+      };
+      this.persistTenantDefaults(fallbackTenant);
+      return fallbackTenant;
+    }
+  }
+
+  private async refreshSessionIfNeeded() {
+    const refreshToken = this.getRefreshToken();
+    if (!refreshToken) return false;
+
+    const response = await fetch(`${API_BASE_URL}/v1/auth/refresh`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ refresh_token: refreshToken }),
     });
 
     if (!response.ok) {
-      if (response.status === 401) {
-        this.setToken(null);
-        window.location.href = '/login';
+      this.setSession(null);
+      return false;
+    }
+
+    const payload = await response.json().catch(() => null) as
+      | {
+          ok?: boolean;
+          data?: {
+            session?: {
+              access_token?: string;
+              refresh_token?: string;
+            };
+          };
+        }
+      | null;
+
+    const accessToken = payload?.data?.session?.access_token;
+    const nextRefreshToken = payload?.data?.session?.refresh_token;
+
+    if (!accessToken || !nextRefreshToken) {
+      this.setSession(null);
+      return false;
+    }
+
+    this.setSession({ accessToken, refreshToken: nextRefreshToken });
+    return true;
+  }
+
+  async request<T>(endpoint: string, options: ApiOptions = {}): Promise<T> {
+    const { method = 'GET', body, headers = {} } = options;
+
+    const execute = async () => {
+      const token = this.getToken();
+      const requestHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        ...headers,
+      };
+
+      if (token) {
+        requestHeaders['Authorization'] = `Bearer ${token}`;
       }
-      const error = await response.json().catch(() => ({ message: 'An error occurred' }));
-      throw new Error(error.message || `HTTP ${response.status}`);
+      const tenantRaw = localStorage.getItem('tenant_defaults');
+      if (tenantRaw) {
+        try {
+          const tenant = JSON.parse(tenantRaw) as { tenantId?: string };
+          if (tenant.tenantId) {
+            requestHeaders['X-Tenant-Id'] = tenant.tenantId;
+          }
+        } catch {
+          // ignore invalid tenant storage
+        }
+      }
+
+      return fetch(`${API_BASE_URL}${endpoint}`, {
+        method,
+        headers: requestHeaders,
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    };
+
+    let response = await execute();
+
+    if (response.status === 401) {
+      const refreshed = await this.refreshSessionIfNeeded();
+      if (refreshed) {
+        response = await execute();
+      }
+    }
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        this.setSession(null);
+        localStorage.removeItem('tenant_defaults');
+        window.location.href = '/en/auth/login';
+      }
+      const error = await response.json().catch(() => ({ message: 'An error occurred' })) as {
+        message?: string;
+        error?: { message?: string };
+      };
+      throw new Error(error?.error?.message || error?.message || `HTTP ${response.status}`);
     }
 
     return response.json();
@@ -72,28 +200,67 @@ class ApiClient {
 
   // Auth
   async login(email: string, password: string) {
-    const response = await this.request<{ token: string; user: User }>('/auth/login', {
+    const response = await this.request<{
+      ok: true;
+      data: {
+        session: {
+          access_token: string;
+          refresh_token: string;
+        };
+        user: User;
+        company: {
+          id: string;
+          name: string;
+        };
+      };
+    }>('/v1/auth/login', {
       method: 'POST',
       body: { email, password },
     });
-    this.setToken(response.token);
-    return response;
+
+    this.setSession({
+      accessToken: response.data.session.access_token,
+      refreshToken: response.data.session.refresh_token,
+    });
+
+    const tenant = await this.hydrateTenant(response.data.company);
+
+    return {
+      user: response.data.user,
+      tenant,
+    };
   }
 
   async logout() {
-    try {
-      await this.request('/auth/logout', { method: 'POST' });
-    } finally {
-      this.setToken(null);
-    }
+    this.setSession(null);
+    localStorage.removeItem('tenant_defaults');
   }
 
   async getMe() {
-    return this.request<{ data: User }>('/me');
+    const response = await this.request<{ ok: true; data: { user: User } }>('/v1/auth/me');
+    return { data: response.data.user };
   }
 
   async getAdminOverview() {
-    return this.request<{ companies: AdminCompany[]; users: AdminUser[] }>('/admin/overview');
+    const response = await this.request<{ ok: true; data: AdminCompany[] }>('/v1/admin/companies');
+    return { companies: response.data };
+  }
+
+  async setCompanyStatus(companyId: string, isActive: boolean) {
+    const response = await this.request<{ ok: true; data: { id: string; is_active: boolean } }>(
+      `/v1/admin/companies/${companyId}/status`,
+      {
+        method: 'PATCH',
+        body: { is_active: isActive },
+      }
+    );
+
+    return response.data;
+  }
+
+  async getAdminCompanyUsers(companyId: string) {
+    const response = await this.request<{ ok: true; data: AdminUser[] }>(`/v1/admin/companies/${companyId}/users`);
+    return response.data;
   }
 
   async registerCompany(input: {
@@ -101,39 +268,179 @@ class ApiClient {
     adminName: string;
     email: string;
     password: string;
-    language: string;
-    theme: string;
+    cvr?: string;
+    address?: string;
+    country?: string;
+    phone?: string;
+    companyEmail?: string;
+    plan: string;
+    userLimit?: number;
+    paymentStatus?: 'pending' | 'active' | 'past_due' | 'cancelled' | 'trial';
   }) {
-    return this.request<{ tenant: TenantSettings; user: User }>('/auth/register-company', {
+    const response = await this.request<{
+      ok: true;
+      data: {
+        session: {
+          access_token: string;
+          refresh_token: string;
+        };
+        user: User;
+        company: {
+          id: string;
+          name: string;
+        };
+      };
+    }>('/v1/auth/signup-owner', {
       method: 'POST',
       body: {
-        company_name: input.companyName,
-        admin_name: input.adminName,
+        full_name: input.adminName,
         email: input.email,
         password: input.password,
-        language: input.language,
-        theme: input.theme,
+        company: {
+          name: input.companyName,
+          cvr: input.cvr,
+          address: input.address,
+          country: input.country,
+          phone: input.phone,
+          email: input.companyEmail || input.email,
+          plan: input.plan,
+          user_limit: input.userLimit,
+          payment_status: input.paymentStatus || 'pending',
+        },
       },
     });
+
+    this.setSession({
+      accessToken: response.data.session.access_token,
+      refreshToken: response.data.session.refresh_token,
+    });
+
+    const tenant = await this.hydrateTenant(response.data.company);
+
+    return {
+      tenant,
+      user: response.data.user,
+    };
   }
 
-  async joinCompany(input: { joinCode: string; name: string; email: string; password: string }) {
-    return this.request<{ tenant: TenantSettings; user: User }>('/auth/join-company', {
+  async joinCompany(input: { invitationCode: string; name: string; email: string; password: string }) {
+    const response = await this.request<{
+      ok: true;
+      data: {
+        session: {
+          access_token: string;
+          refresh_token: string;
+        };
+        user: User;
+        company: {
+          id: string;
+          name: string;
+        };
+      };
+    }>('/v1/auth/signup-member', {
       method: 'POST',
       body: {
-        join_code: input.joinCode,
-        name: input.name,
+        invitation_code: input.invitationCode,
+        full_name: input.name,
         email: input.email,
         password: input.password,
       },
     });
+
+    this.setSession({
+      accessToken: response.data.session.access_token,
+      refreshToken: response.data.session.refresh_token,
+    });
+
+    const tenant = await this.hydrateTenant(response.data.company);
+
+    return {
+      tenant,
+      user: response.data.user,
+    };
   }
 
-  async updateCompanySettings(input: { language: string; theme: string }) {
-    return this.request<{ tenant: TenantSettings }>('/company/settings', {
+  async updateCompanySettings(input: {
+    name?: string;
+    cvr?: string | null;
+    address?: string | null;
+    country?: string | null;
+    phone?: string | null;
+    email?: string | null;
+    plan?: string;
+    user_limit?: number | null;
+    payment_status?: 'pending' | 'active' | 'past_due' | 'cancelled' | 'trial';
+    language?: string;
+    theme?: string;
+  }) {
+    const response = await this.request<{ ok: true; data: TenantSettings }>('/v1/company/settings', {
       method: 'PATCH',
       body: input,
     });
+    return { tenant: response.data };
+  }
+
+  async getCompanySettings() {
+    const response = await this.request<{ ok: true; data: TenantSettings }>('/v1/company/settings');
+    return { tenant: response.data };
+  }
+
+  async regenerateInviteCode() {
+    const response = await this.request<{ ok: true; data: { invite_code: string } }>('/v1/company/invite-code/regenerate', {
+      method: 'POST',
+    });
+    return response.data;
+  }
+
+  async getCompanyUsers() {
+    const response = await this.request<{
+      ok: true;
+      data: Array<{
+        id: string;
+        role: string;
+        email: string;
+        full_name: string | null;
+        created_at: string;
+      }>;
+    }>('/v1/company/users');
+
+    return response.data;
+  }
+
+  async updateCompanyUserRole(userId: string, role: string) {
+    const response = await this.request<{ ok: true; data: { id: string; role: string } }>(
+      `/v1/company/users/${userId}/role`,
+      {
+        method: 'PATCH',
+        body: { role },
+      }
+    );
+
+    return response.data;
+  }
+
+  async getRoles() {
+    const response = await this.request<{
+      ok: true;
+      data: Array<{ slug: string; label: string; description: string | null; is_system: boolean }>;
+    }>('/v1/roles');
+
+    return response.data;
+  }
+
+  async validateInvitationCode(invitationCode: string) {
+    const response = await this.request<{
+      ok: true;
+      data: {
+        company_id: string;
+        company_name: string;
+        valid: boolean;
+      };
+    }>('/v1/auth/validate-invite-code', {
+      method: 'POST',
+      body: { invitation_code: invitationCode },
+    });
+    return response.data;
   }
 
   async getTenantIntegrations() {
@@ -591,38 +898,67 @@ class ApiClient {
 // Types
 export interface User {
   id: string;
-  name: string;
   email: string;
-  role: 'admin' | 'user';
+  role: string;
+  full_name?: string | null;
   company_id?: string;
+  company_name?: string;
+  permissions?: string[];
+  is_global_admin?: boolean;
+
+  // Legacy compatibility
+  name?: string;
 }
 
 export interface TenantSettings {
   id: string;
   name: string;
-  join_code: string;
-  default_language: string;
-  default_theme: string;
+  cvr?: string | null;
+  address?: string | null;
+  country?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  plan: string;
+  user_limit?: number | null;
+  payment_status: 'pending' | 'active' | 'past_due' | 'cancelled' | 'trial' | string;
+  invite_code?: string | null;
+  is_active: boolean;
+  created_at: string;
+
+  // Legacy compatibility
+  join_code?: string;
+  default_language?: string;
+  default_theme?: string;
 }
 
 export interface AdminCompany {
   id: string;
   name: string;
+  plan: string;
+  payment_status: string;
+  is_active: boolean;
+  created_at: string;
+  user_count: number;
+
+  // Legacy compatibility
   joinCode?: string;
   defaultLanguage?: string;
   defaultTheme?: string;
-  userCount: number;
+  userCount?: number;
   createdAt?: string;
 }
 
 export interface AdminUser {
   id: string;
-  name?: string;
   email: string;
   role: string;
+  full_name?: string | null;
   company_id?: string;
   created_at: string;
-  email_verified: boolean;
+
+  // Legacy compatibility
+  name?: string;
+  email_verified?: boolean;
 }
 
 export interface Customer {

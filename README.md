@@ -2,14 +2,14 @@
 
 This repository contains two systems in a single codebase:
 
-1) **CRM Platform (frontend + backend)**
+1) **CRM Platform (Lovable frontend + Railway backend + Supabase auth/db)**
 2) **HRMS Platform (Django)**
 
 ---
 
-## CRM Platform
+## CRM Platform (Rebuilt Auth + Multi-Tenant)
 
-### Frontend (Vite + React)
+### Frontend (Vite + React / Lovable)
 - Source: `src/`
 - Run:
   ```bash
@@ -17,7 +17,7 @@ This repository contains two systems in a single codebase:
   npm run dev
   ```
 
-### Backend (Node + TypeScript)
+### Backend (Node + TypeScript / Railway)
 - Source: `server/`
 - Run:
   ```bash
@@ -26,11 +26,20 @@ This repository contains two systems in a single codebase:
   npm run dev
   ```
 
-### Core features
-- Auth, admin overview, invitations
-- Leads, deals, pipeline, tasks
-- Inbox (messages + notifications)
-- Calendar (personal + company)
+### Supabase migration
+- SQL migration: `supabase/migrations/20260222070000_multi_tenant_rebuild.sql`
+
+### Architecture
+- Frontend calls backend only
+- Backend handles all auth/token flow via Supabase
+- Backend validates Supabase JWT on every protected request
+- Multi-tenant isolation via:
+  - `company_id`
+  - backend RBAC
+  - Supabase RLS policies
+
+Detailed setup guide:
+- `docs/SUPABASE_RAILWAY_REBUILD.md`
 
 ---
 

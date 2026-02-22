@@ -31,18 +31,19 @@ export default function RegisterCompanyPage() {
         adminName,
         email,
         password,
-        language,
-        theme,
+        plan: 'starter',
       });
-      const defaultLanguage = response.tenant.default_language as typeof locale;
+
       setTenantDefaults({
         tenantId: response.tenant.id,
         companyName: response.tenant.name,
-        joinCode: response.tenant.join_code,
-        defaultLanguage,
-        defaultTheme: response.tenant.default_theme as 'light' | 'dark',
+        joinCode: response.tenant.invite_code || undefined,
+        inviteCode: response.tenant.invite_code || undefined,
+        defaultLanguage: language,
+        defaultTheme: theme,
       });
-      navigate(`/${defaultLanguage}/auth/login`);
+
+      navigate(`/${language}/app/dashboard`);
     } finally {
       setLoading(false);
     }

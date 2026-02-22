@@ -20,7 +20,7 @@ export default function TenantSidebar({ basePath }: { basePath: string }) {
   const location = useLocation();
   const { t } = useI18n();
   const { user } = useAuth();
-  const adminItems = user?.role === 'admin' ? [{ href: 'admin/overview', labelKey: 'nav.admin', icon: ShieldCheck }] : [];
+  const adminItems = user?.is_global_admin ? [{ href: 'admin/overview', labelKey: 'nav.admin', icon: ShieldCheck }] : [];
 
   return (
     <aside className="hidden lg:flex lg:flex-col w-64 border-r border-border bg-card/80 backdrop-blur">

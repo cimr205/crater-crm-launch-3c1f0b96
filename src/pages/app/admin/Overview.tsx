@@ -1,127 +1,102 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import StatCards from '@/components/StatCards';
 import DataTable from '@/components/DataTable';
 import { useI18n } from '@/lib/i18n';
 import { api, AdminCompany, AdminUser } from '@/lib/api';
 
-type OverviewData = {
-  companies: AdminCompany[];
-  users: AdminUser[];
-};
-
 export default function AdminOverviewPage() {
   const { t } = useI18n();
-  const [data, setData] = useState<OverviewData | null>(null);
+  const [companies, setCompanies] = useState<AdminCompany[]>([]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [selectedCompanyUsers, setSelectedCompanyUsers] = useState<AdminUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const [exporting, setExporting] = useState(false);
-  const [month, setMonth] = useState(() => new Date().toISOString().slice(0, 7));
+  const [busyCompanyId, setBusyCompanyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let active = true;
+  const loadOverview = async () => {
     setLoading(true);
     setError(null);
-    api
-      .getAdminOverview()
-      .then((response) => {
-        if (!active) return;
-        setData(response);
-      })
-      .catch((err) => {
-        if (!active) return;
-        setError(err instanceof Error ? err.message : t('admin.loadError'));
-      })
-      .finally(() => {
-        if (!active) return;
-        setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [t]);
-
-  const handleExport = async () => {
-    setExporting(true);
     try {
-      const blob = await api.downloadAdminCompaniesHistoryCsv(month);
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `all-companies-history-${month}.csv`;
-      link.click();
-      URL.revokeObjectURL(url);
+      const response = await api.getAdminOverview();
+      setCompanies(response.companies || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('admin.exportError'));
+      setError(err instanceof Error ? err.message : t('admin.loadError'));
     } finally {
-      setExporting(false);
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOverview().catch(() => undefined);
+  }, []);
+
+  const loadCompanyUsers = async (companyId: string) => {
+    setSelectedCompanyId(companyId);
+    try {
+      const users = await api.getAdminCompanyUsers(companyId);
+      setSelectedCompanyUsers(users);
+    } catch {
+      setSelectedCompanyUsers([]);
+    }
+  };
+
+  const toggleCompanyStatus = async (company: AdminCompany) => {
+    setBusyCompanyId(company.id);
+    try {
+      await api.setCompanyStatus(company.id, !company.is_active);
+      await loadOverview();
+      if (selectedCompanyId === company.id) {
+        await loadCompanyUsers(company.id);
+      }
+    } finally {
+      setBusyCompanyId(null);
     }
   };
 
   const stats = useMemo(() => {
-    const companies = data?.companies ?? [];
-    const users = data?.users ?? [];
-    const verified = users.filter((user) => user.email_verified).length;
-    const admins = users.filter((user) => user.role === 'admin').length;
+    const totalUsers = companies.reduce((sum, company) => sum + Number(company.user_count || 0), 0);
+    const activeCompanies = companies.filter((company) => company.is_active).length;
+    const inactiveCompanies = companies.length - activeCompanies;
+
     return [
-      { title: t('admin.stats.companies'), value: String(companies.length) },
-      { title: t('admin.stats.users'), value: String(users.length) },
-      { title: t('admin.stats.verifiedUsers'), value: String(verified) },
-      { title: t('admin.stats.admins'), value: String(admins) },
+      { title: 'Companies', value: String(companies.length) },
+      { title: 'Users', value: String(totalUsers) },
+      { title: 'Active', value: String(activeCompanies) },
+      { title: 'Inactive', value: String(inactiveCompanies) },
     ];
-  }, [data, t]);
+  }, [companies]);
 
   const companyRows = useMemo(
     () =>
-      (data?.companies ?? []).map((company) => ({
+      companies.map((company) => ({
+        id: company.id,
         name: company.name,
-        joinCode: company.joinCode || '—',
-        users: String(company.userCount ?? 0),
-        language: company.defaultLanguage || '—',
-        theme: company.defaultTheme || '—',
-        created: company.createdAt ? new Date(company.createdAt).toLocaleDateString() : '—',
+        plan: company.plan,
+        payment: company.payment_status,
+        users: String(company.user_count || 0),
+        status: company.is_active ? 'active' : 'inactive',
+        created: company.created_at ? new Date(company.created_at).toLocaleDateString() : '—',
       })),
-    [data]
+    [companies]
   );
 
   const userRows = useMemo(
     () =>
-      (data?.users ?? []).map((user) => ({
-        name: user.name || '—',
+      selectedCompanyUsers.map((user) => ({
+        name: user.full_name || '—',
         email: user.email,
         role: user.role,
-        company: user.company_id || '—',
-        verified: user.email_verified ? t('admin.verifiedYes') : t('admin.verifiedNo'),
         created: user.created_at ? new Date(user.created_at).toLocaleDateString() : '—',
       })),
-    [data, t]
+    [selectedCompanyUsers]
   );
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">{t('admin.title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('admin.subtitle')}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex flex-col">
-            <label className="text-xs text-muted-foreground" htmlFor="admin-export-month">
-              {t('admin.exportLabel')}
-            </label>
-            <Input
-              id="admin-export-month"
-              type="month"
-              value={month}
-              onChange={(event) => setMonth(event.target.value)}
-              className="w-40"
-            />
-          </div>
-          <Button onClick={handleExport} disabled={exporting}>
-            {exporting ? t('common.loading') : t('admin.exportCta')}
-          </Button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold">{t('admin.title')}</h1>
+        <p className="text-sm text-muted-foreground">{t('admin.subtitle')}</p>
       </div>
 
       {loading ? (
@@ -132,42 +107,59 @@ export default function AdminOverviewPage() {
         <>
           <StatCards items={stats} />
 
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <div className="text-sm font-semibold">{t('admin.tables.companiesTitle')}</div>
-              <DataTable
-                columns={[
-                  { key: 'name', label: t('admin.columns.companyName') },
-                  { key: 'joinCode', label: t('admin.columns.joinCode') },
-                  { key: 'users', label: t('admin.columns.users') },
-                  { key: 'language', label: t('admin.columns.language') },
-                  { key: 'theme', label: t('admin.columns.theme') },
-                  { key: 'created', label: t('admin.columns.created') },
-                ]}
-                rows={companyRows}
-                emptyLabel={t('admin.emptyCompanies')}
-              />
-            </div>
+          <div className="rounded-xl border border-border bg-card/70 backdrop-blur p-4 space-y-3">
+            <div className="text-sm font-semibold">Companies</div>
+            <DataTable
+              columns={[
+                { key: 'name', label: 'Company' },
+                { key: 'plan', label: 'Plan' },
+                { key: 'payment', label: 'Payment status' },
+                { key: 'users', label: 'Users' },
+                { key: 'status', label: 'Status' },
+                { key: 'created', label: 'Created' },
+              ]}
+              rows={companyRows}
+              emptyLabel="No companies"
+            />
 
-            <div className="space-y-3">
-              <div className="text-sm font-semibold">{t('admin.tables.usersTitle')}</div>
-              <DataTable
-                columns={[
-                  { key: 'name', label: t('admin.columns.userName') },
-                  { key: 'email', label: t('admin.columns.email') },
-                  { key: 'role', label: t('admin.columns.role') },
-                  { key: 'company', label: t('admin.columns.companyId') },
-                  { key: 'verified', label: t('admin.columns.verified') },
-                  { key: 'created', label: t('admin.columns.created') },
-                ]}
-                rows={userRows}
-                emptyLabel={t('admin.emptyUsers')}
-              />
+            <div className="flex flex-wrap gap-2">
+              {companies.map((company) => (
+                <div key={company.id} className="rounded border border-border p-2 text-xs flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => loadCompanyUsers(company.id)}>
+                    {company.name}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={company.is_active ? 'destructive' : 'default'}
+                    disabled={busyCompanyId === company.id}
+                    onClick={() => toggleCompanyStatus(company)}
+                  >
+                    {busyCompanyId === company.id
+                      ? t('common.loading')
+                      : company.is_active
+                      ? 'Deactivate'
+                      : 'Activate'}
+                  </Button>
+                </div>
+              ))}
             </div>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card/70 backdrop-blur p-4 space-y-3">
+            <div className="text-sm font-semibold">Users in selected company</div>
+            <DataTable
+              columns={[
+                { key: 'name', label: 'Name' },
+                { key: 'email', label: 'Email' },
+                { key: 'role', label: 'Role' },
+                { key: 'created', label: 'Created' },
+              ]}
+              rows={userRows}
+              emptyLabel={selectedCompanyId ? 'No users in this company' : 'Select a company above'}
+            />
           </div>
         </>
       )}
     </div>
   );
 }
-

@@ -168,7 +168,7 @@ export default function OnboardingPage() {
     navigate(`/${locale}/app/dashboard`);
   };
 
-  if (user?.role !== 'admin') {
+  if (!user || (user.role !== 'owner' && !user.is_global_admin)) {
     return (
       <div className="max-w-3xl mx-auto">
         <Card className="p-6 bg-card/70 backdrop-blur border-border">
