@@ -231,6 +231,52 @@ class ApiClient {
     };
   }
 
+  async exchangeGoogleSession(input: {
+    accessToken: string;
+    refreshToken?: string;
+    createIfMissing?: boolean;
+    companyName?: string;
+  }) {
+    const response = await this.request<{
+      ok: true;
+      data: {
+        session: {
+          access_token: string;
+          refresh_token: string | null;
+        };
+        user: User;
+        company: {
+          id: string;
+          name: string;
+        };
+      };
+    }>('/v1/auth/google/exchange', {
+      method: 'POST',
+      body: {
+        access_token: input.accessToken,
+        refresh_token: input.refreshToken,
+        create_if_missing: input.createIfMissing || false,
+        company_name: input.companyName,
+      },
+    });
+
+    const refreshToken = response.data.session.refresh_token || input.refreshToken;
+    if (!refreshToken) {
+      throw new Error('Google sign-in succeeded but no refresh token was returned. Please try again.');
+    }
+
+    this.setSession({
+      accessToken: response.data.session.access_token,
+      refreshToken,
+    });
+
+    const tenant = await this.hydrateTenant(response.data.company);
+    return {
+      user: response.data.user,
+      tenant,
+    };
+  }
+
   async logout() {
     this.setSession(null);
     localStorage.removeItem('tenant_defaults');

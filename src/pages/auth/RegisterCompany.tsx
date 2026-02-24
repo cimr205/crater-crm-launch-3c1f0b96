@@ -7,6 +7,7 @@ import ThemeSelector from '@/components/settings/ThemeSelector';
 import LanguageSelector from '@/components/settings/LanguageSelector';
 import { api } from '@/lib/api';
 import { useTenant } from '@/contexts/TenantContext';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function RegisterCompanyPage() {
   const { t } = useI18n();
@@ -14,6 +15,7 @@ export default function RegisterCompanyPage() {
   const params = useParams();
   const locale = isLocale(params.locale) ? params.locale : 'en';
   const { setTenantDefaults } = useTenant();
+  const { loginWithGoogle } = useAuth();
   const [companyName, setCompanyName] = useState('');
   const [adminName, setAdminName] = useState('');
   const [email, setEmail] = useState('');
@@ -21,6 +23,18 @@ export default function RegisterCompanyPage() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [language, setLanguage] = useState<typeof locale>(locale);
   const [loading, setLoading] = useState(false);
+
+  const handleGoogleSignup = async () => {
+    setLoading(true);
+    try {
+      await loginWithGoogle({
+        createIfMissing: true,
+        companyName: companyName || undefined,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -86,6 +100,9 @@ export default function RegisterCompanyPage() {
           </div>
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? t('common.loading') : t('auth.createCompanyCta')}
+          </Button>
+          <Button type="button" variant="outline" className="w-full" disabled={loading} onClick={handleGoogleSignup}>
+            {t('auth.signupWithGoogle')}
           </Button>
         </form>
       </div>

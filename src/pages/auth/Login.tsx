@@ -7,13 +7,22 @@ import { useI18n, isLocale } from '@/lib/i18n';
 
 export default function LoginPage() {
   const { t } = useI18n();
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const params = useParams();
   const locale = isLocale(params.locale) ? params.locale : 'en';
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    try {
+      await loginWithGoogle();
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -45,6 +54,9 @@ export default function LoginPage() {
           />
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? t('common.loading') : t('auth.loginCta')}
+          </Button>
+          <Button type="button" variant="outline" className="w-full" disabled={loading} onClick={handleGoogleLogin}>
+            {t('auth.loginWithGoogle')}
           </Button>
         </form>
       </div>

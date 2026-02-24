@@ -54,6 +54,7 @@ Backend læser alt fra `server/src/config/env.ts`.
 - `POST /api/v1/auth/signup-owner`
 - `POST /api/v1/auth/signup-member`
 - `POST /api/v1/auth/login`
+- `POST /api/v1/auth/google/exchange`
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/validate-invite-code`
 
@@ -96,13 +97,34 @@ Lovable skal kun kalde Railway API.
 Frontend env:
 
 - `VITE_API_BASE_URL=https://<railway-domain>/api`
+- `VITE_SUPABASE_URL=https://<project-ref>.supabase.co`
+- `VITE_SUPABASE_ANON_KEY=<anon-key>`
 
 Auth tokens (access + refresh) gemmes i frontend-session storage/local storage via API client.
-Frontend kalder ikke Supabase direkte.
+Frontend bruger Supabase client **kun** til Google OAuth redirect/callback, og sender derefter session videre til Railway via `/api/v1/auth/google/exchange`.
 
 ---
 
-## 5) Deploy
+## 5) Google OAuth opsætning (Supabase)
+
+1. Gå til **Supabase Dashboard → Authentication → Providers → Google** og aktiver provider.
+2. Indsæt Google OAuth Client ID + Secret.
+3. Under **Authentication → URL Configuration** skal følgende være tilladt:
+   - Site URL: dit frontend domæne (fx `https://app.example.com`)
+   - Redirect URLs:
+     - `http://localhost:5173/en/auth/callback`
+     - `http://localhost:5173/da/auth/callback`
+     - `https://<frontend-domain>/en/auth/callback`
+     - `https://<frontend-domain>/da/auth/callback`
+     - (tilføj evt. `de` eller andre locale paths)
+4. I Google Cloud Console skal Authorized redirect URI pege på Supabase callback:
+   - `https://<project-ref>.supabase.co/auth/v1/callback`
+
+Resultat:
+- Google-brugere bliver oprettet i **Supabase Auth** automatisk.
+- Appen afslutter login/signup via `POST /api/v1/auth/google/exchange` og opretter manglende app-profil/company ved signup-flow.
+
+## 6) Deploy
 
 Fra repo root:
 

@@ -45,6 +45,13 @@ const refreshSchema = z.object({
   refresh_token: z.string().min(20),
 });
 
+const googleExchangeSchema = z.object({
+  access_token: z.string().min(20),
+  refresh_token: z.string().min(20).optional(),
+  create_if_missing: z.boolean().optional().default(false),
+  company_name: z.string().min(2).max(120).optional(),
+});
+
 type AppUserRow = {
   id: string;
   company_id: string;
@@ -386,6 +393,96 @@ export function registerRoutes(app: Application) {
         id: profile.company_id,
         name: profile.company_name,
       },
+    });
+  });
+
+  app.post('/api/v1/auth/google/exchange', async (req: Request, res: Response) => {
+    const parsed = googleExchangeSchema.safeParse(req.body);
+    if (!parsed.success) {
+      fail(res, 400, 'invalid_payload', 'Invalid payload', parsed.error.flatten());
+      return;
+    }
+
+    const { data: authUserData, error: authUserError } = await supabaseAnon.auth.getUser(parsed.data.access_token);
+    if (authUserError || !authUserData.user) {
+      fail(res, 401, 'invalid_google_session', authUserError?.message || 'Invalid Google session');
+      return;
+    }
+
+    const authUser = authUserData.user;
+    let profile = await getAppUserProfile(authUser.id);
+    let created = false;
+
+    if (!profile && parsed.data.create_if_missing) {
+      const email = authUser.email?.toLowerCase().trim();
+      if (!email) {
+        fail(res, 400, 'email_missing', 'Google account has no email address');
+        return;
+      }
+
+      const displayName =
+        (typeof authUser.user_metadata?.full_name === 'string' && authUser.user_metadata.full_name.trim()) ||
+        (typeof authUser.user_metadata?.name === 'string' && authUser.user_metadata.name.trim()) ||
+        email.split('@')[0];
+
+      const companyName = parsed.data.company_name?.trim() || `${displayName}'s Company`;
+      const isGlobalAdmin = env.globalAdminEmails.includes(email);
+      const inviteCode = await generateUniqueInviteCode();
+
+      await withTransaction(async (client) => {
+        const companyResult = await client.query<{ id: string }>(
+          `
+          insert into companies (name, email, plan, payment_status, invite_code, created_by)
+          values ($1,$2,'starter','trial',$3,$4)
+          returning id
+          `,
+          [companyName, email, inviteCode, authUser.id]
+        );
+
+        const companyId = companyResult.rows[0]?.id;
+        if (!companyId) {
+          throw new Error('Failed to create company');
+        }
+
+        await client.query(
+          `
+          insert into users (id, company_id, role, email, full_name, is_global_admin)
+          values ($1,$2,'owner',$3,$4,$5)
+          `,
+          [authUser.id, companyId, email, displayName, isGlobalAdmin]
+        );
+
+        await client.query(
+          `insert into activity_logs (company_id, user_id, action, metadata)
+           values ($1, $2, $3, $4::jsonb)`,
+          [companyId, authUser.id, 'company.owner_signup_google', JSON.stringify({ email })]
+        );
+      });
+
+      profile = await getAppUserProfile(authUser.id);
+      created = true;
+    }
+
+    if (!profile) {
+      fail(res, 403, 'profile_missing', 'No company user profile found');
+      return;
+    }
+    if (!profile.company_is_active && !profile.is_global_admin) {
+      fail(res, 403, 'company_inactive', 'Company is inactive. Access blocked.');
+      return;
+    }
+
+    ok(res, {
+      session: {
+        access_token: parsed.data.access_token,
+        refresh_token: parsed.data.refresh_token || null,
+      },
+      user: mapProfile(profile),
+      company: {
+        id: profile.company_id,
+        name: profile.company_name,
+      },
+      is_new_user: created,
     });
   });
 

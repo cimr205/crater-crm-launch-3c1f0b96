@@ -9,6 +9,7 @@ import NotFound from "./pages/NotFound";
 import LoginPage from "@/pages/auth/Login";
 import RegisterCompanyPage from "@/pages/auth/RegisterCompany";
 import JoinCompanyPage from "@/pages/auth/JoinCompany";
+import OAuthCallbackPage from "@/pages/auth/OAuthCallback";
 import DashboardPage from "@/pages/app/Dashboard";
 import LeadsPage from "@/pages/app/crm/Leads";
 import DealsPage from "@/pages/app/crm/Deals";
@@ -64,6 +65,7 @@ const App = () => (
                 <Route path="auth/login" element={<LoginPage />} />
                 <Route path="auth/register-company" element={<RegisterCompanyPage />} />
                 <Route path="auth/join-company" element={<JoinCompanyPage />} />
+                <Route path="auth/callback" element={<OAuthCallbackPage />} />
                 <Route
                   path="app"
                   element={

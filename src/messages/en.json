@@ -26,6 +26,8 @@
     "email": "Email",
     "password": "Password",
     "loginCta": "Sign in",
+    "loginWithGoogle": "Continue with Google",
+    "signupWithGoogle": "Sign up with Google",
     "registerCompanyTitle": "Create your company",
     "registerCompanySubtitle": "Start a new tenant workspace",
     "companyName": "Company name",

@@ -26,6 +26,8 @@
     "email": "Email",
     "password": "Adgangskode",
     "loginCta": "Log ind",
+    "loginWithGoogle": "Fortsæt med Google",
+    "signupWithGoogle": "Opret med Google",
     "registerCompanyTitle": "Opret din virksomhed",
     "registerCompanySubtitle": "Start et nyt tenant-workspace",
     "companyName": "Virksomhedsnavn",
