@@ -5,7 +5,7 @@ asn1crypto
 bs4
 certifi
 cffi
-chardet
+chardet<6
 charset-normalizer
 click
 cryptography

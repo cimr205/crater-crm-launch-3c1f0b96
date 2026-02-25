@@ -160,14 +160,16 @@ def get_diff_dict(first_dict, other_dict, model=None):
 
 def employee_exists(request):
     """
-    This method return the employee instance and work info if not exists return None instead
+    Return the employee instance and work info.
+    If not available, return (None, None).
     """
     employee, employee_work_info = None, None
     try:
         employee = request.user.employee_get
         employee_work_info = employee.employee_work_info
-    finally:
-        return (employee, employee_work_info)
+    except Exception:
+        pass
+    return (employee, employee_work_info)
 
 
 def shift_schedule_today(day, shift):

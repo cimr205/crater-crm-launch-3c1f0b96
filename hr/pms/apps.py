@@ -2,6 +2,8 @@
 Django application configuration for the PMS (Performance Management System) app.
 """
 
+import sys
+
 from django.apps import AppConfig
 from django.conf import settings
 
@@ -25,11 +27,22 @@ class PmsConfig(AppConfig):
             path("pms/", include("pms.urls")),
         )
         super().ready()
+
+        # Avoid DB work during app initialization for management commands.
+        if len(sys.argv) > 1 and sys.argv[1] in {
+            "check",
+            "migrate",
+            "makemigrations",
+            "collectstatic",
+            "test",
+            "shell",
+        }:
+            return
+
         try:
             from pms.signals import start_automation
 
             start_automation()
-        except:
-            """
-            Migrations are not affected yet
-            """
+        except Exception:
+            # Keep startup resilient if PMS automation can't initialize.
+            pass

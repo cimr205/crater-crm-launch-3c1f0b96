@@ -1,3 +1,5 @@
+import sys
+
 from django.apps import AppConfig
 from django.conf import settings
 
@@ -18,7 +20,19 @@ class HorillaLdapConfig(AppConfig):
         )
         super().ready()
 
-        ldap_config = config.load_ldap_settings()
+        # Avoid DB access during app initialization for management commands
+        # like `check`, `migrate`, `makemigrations`, etc.
+        if len(sys.argv) > 1 and sys.argv[1] in {
+            "check",
+            "migrate",
+            "makemigrations",
+            "collectstatic",
+            "test",
+            "shell",
+        }:
+            ldap_config = settings.DEFAULT_LDAP_CONFIG
+        else:
+            ldap_config = config.load_ldap_settings()
 
         # Apply settings dynamically
         settings.LDAP_SERVER = ldap_config["LDAP_SERVER"]

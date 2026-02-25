@@ -8,6 +8,7 @@ registered on biometric devices.
 
 import json
 import logging
+import sys
 from datetime import datetime, timedelta
 from threading import Event, Thread
 from urllib.parse import parse_qs, unquote
@@ -2627,11 +2628,12 @@ def etimeoffice_biometric_attendance_scheduler(device_id):
         etimeoffice_biometric_attendance_logs(device)
 
 
-try:
-    devices = BiometricDevices.objects.all().update(is_live=False)
-    for device in BiometricDevices.objects.filter(is_scheduler=True):
-        if device:
-            if str_time_seconds(device.scheduler_duration) > 0:
+def bootstrap_biometric_schedulers():
+    """Initialize biometric schedulers for live app runtime only."""
+    try:
+        BiometricDevices.objects.all().update(is_live=False)
+        for device in BiometricDevices.objects.filter(is_scheduler=True):
+            if device and str_time_seconds(device.scheduler_duration) > 0:
                 if device.machine_type == "anviz":
                     scheduler = BackgroundScheduler()
                     scheduler.add_job(
@@ -2657,7 +2659,6 @@ try:
                         seconds=str_time_seconds(device.scheduler_duration),
                     )
                     scheduler.start()
-
                 elif device.machine_type == "cosec":
                     scheduler = BackgroundScheduler()
                     scheduler.add_job(
@@ -2666,7 +2667,6 @@ try:
                         seconds=str_time_seconds(device.scheduler_duration),
                     )
                     scheduler.start()
-
                 elif device.machine_type == "etimeoffice":
                     scheduler = BackgroundScheduler()
                     scheduler.add_job(
@@ -2675,7 +2675,10 @@ try:
                         seconds=str_time_seconds(device.scheduler_duration),
                     )
                     scheduler.start()
-                else:
-                    pass
-except:
-    pass
+    except Exception:
+        pass
+
+
+# Prevent DB/scheduler side effects during management commands (check/migrate/etc)
+if len(sys.argv) > 1 and sys.argv[1] in {"runserver", "shell"}:
+    bootstrap_biometric_schedulers()
