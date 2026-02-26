@@ -25,14 +25,17 @@ export default function OAuthCallbackPage() {
         return;
       }
 
+      const createIfMissing = searchParams.get('createIfMissing') === '1';
+
       await completeGoogleLogin({
         accessToken: data.session.access_token,
         refreshToken: data.session.refresh_token,
-        createIfMissing: searchParams.get('createIfMissing') === '1',
+        createIfMissing,
         companyName: searchParams.get('companyName') || undefined,
       });
 
-      navigate(`/${locale}/app/dashboard`, { replace: true });
+      // New Google signups should complete the same company setup/onboarding questions.
+      navigate(`/${locale}/app/${createIfMissing ? 'onboarding' : 'dashboard'}`, { replace: true });
     };
 
     run().catch(() => {
