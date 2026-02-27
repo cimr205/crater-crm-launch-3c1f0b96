@@ -260,10 +260,7 @@ class ApiClient {
       },
     });
 
-    const refreshToken = response.data.session.refresh_token || input.refreshToken;
-    if (!refreshToken) {
-      throw new Error('Google sign-in succeeded but no refresh token was returned. Please try again.');
-    }
+    const refreshToken = response.data.session.refresh_token || input.refreshToken || '';
 
     this.setSession({
       accessToken: response.data.session.access_token,
