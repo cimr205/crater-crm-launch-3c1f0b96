@@ -1099,3 +1099,10 @@ export interface WorkHistoryMonth {
 }
 
 export const api = new ApiClient();
+
+// Aliases for backward compatibility
+export const apiClient = api;
+export const adminApi = api;
+
+// Lead and Task types re-exported from crm types
+export type { Lead, Task } from '@/lib/crm/types';
