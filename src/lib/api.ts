@@ -1,5 +1,5 @@
 const resolvedApiBase =
-  typeof window !== 'undefined' ? `${window.location.origin}/api` : 'http://localhost:4000/api';
+  typeof window !== 'undefined' ? `https://api.aiagencydanmark.dk/api` : 'http://localhost:4000/api';
 export const API_BASE_URL =
   (import.meta as { env?: Record<string, string> }).env?.VITE_API_BASE_URL || resolvedApiBase;
 export const BACKEND_BASE_URL = API_BASE_URL.replace(/\/api$/, '');
