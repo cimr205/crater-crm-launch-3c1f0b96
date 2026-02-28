@@ -5,11 +5,7 @@ import de from '@/messages/de.json';
 
 export type Locale = 'en' | 'da' | 'de';
 
-const LOCALES: Locale[] = ['en', 'da', 'de'];
-
-export function isLocale(value: unknown): value is Locale {
-  return typeof value === 'string' && (LOCALES as string[]).includes(value);
-}
+export const SUPPORTED_LOCALES: Locale[] = ['en', 'da', 'de'];
 
 const messages: Record<Locale, Record<string, unknown>> = { en, da, de };
 
@@ -22,6 +18,15 @@ function getNestedValue(obj: Record<string, unknown>, path: string): string {
   }
   if (typeof current === 'string') return current;
   return path;
+}
+
+export function isLocale(value: unknown): value is Locale {
+  return typeof value === 'string' && (SUPPORTED_LOCALES as string[]).includes(value);
+}
+
+export function createTranslator(locale: Locale): (key: string) => string {
+  const dict = messages[locale] ?? messages.en;
+  return (key: string) => getNestedValue(dict, key);
 }
 
 interface I18nContextValue {
