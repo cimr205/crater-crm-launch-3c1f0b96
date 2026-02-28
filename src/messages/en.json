@@ -37,7 +37,14 @@
     "createCompanyCta": "Create company",
     "joinCompanyTitle": "Join your company",
     "joinCompanySubtitle": "Enter the join code from your admin",
-    "joinCompanyCta": "Join company"
+    "joinCompanyCta": "Join company",
+    "fieldsMissing": "Please fill in all fields",
+    "alreadyHaveAccount": "Already have an account?",
+    "noAccount": "No account yet?",
+    "signIn": "Sign in",
+    "createCompany": "Create company",
+    "haveJoinCode": "Have a join code?",
+    "useJoinCode": "Join with code"
   },
   "nav": {
     "dashboard": "Dashboard",

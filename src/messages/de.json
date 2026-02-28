@@ -37,7 +37,14 @@
     "createCompanyCta": "Unternehmen erstellen",
     "joinCompanyTitle": "Unternehmen beitreten",
     "joinCompanySubtitle": "Code vom Admin eingeben",
-    "joinCompanyCta": "Unternehmen beitreten"
+    "joinCompanyCta": "Unternehmen beitreten",
+    "fieldsMissing": "Bitte alle Felder ausfüllen",
+    "alreadyHaveAccount": "Bereits ein Konto?",
+    "noAccount": "Noch kein Konto?",
+    "signIn": "Anmelden",
+    "createCompany": "Unternehmen erstellen",
+    "haveJoinCode": "Join-Code vorhanden?",
+    "useJoinCode": "Mit Code beitreten"
   },
   "nav": {
     "dashboard": "Dashboard",

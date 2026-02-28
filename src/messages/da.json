@@ -37,7 +37,14 @@
     "createCompanyCta": "Opret virksomhed",
     "joinCompanyTitle": "Tilslut virksomheden",
     "joinCompanySubtitle": "Indtast koden fra din admin",
-    "joinCompanyCta": "Tilslut virksomhed"
+    "joinCompanyCta": "Tilslut virksomhed",
+    "fieldsMissing": "Udfyld venligst alle felter",
+    "alreadyHaveAccount": "Har du allerede en konto?",
+    "noAccount": "Ingen konto endnu?",
+    "signIn": "Log ind",
+    "createCompany": "Opret virksomhed",
+    "haveJoinCode": "Har du en join-kode?",
+    "useJoinCode": "Tilslut med kode"
   },
   "nav": {
     "dashboard": "Dashboard",
