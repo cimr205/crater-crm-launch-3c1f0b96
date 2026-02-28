@@ -4,5 +4,8 @@ export * from './useDeals';
 export * from './useFinance';
 export * from './useEmployees';
 export * from './useTasks';
+export * from './useTodos';
 export * from './useCalendar';
 export * from './useInbox';
+export * from './useEmails';
+export * from './useCampaigns';

@@ -919,6 +919,110 @@ class ApiClient {
     return response.blob();
   }
 
+  // Emails
+  async listEmails(params?: { folder?: string; q?: string; page?: number; limit?: number }) {
+    const search = new URLSearchParams();
+    if (params?.folder) search.set('folder', params.folder);
+    if (params?.q) search.set('q', params.q);
+    if (params?.page) search.set('page', String(params.page));
+    if (params?.limit) search.set('limit', String(params.limit));
+    const query = search.toString() ? `?${search.toString()}` : '';
+    return this.request<{ data: Email[]; meta: PaginationMeta }>(`/v1/emails${query}`);
+  }
+
+  async sendEmail(input: {
+    to: string[];
+    subject: string;
+    body: string;
+    cc?: string[];
+    bcc?: string[];
+    replyTo?: string;
+  }) {
+    return this.request<{ data: Email }>('/v1/emails/send', {
+      method: 'POST',
+      body: {
+        to: input.to,
+        subject: input.subject,
+        body: input.body,
+        cc: input.cc,
+        bcc: input.bcc,
+        reply_to: input.replyTo,
+      },
+    });
+  }
+
+  // Campaigns
+  async listCampaigns() {
+    return this.request<{ data: Campaign[] }>('/v1/campaigns');
+  }
+
+  async getCampaign(id: string) {
+    return this.request<{ data: Campaign }>(`/v1/campaigns/${id}`);
+  }
+
+  async createCampaign(input: {
+    name: string;
+    subject: string;
+    body: string;
+    audienceFilter?: Record<string, unknown>;
+    scheduledAt?: string;
+  }) {
+    return this.request<{ data: Campaign }>('/v1/campaigns', {
+      method: 'POST',
+      body: {
+        name: input.name,
+        subject: input.subject,
+        body: input.body,
+        audience_filter: input.audienceFilter,
+        scheduled_at: input.scheduledAt,
+      },
+    });
+  }
+
+  async updateCampaign(id: string, input: { status?: 'draft' | 'scheduled' | 'sent' | 'cancelled'; name?: string }) {
+    return this.request<{ data: Campaign }>(`/v1/campaigns/${id}`, {
+      method: 'PATCH',
+      body: input,
+    });
+  }
+
+  // Todos
+  async listTodos(params?: { status?: string; assignedTo?: string }) {
+    const search = new URLSearchParams();
+    if (params?.status) search.set('status', params.status);
+    if (params?.assignedTo) search.set('assigned_to', params.assignedTo);
+    const query = search.toString() ? `?${search.toString()}` : '';
+    return this.request<{ data: Todo[] }>(`/v1/todos${query}`);
+  }
+
+  async createTodo(input: { title: string; description?: string; dueDate?: string; assignedTo?: string }) {
+    return this.request<{ data: Todo }>('/v1/todos', {
+      method: 'POST',
+      body: {
+        title: input.title,
+        description: input.description,
+        due_date: input.dueDate,
+        assigned_to: input.assignedTo,
+      },
+    });
+  }
+
+  async updateTodo(id: string, input: { status?: string; title?: string; description?: string; dueDate?: string }) {
+    return this.request<{ data: Todo }>(`/v1/todos/${id}`, {
+      method: 'PATCH',
+      body: {
+        status: input.status,
+        title: input.title,
+        description: input.description,
+        due_date: input.dueDate,
+      },
+    });
+  }
+
+  async deleteTodo(id: string) {
+    return this.request<{ ok: true }>(`/v1/todos/${id}`, { method: 'DELETE' });
+  }
+
   async downloadAdminCompaniesHistoryCsv(month?: string) {
     const token = this.getToken();
     const query = month ? `?month=${month}` : '';
@@ -1096,6 +1200,39 @@ export interface WorkHistoryMonth {
   month: string;
   total: number;
   totals: WorkHistorySummary;
+}
+
+export interface Email {
+  id: string;
+  from: string;
+  to: string[];
+  subject: string;
+  body: string;
+  folder: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface Campaign {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  status: 'draft' | 'scheduled' | 'sent' | 'cancelled';
+  audienceFilter?: Record<string, unknown>;
+  scheduledAt?: string;
+  sentAt?: string;
+  createdAt: string;
+}
+
+export interface Todo {
+  id: string;
+  title: string;
+  description?: string;
+  status: 'open' | 'done' | 'cancelled';
+  dueDate?: string;
+  assignedTo?: string;
+  createdAt: string;
 }
 
 export const api = new ApiClient();
