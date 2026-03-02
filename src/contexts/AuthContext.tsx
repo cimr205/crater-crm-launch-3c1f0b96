@@ -6,23 +6,35 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  needsOnboarding: boolean;
+  login: (email: string, password: string) => Promise<{ needsOnboarding: boolean }>;
+  signup: (fullName: string, email: string, password: string) => Promise<void>;
   loginWithGoogle: (input?: { createIfMissing?: boolean; companyName?: string }) => Promise<void>;
-  completeGoogleLogin: (input: { accessToken: string; refreshToken?: string; createIfMissing?: boolean; companyName?: string }) => Promise<void>;
+  completeGoogleLogin: (input: { accessToken: string; refreshToken?: string; createIfMissing?: boolean; companyName?: string }) => Promise<{ needsOnboarding: boolean }>;
+  refreshGate: () => Promise<boolean>;
   logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function resolveNeedsOnboarding(user: User | null): boolean {
+  if (!user) return false;
+  return user.needs_onboarding === true || user.onboarding_completed === false || !user.company_id;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
 
   useEffect(() => {
     const token = api.getToken();
     if (token) {
       api.getMe()
-        .then((response) => setUser(response.data))
+        .then((u) => {
+          setUser(u);
+          setNeedsOnboarding(resolveNeedsOnboarding(u));
+        })
         .catch(() => api.setSession(null))
         .finally(() => setIsLoading(false));
     } else {
@@ -33,17 +45,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (email: string, password: string) => {
     const response = await api.login(email, password);
     setUser(response.user);
+    const no = resolveNeedsOnboarding(response.user);
+    setNeedsOnboarding(no);
+    return { needsOnboarding: no };
+  };
+
+  const signup = async (fullName: string, email: string, password: string) => {
+    const response = await api.signup(fullName, email, password);
+    setUser(response.user);
+    setNeedsOnboarding(true); // new users always need onboarding
   };
 
   const loginWithGoogle = async (input?: { createIfMissing?: boolean; companyName?: string }) => {
     const locale = window.location.pathname.split('/')[1] || 'en';
     const next = new URL(getOAuthRedirectTo(locale));
-    if (input?.createIfMissing) {
-      next.searchParams.set('createIfMissing', '1');
-    }
-    if (input?.companyName) {
-      next.searchParams.set('companyName', input.companyName);
-    }
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -69,11 +84,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }) => {
     const response = await api.exchangeGoogleSession(input);
     setUser(response.user);
+    const no = resolveNeedsOnboarding(response.user);
+    setNeedsOnboarding(no);
+    return { needsOnboarding: no };
+  };
+
+  const refreshGate = async () => {
+    try {
+      const gate = await api.getGate();
+      if (user) {
+        const updated = {
+          ...user,
+          onboarding_completed: gate.onboarding_completed,
+          needs_onboarding: gate.needs_onboarding,
+        };
+        setUser(updated);
+        setNeedsOnboarding(gate.needs_onboarding);
+      }
+      return gate.needs_onboarding;
+    } catch {
+      return needsOnboarding;
+    }
   };
 
   const logout = async () => {
     await api.logout();
     setUser(null);
+    setNeedsOnboarding(false);
   };
 
   return (
@@ -82,9 +119,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isLoading,
         isAuthenticated: !!user,
+        needsOnboarding,
         login,
+        signup,
         loginWithGoogle,
         completeGoogleLogin,
+        refreshGate,
         logout,
       }}
     >

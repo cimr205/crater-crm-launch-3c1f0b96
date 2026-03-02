@@ -199,6 +199,65 @@ class ApiClient {
   }
 
   // Auth
+  async signup(fullName: string, email: string, password: string) {
+    const response = await this.request<{
+      ok: true;
+      data: {
+        session: {
+          access_token: string;
+          refresh_token: string;
+        };
+        user: User;
+      };
+    }>('/v1/auth/signup', {
+      method: 'POST',
+      body: { full_name: fullName, email, password },
+    });
+
+    this.setSession({
+      accessToken: response.data.session.access_token,
+      refreshToken: response.data.session.refresh_token,
+    });
+
+    return { user: response.data.user };
+  }
+
+  async getGate() {
+    const response = await this.request<{
+      ok: true;
+      data: {
+        onboarding_completed: boolean;
+        has_company: boolean;
+        needs_onboarding: boolean;
+      };
+    }>('/v1/auth/gate');
+    return response.data;
+  }
+
+  async completeOnboarding(input: {
+    company_name: string;
+    industry: string;
+    size: string;
+    goal: string;
+  }) {
+    const response = await this.request<{
+      ok: true;
+      data: {
+        user: User;
+        company: { id: string; name: string };
+      };
+    }>('/v1/onboarding/complete', {
+      method: 'POST',
+      body: input,
+    });
+
+    if (response.data.company) {
+      await this.hydrateTenant(response.data.company);
+    }
+
+    return { user: response.data.user };
+  }
+
   async login(email: string, password: string) {
     const response = await this.request<{
       ok: true;
@@ -208,10 +267,7 @@ class ApiClient {
           refresh_token: string;
         };
         user: User;
-        company: {
-          id: string;
-          name: string;
-        };
+        company: { id: string; name: string } | null;
       };
     }>('/v1/auth/login', {
       method: 'POST',
@@ -223,11 +279,12 @@ class ApiClient {
       refreshToken: response.data.session.refresh_token,
     });
 
-    const tenant = await this.hydrateTenant(response.data.company);
+    if (response.data.company) {
+      await this.hydrateTenant(response.data.company);
+    }
 
     return {
       user: response.data.user,
-      tenant,
     };
   }
 
@@ -245,10 +302,7 @@ class ApiClient {
           refresh_token: string | null;
         };
         user: User;
-        company: {
-          id: string;
-          name: string;
-        };
+        company: { id: string; name: string } | null;
       };
     }>('/v1/auth/google/exchange', {
       method: 'POST',
@@ -267,11 +321,11 @@ class ApiClient {
       refreshToken,
     });
 
-    const tenant = await this.hydrateTenant(response.data.company);
-    return {
-      user: response.data.user,
-      tenant,
-    };
+    if (response.data.company) {
+      await this.hydrateTenant(response.data.company);
+    }
+
+    return { user: response.data.user };
   }
 
   async logout() {
@@ -281,7 +335,7 @@ class ApiClient {
 
   async getMe() {
     const response = await this.request<{ ok: true; data: { user: User } }>('/v1/auth/me');
-    return { data: response.data.user };
+    return response.data.user;
   }
 
   async getAdminOverview() {
@@ -1046,12 +1100,14 @@ class ApiClient {
 export interface User {
   id: string;
   email: string;
-  role: string;
+  role: string | null;
   full_name?: string | null;
-  company_id?: string;
-  company_name?: string;
+  company_id?: string | null;
+  company_name?: string | null;
   permissions?: string[];
   is_global_admin?: boolean;
+  onboarding_completed?: boolean;
+  needs_onboarding?: boolean;
 
   // Legacy compatibility
   name?: string;

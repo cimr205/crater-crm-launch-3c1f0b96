@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import NotFound from "./pages/NotFound";
 import LoginPage from "@/pages/auth/Login";
+import SignupPage from "@/pages/auth/Signup";
 import RegisterCompanyPage from "@/pages/auth/RegisterCompany";
 import JoinCompanyPage from "@/pages/auth/JoinCompany";
 import OAuthCallbackPage from "@/pages/auth/OAuthCallback";
@@ -63,6 +64,7 @@ const App = () => (
               <Route path="/:locale" element={<LocaleLayout />}>
                 <Route path="" element={<Navigate to="auth/login" replace />} />
                 <Route path="auth/login" element={<LoginPage />} />
+                <Route path="auth/signup" element={<SignupPage />} />
                 <Route path="auth/register-company" element={<RegisterCompanyPage />} />
                 <Route path="auth/join-company" element={<JoinCompanyPage />} />
                 <Route path="auth/callback" element={<OAuthCallbackPage />} />
@@ -75,7 +77,14 @@ const App = () => (
                   }
                 >
                   <Route path="dashboard" element={<DashboardPage />} />
-                  <Route path="onboarding" element={<OnboardingPage />} />
+                  <Route
+                    path="onboarding"
+                    element={
+                      <ProtectedRoute requireNotOnboarded>
+                        <OnboardingPage />
+                      </ProtectedRoute>
+                    }
+                  />
                   <Route path="crm/leads" element={<LeadsPage />} />
                   <Route path="crm/deals" element={<DealsPage />} />
                   <Route path="hr/employees" element={<EmployeesPage />} />

@@ -34,16 +34,17 @@ export default function OAuthCallbackPage() {
         return;
       }
 
-      const createIfMissing = searchParams.get('createIfMissing') === '1';
-
-      await completeGoogleLogin({
+      const { needsOnboarding } = await completeGoogleLogin({
         accessToken: data.session.access_token,
         refreshToken: data.session.refresh_token,
-        createIfMissing,
-        companyName: searchParams.get('companyName') || undefined,
       });
 
-      navigate(`/${locale}/app/${createIfMissing ? 'onboarding' : 'dashboard'}`, { replace: true });
+      // Gate rule: route based on actual DB state
+      if (needsOnboarding) {
+        navigate(`/${locale}/app/onboarding`, { replace: true });
+      } else {
+        navigate(`/${locale}/app/dashboard`, { replace: true });
+      }
     };
 
     run().catch((err: unknown) => {
@@ -71,7 +72,7 @@ export default function OAuthCallbackPage() {
 
   return (
     <div className="min-h-screen grid place-items-center bg-gradient-to-br from-background to-muted/40 px-4 text-sm text-muted-foreground">
-      Logger dig ind med Google...
+      Logger dig ind med Google…
     </div>
   );
 }
