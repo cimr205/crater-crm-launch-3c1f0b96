@@ -14,18 +14,34 @@ import OAuthCallbackPage from "@/pages/auth/OAuthCallback";
 import DashboardPage from "@/pages/app/Dashboard";
 import LeadsPage from "@/pages/app/crm/Leads";
 import DealsPage from "@/pages/app/crm/Deals";
+import CustomersPage from "@/pages/app/Customers";
+import CampaignsPage from "@/pages/app/Campaigns";
+import InvoicesPage from "@/pages/app/finance/Invoices";
+import PaymentsPage from "@/pages/app/finance/Payments";
 import EmployeesPage from "@/pages/app/hr/Employees";
+import AttendancePage from "@/pages/app/hr/Attendance";
+import VacationPage from "@/pages/app/hr/Vacation";
+import SalaryPage from "@/pages/app/hr/Salary";
+import RecruitmentPage from "@/pages/app/hr/Recruitment";
+import TasksPage from "@/pages/app/productivity/Tasks";
+import CalendarPage from "@/pages/app/productivity/Calendar";
+import TodosPage from "@/pages/app/productivity/Todos";
+import InboxPage from "@/pages/app/communication/Inbox";
+import EmailsPage from "@/pages/app/communication/Emails";
 import HistoryPage from "@/pages/app/History";
 import ClowdBotPage from "@/pages/app/ClowdBot";
 import CompanySettingsPage from "@/pages/app/settings/CompanySettings";
 import AdminOverviewPage from "@/pages/app/admin/Overview";
+import AdminUsersPage from "@/pages/app/admin/Users";
+import AdminCompanyPage from "@/pages/app/admin/AdminCompany";
+import AdminEmployeesPage from "@/pages/app/admin/AdminEmployees";
+import AdminSettingsPage from "@/pages/app/admin/AdminSettings";
 import OnboardingPage from "@/pages/app/Onboarding";
 import IntegrationsPage from "@/pages/app/Integrations";
 import WorkflowsPage from "@/pages/app/Workflows";
 import AppShell from "@/components/AppShell";
 import { I18nProvider, isLocale } from "@/lib/i18n";
 import { TenantProvider } from "@/contexts/TenantContext";
-// onboarding redirect intentionally disabled in rebuild
 import RoleGate from "@/components/RoleGate";
 
 const queryClient = new QueryClient();
@@ -85,14 +101,41 @@ const App = () => (
                       </ProtectedRoute>
                     }
                   />
+
+                  {/* CRM */}
                   <Route path="crm/leads" element={<LeadsPage />} />
                   <Route path="crm/deals" element={<DealsPage />} />
+                  <Route path="customers" element={<CustomersPage />} />
+                  <Route path="campaigns" element={<CampaignsPage />} />
+
+                  {/* Finance */}
+                  <Route path="finance/invoices" element={<InvoicesPage />} />
+                  <Route path="finance/payments" element={<PaymentsPage />} />
+
+                  {/* HR */}
                   <Route path="hr/employees" element={<EmployeesPage />} />
+                  <Route path="hr/attendance" element={<AttendancePage />} />
+                  <Route path="hr/vacation" element={<VacationPage />} />
+                  <Route path="hr/salary" element={<SalaryPage />} />
+                  <Route path="hr/recruitment" element={<RecruitmentPage />} />
+
+                  {/* Productivity */}
+                  <Route path="tasks" element={<TasksPage />} />
+                  <Route path="calendar" element={<CalendarPage />} />
+                  <Route path="todos" element={<TodosPage />} />
+
+                  {/* Communication */}
+                  <Route path="inbox" element={<InboxPage />} />
+                  <Route path="emails" element={<EmailsPage />} />
+
+                  {/* System */}
                   <Route path="history" element={<HistoryPage />} />
                   <Route path="integrations" element={<IntegrationsPage />} />
                   <Route path="workflows" element={<WorkflowsPage />} />
                   <Route path="clowdbot" element={<ClowdBotPage />} />
                   <Route path="settings/company" element={<CompanySettingsPage />} />
+
+                  {/* Admin */}
                   <Route
                     path="admin/overview"
                     element={
@@ -101,6 +144,39 @@ const App = () => (
                       </RoleGate>
                     }
                   />
+                  <Route
+                    path="admin/users"
+                    element={
+                      <RoleGate role="global_admin">
+                        <AdminUsersPage />
+                      </RoleGate>
+                    }
+                  />
+                  <Route
+                    path="admin/company"
+                    element={
+                      <RoleGate role="global_admin">
+                        <AdminCompanyPage />
+                      </RoleGate>
+                    }
+                  />
+                  <Route
+                    path="admin/employees"
+                    element={
+                      <RoleGate role="global_admin">
+                        <AdminEmployeesPage />
+                      </RoleGate>
+                    }
+                  />
+                  <Route
+                    path="admin/settings"
+                    element={
+                      <RoleGate role="global_admin">
+                        <AdminSettingsPage />
+                      </RoleGate>
+                    }
+                  />
+
                   <Route path="*" element={<NotFound />} />
                 </Route>
               </Route>

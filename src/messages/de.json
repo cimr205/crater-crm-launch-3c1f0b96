@@ -59,7 +59,33 @@
     "history": "Historie",
     "settings": "Einstellungen",
     "company": "Unternehmen",
-    "admin": "Admin"
+    "admin": "Admin Übersicht",
+    "customers": "Kunden",
+    "campaigns": "Kampagnen",
+    "invoices": "Rechnungen",
+    "payments": "Zahlungen",
+    "attendance": "Anwesenheit",
+    "vacation": "Urlaub",
+    "salary": "Gehalt",
+    "recruitment": "Rekrutierung",
+    "tasks": "Aufgaben",
+    "calendar": "Kalender",
+    "todos": "To-dos",
+    "inbox": "Posteingang",
+    "emails": "E-Mails",
+    "adminUsers": "Benutzer",
+    "adminCompany": "Unternehmen",
+    "adminEmployees": "Mitarbeiter",
+    "adminSettings": "Systemeinstellungen",
+    "section": {
+      "crm": "CRM",
+      "finance": "Finanzen",
+      "hr": "HR",
+      "productivity": "Produktivität",
+      "communication": "Kommunikation",
+      "system": "System",
+      "admin": "Admin"
+    }
   },
   "dashboard": {
     "title": "Übersicht",
@@ -252,4 +278,3 @@
     "back": "Zur Startseite"
   }
 }
-
