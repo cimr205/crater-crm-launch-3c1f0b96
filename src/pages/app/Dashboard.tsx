@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
 import StatCards from '@/components/StatCards';
 import AIInboxPanel from '@/components/AIInboxPanel';
-import { useI18n } from '@/lib/i18n';
+import { useI18n, isLocale } from '@/lib/i18n';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 export default function DashboardPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
+  const params = useParams();
+  const locale = isLocale(params.locale) ? params.locale : 'en';
   const [totals, setTotals] = useState<null | { leads: number; leads_today: number; active_clowdbot_jobs: number }>(
     null
   );
@@ -60,8 +62,8 @@ export default function DashboardPage() {
 
   const handleFocusAction = (item: Record<string, unknown>) => {
     const action = String(item.action || '');
-    if (action.includes('lead')) navigate('/en/app/crm/leads');
-    if (action.includes('workflow')) navigate('/en/app/workflows');
+    if (action.includes('lead')) navigate(`/${locale}/app/crm/leads`);
+    if (action.includes('workflow')) navigate(`/${locale}/app/workflows`);
   };
 
   return (

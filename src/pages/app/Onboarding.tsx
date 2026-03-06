@@ -164,7 +164,7 @@ export default function OnboardingPage() {
   };
 
   const handleFinish = () => {
-    markOnboardingComplete(tenant?.tenantId);
+    markOnboardingComplete();
     navigate(`/${locale}/app/dashboard`);
   };
 
