@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,9 @@ import { useI18n } from '@/lib/i18n';
 import { api, TenantSettings } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { ImagePlus, X } from 'lucide-react';
+
+const LOGO_KEY = 'crater_invoice_logo';
 
 const paymentStatuses = ['pending', 'active', 'past_due', 'cancelled', 'trial'];
 
@@ -18,6 +21,29 @@ export default function CompanySettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [regeneratingCode, setRegeneratingCode] = useState(false);
+  const [logoUrl, setLogoUrl] = useState<string>(() => localStorage.getItem(LOGO_KEY) || '');
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 600_000) { toast({ title: 'Logo må højst være 600 KB', variant: 'destructive' }); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = reader.result as string;
+      setLogoUrl(b64);
+      localStorage.setItem(LOGO_KEY, b64);
+      toast({ title: 'Logo gemt — vises på fakturaer' });
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleLogoRemove = () => {
+    setLogoUrl('');
+    localStorage.removeItem(LOGO_KEY);
+    toast({ title: 'Logo fjernet' });
+  };
 
   useEffect(() => {
     let active = true;
@@ -196,6 +222,48 @@ export default function CompanySettingsPage() {
         <Button onClick={handleSave} disabled={saving}>
           {saving ? t('common.loading') : t('settings.updateCta')}
         </Button>
+      </Card>
+
+      {/* Logo card */}
+      <Card className="p-6 space-y-4 bg-card/70 backdrop-blur border-border">
+        <div>
+          <h2 className="text-base font-semibold">Virksomhedslogo</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Logoet vises øverst på alle fakturaer du udskriver eller sender.</p>
+        </div>
+        {logoUrl ? (
+          <div className="flex items-center gap-4">
+            <div className="border rounded-lg p-3 bg-white">
+              <img src={logoUrl} alt="Virksomhedslogo" className="h-16 max-w-[240px] object-contain" />
+            </div>
+            <div className="space-y-2">
+              <Button size="sm" variant="outline" onClick={() => logoInputRef.current?.click()}>
+                <ImagePlus className="h-4 w-4 mr-2" />Skift logo
+              </Button>
+              <Button size="sm" variant="ghost" className="text-destructive block" onClick={handleLogoRemove}>
+                <X className="h-4 w-4 mr-2" />Fjern logo
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-muted/30 transition-colors w-full py-10 cursor-pointer"
+            onClick={() => logoInputRef.current?.click()}
+          >
+            <ImagePlus className="h-8 w-8 text-muted-foreground" />
+            <div className="text-center">
+              <p className="text-sm font-medium">Klik for at uploade logo</p>
+              <p className="text-xs text-muted-foreground mt-0.5">PNG, JPG eller SVG · Maks 600 KB</p>
+            </div>
+          </button>
+        )}
+        <input
+          ref={logoInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/svg+xml,image/webp"
+          className="sr-only"
+          onChange={handleLogoUpload}
+        />
       </Card>
     </div>
   );

@@ -5,9 +5,14 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, Eye, Trash2, FileText, TrendingUp, CheckCircle, AlertCircle, Search, UserCheck } from 'lucide-react';
+import {
+  Plus, Download, Eye, Trash2, FileText, TrendingUp, CheckCircle, AlertCircle,
+  Search, UserCheck, Pencil, X, ImagePlus, Mail, CheckCircle2,
+} from 'lucide-react';
 
-// ─── Country / VAT helpers ──────────────────────────────────────────────────
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const LOGO_KEY = 'crater_invoice_logo';
 
 const EU_COUNTRIES = ['AT','BE','BG','CY','CZ','DE','DK','EE','ES','FI','FR','GR','HR','HU','IE','IT','LT','LU','LV','MT','NL','PL','PT','RO','SE','SI','SK'];
 
@@ -58,12 +63,26 @@ function StatusBadge({ status }: { status: string }) {
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-interface CompanyInfo { name: string; cvr?: string | null; address?: string | null; phone?: string | null; email?: string | null; }
+interface CompanyInfo {
+  name: string;
+  cvr?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+}
 interface LineItem extends CreateInvoiceItem { id: string; }
 
 // ─── Invoice print view ───────────────────────────────────────────────────────
 
-function InvoicePrintView({ inv, company }: { inv: InvoiceDetail; company: CompanyInfo }) {
+function InvoicePrintView({
+  inv, company, sellerOverride, logoUrl,
+}: {
+  inv: InvoiceDetail;
+  company: CompanyInfo;
+  sellerOverride?: Partial<CompanyInfo>;
+  logoUrl?: string;
+}) {
+  const seller = { ...company, ...sellerOverride };
   const subtotal = inv.items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
   const vatAmount = subtotal * (inv.vat_rate / 100);
   const total = subtotal + vatAmount;
@@ -75,8 +94,16 @@ function InvoicePrintView({ inv, company }: { inv: InvoiceDetail; company: Compa
           <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{inv.customer_name}</div>
           {inv.customer_address && <div style={{ whiteSpace: 'pre-line', marginTop: '4px' }}>{inv.customer_address}</div>}
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: '22px', fontWeight: 'bold', marginBottom: '10px' }}>{company.name}</div>
+        <div style={{ textAlign: 'right', maxWidth: '260px' }}>
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt="Logo"
+              style={{ height: '56px', maxWidth: '220px', objectFit: 'contain', display: 'block', marginLeft: 'auto', marginBottom: '8px' }}
+            />
+          ) : (
+            <div style={{ fontSize: '20px', fontWeight: 'bold', marginBottom: '8px' }}>{seller.name}</div>
+          )}
           <table style={{ fontSize: '11px', borderCollapse: 'collapse', marginLeft: 'auto' }}>
             <tbody>
               <tr><td style={{ paddingRight: '10px', color: '#666' }}>Side:</td><td>1 af 1</td></tr>
@@ -148,7 +175,7 @@ function InvoicePrintView({ inv, company }: { inv: InvoiceDetail; company: Compa
       </div>
 
       <div style={{ marginTop: '40px', paddingTop: '10px', borderTop: '1px solid #ccc', textAlign: 'center', fontSize: '10px', color: '#555' }}>
-        {[company.name, company.address, company.phone && `Tlf: ${company.phone}`, company.email && `Mail: ${company.email}`, company.cvr && `CVR-nr: ${company.cvr}`].filter(Boolean).join(' • ')}
+        {[seller.name, seller.address, seller.phone && `Tlf: ${seller.phone}`, seller.email && `Mail: ${seller.email}`, seller.cvr && `CVR-nr: ${seller.cvr}`].filter(Boolean).join(' • ')}
       </div>
     </div>
   );
@@ -156,7 +183,15 @@ function InvoicePrintView({ inv, company }: { inv: InvoiceDetail; company: Compa
 
 // ─── Print dialog ─────────────────────────────────────────────────────────────
 
-function PrintDialog({ inv, company, onClose }: { inv: InvoiceDetail; company: CompanyInfo; onClose: () => void }) {
+function PrintDialog({
+  inv, company, sellerOverride, logoUrl, onClose,
+}: {
+  inv: InvoiceDetail;
+  company: CompanyInfo;
+  sellerOverride?: Partial<CompanyInfo>;
+  logoUrl?: string;
+  onClose: () => void;
+}) {
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
@@ -180,7 +215,7 @@ function PrintDialog({ inv, company, onClose }: { inv: InvoiceDetail; company: C
           <Button onClick={handlePrint}><Download className="h-4 w-4 mr-2" />Download / Print PDF</Button>
         </div>
         <div ref={printRef} className="border rounded-lg overflow-hidden bg-white">
-          <InvoicePrintView inv={inv} company={company} />
+          <InvoicePrintView inv={inv} company={company} sellerOverride={sellerOverride} logoUrl={logoUrl} />
         </div>
       </DialogContent>
     </Dialog>
@@ -189,9 +224,7 @@ function PrintDialog({ inv, company, onClose }: { inv: InvoiceDetail; company: C
 
 // ─── Customer picker ──────────────────────────────────────────────────────────
 
-function CustomerPicker({ onSelect }: {
-  onSelect: (c: Customer) => void;
-}) {
+function CustomerPicker({ onSelect }: { onSelect: (c: Customer) => void }) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -200,12 +233,13 @@ function CustomerPicker({ onSelect }: {
   useEffect(() => {
     api.getCustomers({ limit: 100 })
       .then(r => setCustomers(r.data))
-      .catch(() => {/* silent — not all tenants have customers */})
+      .catch(() => { /* silent — not all tenants have customers */ })
       .finally(() => setLoading(false));
   }, []);
 
   const filtered = customers.filter(c =>
-    !query || c.name.toLowerCase().includes(query.toLowerCase()) ||
+    !query ||
+    c.name.toLowerCase().includes(query.toLowerCase()) ||
     c.company_name?.toLowerCase().includes(query.toLowerCase()) ||
     c.email?.toLowerCase().includes(query.toLowerCase())
   );
@@ -259,12 +293,29 @@ function CustomerPicker({ onSelect }: {
 
 // ─── Create invoice dialog ────────────────────────────────────────────────────
 
-function CreateInvoiceDialog({ open, onClose, company, onCreated }: { open: boolean; onClose: () => void; company: CompanyInfo; onCreated: () => void }) {
+function CreateInvoiceDialog({
+  open, onClose, company, onCreated, onViewInvoice,
+}: {
+  open: boolean;
+  onClose: () => void;
+  company: CompanyInfo;
+  onCreated: () => void;
+  onViewInvoice: (inv: InvoiceDetail, seller: Partial<CompanyInfo>, logoUrl: string) => void;
+}) {
   const { toast } = useToast();
   const today = new Date().toISOString().split('T')[0];
   const dueDefault = new Date(Date.now() + 14 * 86400_000).toISOString().split('T')[0];
 
-  const [loading, setLoading] = useState(false);
+  // ── Seller state ──────────────────────────────────────────────────────────
+  const [sellerEditing, setSellerEditing] = useState(false);
+  const [sellerName, setSellerName] = useState(company.name);
+  const [sellerAddress, setSellerAddress] = useState(company.address || '');
+  const [sellerCvr, setSellerCvr] = useState(company.cvr || '');
+  const [sellerPhone, setSellerPhone] = useState(company.phone || '');
+  const [sellerEmail, setSellerEmail] = useState(company.email || '');
+  const [logoUrl, setLogoUrl] = useState<string>(() => localStorage.getItem(LOGO_KEY) || '');
+
+  // ── Customer state ────────────────────────────────────────────────────────
   const [invoiceDate, setInvoiceDate] = useState(today);
   const [dueDate, setDueDate] = useState(dueDefault);
   const [customerName, setCustomerName] = useState('');
@@ -274,12 +325,31 @@ function CreateInvoiceDialog({ open, onClose, company, onCreated }: { open: bool
   const [customerCvr, setCustomerCvr] = useState('');
   const [customerVat, setCustomerVat] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
+
+  // ── Invoice state ─────────────────────────────────────────────────────────
   const [currency, setCurrency] = useState('DKK');
   const [paymentMethod, setPaymentMethod] = useState('bank_transfer');
   const [paymentTermsDays, setPaymentTermsDays] = useState(14);
   const [bankAccount, setBankAccount] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<LineItem[]>([{ id: '1', description: '', quantity: 1, unit_price: 0 }]);
+  const [loading, setLoading] = useState(false);
+  const [createdInvoice, setCreatedInvoice] = useState<InvoiceDetail | null>(null);
+
+  const sellerOverride: Partial<CompanyInfo> = {
+    name: sellerName || company.name,
+    address: sellerAddress || company.address,
+    cvr: sellerCvr || company.cvr,
+    phone: sellerPhone || company.phone,
+    email: sellerEmail || company.email,
+  };
+
+  const vatInfo = getVatInfo(customerCountry, customerType);
+  const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
+  const vatAmount = subtotal * (vatInfo.rate / 100);
+  const total = subtotal + vatAmount;
+  const isDK = customerCountry === 'DK';
+  const isEU = EU_COUNTRIES.includes(customerCountry) && !isDK;
 
   const fillFromCustomer = (c: Customer) => {
     setCustomerName(c.company_name || c.name);
@@ -295,12 +365,24 @@ function CreateInvoiceDialog({ open, onClose, company, onCreated }: { open: bool
     }
   };
 
-  const vatInfo = getVatInfo(customerCountry, customerType);
-  const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
-  const vatAmount = subtotal * (vatInfo.rate / 100);
-  const total = subtotal + vatAmount;
-  const isDK = customerCountry === 'DK';
-  const isEU = EU_COUNTRIES.includes(customerCountry) && !isDK;
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 600_000) { toast({ title: 'Logo må højst være 600 KB', variant: 'destructive' }); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const b64 = reader.result as string;
+      setLogoUrl(b64);
+      localStorage.setItem(LOGO_KEY, b64);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const handleLogoRemove = () => {
+    setLogoUrl('');
+    localStorage.removeItem(LOGO_KEY);
+  };
 
   const addItem = () => setItems(p => [...p, { id: String(Date.now()), description: '', quantity: 1, unit_price: 0 }]);
   const removeItem = (id: string) => { if (items.length > 1) setItems(p => p.filter(i => i.id !== id)); };
@@ -312,7 +394,7 @@ function CreateInvoiceDialog({ open, onClose, company, onCreated }: { open: bool
     if (items.some(i => !i.description.trim())) { toast({ title: 'Alle linjer skal have en beskrivelse', variant: 'destructive' }); return; }
     setLoading(true);
     try {
-      await api.createInvoice({
+      const inv = await api.createInvoice({
         invoice_date: invoiceDate, due_date: dueDate,
         customer_name: customerName, customer_address: customerAddress || undefined,
         customer_country: customerCountry, customer_type: customerType,
@@ -323,9 +405,8 @@ function CreateInvoiceDialog({ open, onClose, company, onCreated }: { open: bool
         bank_account: bankAccount || undefined, notes: notes || undefined,
         items: items.map(({ description, quantity, unit_price }) => ({ description, quantity, unit_price })),
       });
-      toast({ title: 'Faktura oprettet' });
+      setCreatedInvoice(inv);
       onCreated();
-      onClose();
     } catch (err) {
       toast({ title: (err as Error).message, variant: 'destructive' });
     } finally {
@@ -333,121 +414,231 @@ function CreateInvoiceDialog({ open, onClose, company, onCreated }: { open: bool
     }
   };
 
+  const handleSendEmail = async () => {
+    if (!createdInvoice || !customerEmail) return;
+    const sub = encodeURIComponent(`Faktura ${createdInvoice.invoice_number} fra ${sellerOverride.name || company.name}`);
+    const body = encodeURIComponent([
+      `Hej,`,
+      ``,
+      `Hermed fremsendes faktura ${createdInvoice.invoice_number}.`,
+      ``,
+      `Beløb: ${fmt(total)} ${createdInvoice.currency}`,
+      `Forfaldsdato: ${createdInvoice.due_date}`,
+      bankAccount ? `Betal til: ${bankAccount}` : '',
+      `Reference: ${createdInvoice.invoice_number}`,
+      ``,
+      `Med venlig hilsen`,
+      sellerOverride.name || company.name,
+    ].filter(Boolean).join('\n'));
+    window.open(`mailto:${customerEmail}?subject=${sub}&body=${body}`);
+    try { await api.updateInvoice(createdInvoice.id, { status: 'sent' }); onCreated(); } catch { /* ignore */ }
+  };
+
+  const resetForm = () => {
+    setCreatedInvoice(null);
+    setCustomerName(''); setCustomerAddress(''); setCustomerCountry('DK');
+    setCustomerType('company'); setCustomerCvr(''); setCustomerVat('');
+    setCustomerEmail(''); setNotes('');
+    setItems([{ id: '1', description: '', quantity: 1, unit_price: 0 }]);
+  };
+
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>Opret faktura</DialogTitle></DialogHeader>
-        <div className="space-y-5 py-1">
+        <DialogHeader>
+          <DialogTitle>{createdInvoice ? 'Faktura oprettet' : 'Opret faktura'}</DialogTitle>
+        </DialogHeader>
 
-          {/* Seller (read-only) */}
-          <div className="bg-muted/40 rounded-lg p-3">
-            <p className="text-xs uppercase tracking-wide font-semibold text-muted-foreground mb-1">Din virksomhed</p>
-            <p className="font-semibold">{company.name}</p>
-            {company.address && <p className="text-sm text-muted-foreground">{company.address}</p>}
-            {company.cvr && <p className="text-sm text-muted-foreground">CVR: {company.cvr}</p>}
+        {/* ── Success step ─────────────────────────────────────────────────── */}
+        {createdInvoice ? (
+          <div className="flex flex-col items-center gap-5 py-8 text-center">
+            <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <CheckCircle2 className="h-8 w-8 text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <p className="text-xl font-bold">Faktura klar!</p>
+              <p className="text-muted-foreground mt-1">
+                Fakturanr. <span className="font-mono font-semibold">{createdInvoice.invoice_number}</span> er oprettet.
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 w-full max-w-sm">
+              <Button className="flex-1" onClick={() => onViewInvoice(createdInvoice, sellerOverride, logoUrl)}>
+                <Eye className="h-4 w-4 mr-2" />Vis / Print PDF
+              </Button>
+              {customerEmail ? (
+                <Button variant="outline" className="flex-1" onClick={handleSendEmail}>
+                  <Mail className="h-4 w-4 mr-2" />Send til kunde
+                </Button>
+              ) : null}
+            </div>
+            {!customerEmail && (
+              <p className="text-xs text-muted-foreground">Tilføj kundens email for at sende faktura direkte.</p>
+            )}
+            <div className="flex gap-4 pt-1">
+              <Button variant="ghost" size="sm" onClick={resetForm}>Opret ny faktura</Button>
+              <Button variant="ghost" size="sm" onClick={onClose}>Luk</Button>
+            </div>
           </div>
+        ) : (
+          /* ── Form step ───────────────────────────────────────────────────── */
+          <div className="space-y-5 py-1">
 
-          {/* Dates */}
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-xs text-muted-foreground">Fakturadato</label><Input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} /></div>
-            <div><label className="text-xs text-muted-foreground">Forfaldsdato</label><Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
-          </div>
+            {/* Seller section */}
+            <div className="rounded-lg border bg-muted/30 p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-wide font-semibold text-muted-foreground">Din virksomhed (afsender)</p>
+                <Button
+                  type="button" size="sm" variant="ghost"
+                  className="h-6 px-2 text-xs gap-1"
+                  onClick={() => setSellerEditing(v => !v)}
+                >
+                  {sellerEditing
+                    ? <><X className="h-3 w-3" />Luk</>
+                    : <><Pencil className="h-3 w-3" />Tilpas for denne faktura</>}
+                </Button>
+              </div>
 
-          {/* Customer picker */}
-          <CustomerPicker onSelect={fillFromCustomer} />
-
-          {/* Customer */}
-          <div className="space-y-2">
-            <p className="text-sm font-semibold">Kundeoplysninger</p>
-            <div className="grid grid-cols-2 gap-3">
+              {/* Logo */}
               <div>
-                <label className="text-xs text-muted-foreground">Land</label>
-                <Select value={customerCountry} onValueChange={setCustomerCountry}>
+                {logoUrl ? (
+                  <div className="flex items-center gap-3">
+                    <img src={logoUrl} alt="Logo" className="h-10 max-w-[160px] object-contain border rounded bg-white p-1" />
+                    <Button type="button" size="sm" variant="ghost" className="h-7 text-xs text-destructive gap-1" onClick={handleLogoRemove}>
+                      <X className="h-3 w-3" />Fjern logo
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="inline-flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-foreground transition-colors rounded border border-dashed px-3 py-2">
+                    <ImagePlus className="h-4 w-4" />
+                    Tilføj virksomhedslogo til PDF (PNG/JPG, maks 600 KB)
+                    <input type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" className="sr-only" onChange={handleLogoUpload} />
+                  </label>
+                )}
+              </div>
+
+              {/* Seller info */}
+              {sellerEditing ? (
+                <div className="space-y-2">
+                  <Input className="text-sm" placeholder="Virksomhedsnavn" value={sellerName} onChange={e => setSellerName(e.target.value)} />
+                  <Input className="text-sm" placeholder="Adresse" value={sellerAddress} onChange={e => setSellerAddress(e.target.value)} />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input className="text-sm" placeholder="CVR-nummer" value={sellerCvr} onChange={e => setSellerCvr(e.target.value)} />
+                    <Input className="text-sm" placeholder="Telefon" value={sellerPhone} onChange={e => setSellerPhone(e.target.value)} />
+                  </div>
+                  <Input className="text-sm" type="email" placeholder="Email" value={sellerEmail} onChange={e => setSellerEmail(e.target.value)} />
+                  <p className="text-xs text-muted-foreground">Ændringer gælder kun for denne faktura. Opdater permanent i Indstillinger → Virksomhed.</p>
+                </div>
+              ) : (
+                <div>
+                  <p className="font-semibold">{sellerName || company.name}</p>
+                  {(sellerAddress || company.address) && <p className="text-sm text-muted-foreground">{sellerAddress || company.address}</p>}
+                  {(sellerCvr || company.cvr) && <p className="text-sm text-muted-foreground">CVR: {sellerCvr || company.cvr}</p>}
+                </div>
+              )}
+            </div>
+
+            {/* Dates */}
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-xs text-muted-foreground">Fakturadato</label><Input type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} /></div>
+              <div><label className="text-xs text-muted-foreground">Forfaldsdato</label><Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
+            </div>
+
+            {/* Customer picker */}
+            <CustomerPicker onSelect={fillFromCustomer} />
+
+            {/* Customer fields */}
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Kundeoplysninger</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-muted-foreground">Land</label>
+                  <Select value={customerCountry} onValueChange={setCustomerCountry}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>{COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground">Kundetype</label>
+                  <Select value={customerType} onValueChange={v => setCustomerType(v as 'company' | 'private')}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="company">Virksomhed</SelectItem>
+                      <SelectItem value="private">Privat</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Input placeholder="Kundenavn *" value={customerName} onChange={e => setCustomerName(e.target.value)} />
+              <Input placeholder="Adresse" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} />
+              <div className="grid grid-cols-2 gap-3">
+                {isDK && <Input placeholder="CVR-nummer" value={customerCvr} onChange={e => setCustomerCvr(e.target.value)} />}
+                {isEU && customerType === 'company' && <Input placeholder="VAT-nummer (krævet for EU)" value={customerVat} onChange={e => setCustomerVat(e.target.value)} />}
+                <Input type="email" placeholder="Kundens email (til afsendelse)" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} />
+              </div>
+            </div>
+
+            {/* VAT info */}
+            <div className={`rounded-lg p-3 text-sm ${vatInfo.rate === 0 ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800' : 'bg-muted/40'}`}>
+              <span className="font-medium">Moms: {vatInfo.rate}%</span>
+              {vatInfo.note && <span className="ml-2 text-muted-foreground text-xs">— {vatInfo.note}</span>}
+            </div>
+
+            {/* Line items */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold">Linjer</p>
+                <Button type="button" size="sm" variant="outline" onClick={addItem}><Plus className="h-3 w-3 mr-1" />Tilføj linje</Button>
+              </div>
+              <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground font-medium px-1">
+                <span className="col-span-5">Beskrivelse</span><span className="col-span-2">Antal</span>
+                <span className="col-span-3">Stk. pris ({currency})</span><span className="col-span-2 text-right">Sum</span>
+              </div>
+              {items.map(item => (
+                <div key={item.id} className="grid grid-cols-12 gap-2 items-center">
+                  <Input className="col-span-5 h-8 text-sm" placeholder="Beskrivelse" value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)} />
+                  <Input className="col-span-2 h-8 text-sm" type="number" min="0.01" step="0.01" value={item.quantity} onChange={e => updateItem(item.id, 'quantity', e.target.value)} />
+                  <Input className="col-span-3 h-8 text-sm" type="number" min="0" step="0.01" value={item.unit_price} onChange={e => updateItem(item.id, 'unit_price', e.target.value)} />
+                  <span className="col-span-1 text-sm text-right tabular-nums">{fmt(item.quantity * item.unit_price)}</span>
+                  <button className="col-span-1 flex justify-center text-muted-foreground hover:text-destructive" onClick={() => removeItem(item.id)}><Trash2 className="h-3.5 w-3.5" /></button>
+                </div>
+              ))}
+              <div className="border-t pt-2 space-y-1 text-sm">
+                <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>{fmt(subtotal)} {currency}</span></div>
+                <div className="flex justify-between text-muted-foreground"><span>Moms ({vatInfo.rate}%)</span><span>{fmt(vatAmount)} {currency}</span></div>
+                <div className="flex justify-between font-bold text-base border-t pt-1"><span>Total</span><span>{fmt(total)} {currency}</span></div>
+              </div>
+            </div>
+
+            {/* Payment settings */}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground">Betalingsmetode</label>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>{COUNTRIES.map(c => <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>)}</SelectContent>
+                  <SelectContent>{PAYMENT_METHODS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
               <div>
-                <label className="text-xs text-muted-foreground">Kundetype</label>
-                <Select value={customerType} onValueChange={v => setCustomerType(v as 'company' | 'private')}>
+                <label className="text-xs text-muted-foreground">Betalingsfrist (dage)</label>
+                <Input type="number" min={0} value={paymentTermsDays} onChange={e => setPaymentTermsDays(parseInt(e.target.value) || 0)} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Valuta</label>
+                <Select value={currency} onValueChange={setCurrency}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="company">Virksomhed</SelectItem>
-                    <SelectItem value="private">Privat</SelectItem>
-                  </SelectContent>
+                  <SelectContent>{CURRENCIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             </div>
-            <Input placeholder="Kundenavn *" value={customerName} onChange={e => setCustomerName(e.target.value)} />
-            <Input placeholder="Adresse" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} />
-            <div className="grid grid-cols-2 gap-3">
-              {isDK && <Input placeholder="CVR-nummer" value={customerCvr} onChange={e => setCustomerCvr(e.target.value)} />}
-              {isEU && customerType === 'company' && <Input placeholder="VAT-nummer (krævet for EU)" value={customerVat} onChange={e => setCustomerVat(e.target.value)} />}
-              <Input type="email" placeholder="Kundens email" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} />
-            </div>
-          </div>
+            <Input placeholder="Bankkonto (Reg. XXXX – Konto XXXXXXXXXX)" value={bankAccount} onChange={e => setBankAccount(e.target.value)} />
+            <Input placeholder="Note (vises på faktura)" value={notes} onChange={e => setNotes(e.target.value)} />
 
-          {/* VAT info */}
-          <div className={`rounded-lg p-3 text-sm ${vatInfo.rate === 0 ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800' : 'bg-muted/40'}`}>
-            <span className="font-medium">Moms: {vatInfo.rate}%</span>
-            {vatInfo.note && <span className="ml-2 text-muted-foreground text-xs">— {vatInfo.note}</span>}
-          </div>
-
-          {/* Line items */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold">Linjer</p>
-              <Button type="button" size="sm" variant="outline" onClick={addItem}><Plus className="h-3 w-3 mr-1" />Tilføj linje</Button>
-            </div>
-            <div className="grid grid-cols-12 gap-2 text-xs text-muted-foreground font-medium px-1">
-              <span className="col-span-5">Beskrivelse</span><span className="col-span-2">Antal</span>
-              <span className="col-span-3">Stk. pris ({currency})</span><span className="col-span-2 text-right">Sum</span>
-            </div>
-            {items.map(item => (
-              <div key={item.id} className="grid grid-cols-12 gap-2 items-center">
-                <Input className="col-span-5 h-8 text-sm" placeholder="Beskrivelse" value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)} />
-                <Input className="col-span-2 h-8 text-sm" type="number" min="0.01" step="0.01" value={item.quantity} onChange={e => updateItem(item.id, 'quantity', e.target.value)} />
-                <Input className="col-span-3 h-8 text-sm" type="number" min="0" step="0.01" value={item.unit_price} onChange={e => updateItem(item.id, 'unit_price', e.target.value)} />
-                <span className="col-span-1 text-sm text-right tabular-nums">{fmt(item.quantity * item.unit_price)}</span>
-                <button className="col-span-1 flex justify-center text-muted-foreground hover:text-destructive" onClick={() => removeItem(item.id)}><Trash2 className="h-3.5 w-3.5" /></button>
-              </div>
-            ))}
-            <div className="border-t pt-2 space-y-1 text-sm">
-              <div className="flex justify-between text-muted-foreground"><span>Subtotal</span><span>{fmt(subtotal)} {currency}</span></div>
-              <div className="flex justify-between text-muted-foreground"><span>Moms ({vatInfo.rate}%)</span><span>{fmt(vatAmount)} {currency}</span></div>
-              <div className="flex justify-between font-bold text-base border-t pt-1"><span>Total</span><span>{fmt(total)} {currency}</span></div>
+            <div className="flex gap-3 justify-end pt-1">
+              <Button variant="outline" onClick={onClose} disabled={loading}>Annuller</Button>
+              <Button onClick={handleSubmit} disabled={loading}>{loading ? 'Opretter...' : 'Opret faktura'}</Button>
             </div>
           </div>
-
-          {/* Payment settings */}
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="text-xs text-muted-foreground">Betalingsmetode</label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{PAYMENT_METHODS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Betalingsfrist (dage)</label>
-              <Input type="number" min={0} value={paymentTermsDays} onChange={e => setPaymentTermsDays(parseInt(e.target.value) || 0)} />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Valuta</label>
-              <Select value={currency} onValueChange={setCurrency}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{CURRENCIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
-              </Select>
-            </div>
-          </div>
-          <Input placeholder="Bankkonto (Reg. XXXX – Konto XXXXXXXXXX)" value={bankAccount} onChange={e => setBankAccount(e.target.value)} />
-          <Input placeholder="Note (vises på faktura)" value={notes} onChange={e => setNotes(e.target.value)} />
-
-          <div className="flex gap-3 justify-end pt-1">
-            <Button variant="outline" onClick={onClose} disabled={loading}>Annuller</Button>
-            <Button onClick={handleSubmit} disabled={loading}>{loading ? 'Opretter...' : 'Opret faktura'}</Button>
-          </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -462,7 +653,11 @@ export default function InvoicesPage() {
   const [company, setCompany] = useState<CompanyInfo>({ name: '' });
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
-  const [printInv, setPrintInv] = useState<InvoiceDetail | null>(null);
+  const [printState, setPrintState] = useState<{
+    inv: InvoiceDetail;
+    seller?: Partial<CompanyInfo>;
+    logoUrl?: string;
+  } | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -470,7 +665,13 @@ export default function InvoicesPage() {
       const [invList, statsData, settings] = await Promise.all([api.getInvoices(), api.getInvoiceStats(), api.getCompanySettings()]);
       setInvoices(invList);
       setStats(statsData);
-      setCompany({ name: settings.tenant.name, cvr: settings.tenant.cvr, address: settings.tenant.address, phone: settings.tenant.phone, email: settings.tenant.email });
+      setCompany({
+        name: settings.tenant.name,
+        cvr: settings.tenant.cvr,
+        address: settings.tenant.address,
+        phone: settings.tenant.phone,
+        email: settings.tenant.email,
+      });
     } catch (err) {
       toast({ title: (err as Error).message, variant: 'destructive' });
     } finally {
@@ -481,8 +682,13 @@ export default function InvoicesPage() {
   useEffect(() => { void load(); }, []);
 
   const handleView = async (id: string) => {
-    try { setPrintInv(await api.getInvoice(id)); }
-    catch (err) { toast({ title: (err as Error).message, variant: 'destructive' }); }
+    try {
+      const inv = await api.getInvoice(id);
+      const logoUrl = localStorage.getItem(LOGO_KEY) || '';
+      setPrintState({ inv, logoUrl });
+    } catch (err) {
+      toast({ title: (err as Error).message, variant: 'destructive' });
+    }
   };
 
   const handleMarkSent = async (id: string) => {
@@ -567,8 +773,27 @@ export default function InvoicesPage() {
         )}
       </div>
 
-      {createOpen && <CreateInvoiceDialog open={createOpen} onClose={() => setCreateOpen(false)} company={company} onCreated={load} />}
-      {printInv && <PrintDialog inv={printInv} company={company} onClose={() => setPrintInv(null)} />}
+      {createOpen && (
+        <CreateInvoiceDialog
+          open={createOpen}
+          onClose={() => setCreateOpen(false)}
+          company={company}
+          onCreated={load}
+          onViewInvoice={(inv, seller, logoUrl) => {
+            setCreateOpen(false);
+            setPrintState({ inv, seller, logoUrl });
+          }}
+        />
+      )}
+      {printState && (
+        <PrintDialog
+          inv={printState.inv}
+          company={company}
+          sellerOverride={printState.seller}
+          logoUrl={printState.logoUrl}
+          onClose={() => setPrintState(null)}
+        />
+      )}
     </div>
   );
 }
