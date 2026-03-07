@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
+import CvrSearchInput, { type CvrData } from '@/components/CvrSearchInput';
 
 type LeadRow = {
   id: string;
@@ -38,6 +39,7 @@ export default function LeadsPage() {
   const [newLeadEmail, setNewLeadEmail] = useState('');
   const [newLeadCompany, setNewLeadCompany] = useState('');
   const [newLeadStatus, setNewLeadStatus] = useState('cold');
+  const [cvrSearch, setCvrSearch] = useState('');
 
   const loadLeads = useCallback(async () => {
     setLoading(true);
@@ -104,6 +106,7 @@ export default function LeadsPage() {
       setNewLeadEmail('');
       setNewLeadCompany('');
       setNewLeadStatus('cold');
+      setCvrSearch('');
       await loadLeads();
       toast({ title: 'Lead created' });
     } catch (err) {
@@ -123,7 +126,25 @@ export default function LeadsPage() {
       </div>
 
       <div className="rounded-xl border border-border bg-card/70 backdrop-blur p-4 space-y-3">
-        <div className="text-sm font-semibold">{t('crm.addLead')}</div>
+        <div className="flex items-center justify-between">
+          <div className="text-sm font-semibold">{t('crm.addLead')}</div>
+          <span className="text-xs text-muted-foreground">Hurtigt: skriv CVR → auto-udfyld virksomhedsinfo ↓</span>
+        </div>
+
+        {/* CVR quick-fill */}
+        <CvrSearchInput
+          value={cvrSearch}
+          onChange={setCvrSearch}
+          onResult={(d: CvrData) => {
+            setNewLeadCompany(d.name);
+            if (d.phone) setNewLeadPhone(d.phone.replace(/\s/g, ''));
+            if (d.email) setNewLeadEmail(d.email);
+            // Sæt kontaktpersonens navn til første ejer hvis tilgængeligt
+            if (d.owners?.[0]?.name) setNewLeadName(d.owners[0].name);
+          }}
+          placeholder="Søg via CVR-nummer — auto-udfylder firma, telefon og email fra Virk.dk"
+        />
+
         <div className="grid gap-3 md:grid-cols-2">
           <Input
             placeholder={t('crm.name')}

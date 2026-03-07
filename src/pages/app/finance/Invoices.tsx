@@ -9,6 +9,7 @@ import {
   Plus, Download, Eye, Trash2, FileText, TrendingUp, CheckCircle, AlertCircle,
   Search, UserCheck, Pencil, X, ImagePlus, Mail, CheckCircle2,
 } from 'lucide-react';
+import CvrSearchInput, { type CvrData } from '@/components/CvrSearchInput';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -568,10 +569,22 @@ function CreateInvoiceDialog({
                   </Select>
                 </div>
               </div>
+              {/* CVR autofyld — kun DK virksomheder */}
+              {isDK && customerType === 'company' && (
+                <CvrSearchInput
+                  value={customerCvr}
+                  onChange={setCustomerCvr}
+                  onResult={(d: CvrData) => {
+                    setCustomerName(d.name);
+                    setCustomerAddress(`${d.address}, ${d.zipcode} ${d.city}`.trim());
+                    if (d.email) setCustomerEmail(d.email);
+                  }}
+                  placeholder="Kundens CVR-nummer — auto-udfylder fra Virk.dk"
+                />
+              )}
               <Input placeholder="Kundenavn *" value={customerName} onChange={e => setCustomerName(e.target.value)} />
               <Input placeholder="Adresse" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} />
               <div className="grid grid-cols-2 gap-3">
-                {isDK && <Input placeholder="CVR-nummer" value={customerCvr} onChange={e => setCustomerCvr(e.target.value)} />}
                 {isEU && customerType === 'company' && <Input placeholder="VAT-nummer (krævet for EU)" value={customerVat} onChange={e => setCustomerVat(e.target.value)} />}
                 <Input type="email" placeholder="Kundens email (til afsendelse)" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} />
               </div>
