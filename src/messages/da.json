@@ -52,7 +52,10 @@
     "history": "Historik",
     "settings": "Indstillinger",
     "company": "Virksomhed",
-    "admin": "Admin"
+    "admin": "Admin",
+    "metaAds": "Meta Ads",
+    "emailCampaigns": "E-mail kampagner",
+    "tasks": "AI Opgaver"
   },
   "dashboard": {
     "title": "Overblik",

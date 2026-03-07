@@ -21,6 +21,9 @@ import AdminOverviewPage from "@/pages/app/admin/Overview";
 import OnboardingPage from "@/pages/app/Onboarding";
 import IntegrationsPage from "@/pages/app/Integrations";
 import WorkflowsPage from "@/pages/app/Workflows";
+import MetaAdsPage from "@/pages/app/meta/MetaAds";
+import EmailCampaignsPage from "@/pages/app/email/EmailCampaigns";
+import TasksPage from "@/pages/app/tasks/Tasks";
 import AppShell from "@/components/AppShell";
 import { I18nProvider, isLocale } from "@/lib/i18n";
 import { TenantProvider } from "@/contexts/TenantContext";
@@ -83,6 +86,9 @@ const App = () => (
                   <Route path="integrations" element={<IntegrationsPage />} />
                   <Route path="workflows" element={<WorkflowsPage />} />
                   <Route path="clowdbot" element={<ClowdBotPage />} />
+                  <Route path="meta/ads" element={<MetaAdsPage />} />
+                  <Route path="email/campaigns" element={<EmailCampaignsPage />} />
+                  <Route path="tasks" element={<TasksPage />} />
                   <Route path="settings/company" element={<CompanySettingsPage />} />
                   <Route
                     path="admin/overview"

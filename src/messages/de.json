@@ -52,7 +52,10 @@
     "history": "Historie",
     "settings": "Einstellungen",
     "company": "Unternehmen",
-    "admin": "Admin"
+    "admin": "Admin",
+    "metaAds": "Meta Ads",
+    "emailCampaigns": "E-Mail-Kampagnen",
+    "tasks": "KI-Aufgaben"
   },
   "dashboard": {
     "title": "Übersicht",

@@ -52,7 +52,10 @@
     "history": "History",
     "settings": "Settings",
     "company": "Company",
-    "admin": "Admin"
+    "admin": "Admin",
+    "metaAds": "Meta Ads",
+    "emailCampaigns": "Email Campaigns",
+    "tasks": "AI Tasks"
   },
   "dashboard": {
     "title": "Overview",

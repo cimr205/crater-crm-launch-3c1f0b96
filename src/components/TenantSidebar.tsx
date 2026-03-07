@@ -1,14 +1,31 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, Briefcase, Settings, UserSquare2, ShieldCheck, History, Bot, Menu, X } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Users,
+  Briefcase,
+  Settings,
+  UserSquare2,
+  ShieldCheck,
+  History,
+  Bot,
+  Menu,
+  X,
+  Megaphone,
+  Mail,
+  CheckSquare,
+} from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/contexts/AuthContext';
 
 const navItems = [
   { href: 'dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+  { href: 'tasks', labelKey: 'nav.tasks', icon: CheckSquare },
   { href: 'crm/leads', labelKey: 'nav.leads', icon: Users },
   { href: 'crm/deals', labelKey: 'nav.deals', icon: Briefcase },
+  { href: 'meta/ads', labelKey: 'nav.metaAds', icon: Megaphone },
+  { href: 'email/campaigns', labelKey: 'nav.emailCampaigns', icon: Mail },
   { href: 'integrations', labelKey: 'nav.integrations', icon: Settings },
   { href: 'workflows', labelKey: 'nav.workflows', icon: Settings },
   { href: 'clowdbot', labelKey: 'nav.clowdbot', icon: Bot },
