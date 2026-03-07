@@ -847,23 +847,99 @@ class ApiClient {
   }
 
   // Invoices
-  async getInvoices(params?: { page?: number; limit?: number; status?: string }) {
-    const searchParams = new URLSearchParams();
-    if (params?.page) searchParams.set('page', String(params.page));
-    if (params?.limit) searchParams.set('limit', String(params.limit));
-    if (params?.status) searchParams.set('status', params.status);
-    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
-    return this.request<{ data: Invoice[]; meta: PaginationMeta }>(`/invoices${query}`);
+  async getInvoiceStats() {
+    const r = await this.request<{ ok: true; data: InvoiceStats }>('/v1/invoices/stats');
+    return r.data;
   }
 
-  async getInvoice(id: number) {
-    return this.request<{ data: Invoice }>(`/invoices/${id}`);
+  async getInvoices(params?: { status?: string }) {
+    const search = new URLSearchParams();
+    if (params?.status) search.set('status', params.status);
+    const q = search.toString() ? `?${search.toString()}` : '';
+    const r = await this.request<{ ok: true; data: InvoiceSummary[] }>(`/v1/invoices${q}`);
+    return r.data;
+  }
+
+  async getInvoice(id: string) {
+    const r = await this.request<{ ok: true; data: InvoiceDetail }>(`/v1/invoices/${id}`);
+    return r.data;
+  }
+
+  async createInvoice(input: CreateInvoiceInput) {
+    const r = await this.request<{ ok: true; data: InvoiceDetail }>('/v1/invoices', {
+      method: 'POST',
+      body: input,
+    });
+    return r.data;
+  }
+
+  async updateInvoice(id: string, input: { status?: string; notes?: string }) {
+    const r = await this.request<{ ok: true; data: InvoiceDetail }>(`/v1/invoices/${id}`, {
+      method: 'PATCH',
+      body: input,
+    });
+    return r.data;
   }
 
   // Payments
-  async getPayments(params?: { page?: number; limit?: number }) {
-    const query = params ? `?page=${params.page || 1}&limit=${params.limit || 10}` : '';
-    return this.request<{ data: Payment[]; meta: PaginationMeta }>(`/payments${query}`);
+  async getPaymentStats() {
+    const r = await this.request<{ ok: true; data: { count: number; total: number } }>('/v1/payments/stats');
+    return r.data;
+  }
+
+  async getPayments() {
+    const r = await this.request<{ ok: true; data: PaymentRecord[] }>('/v1/payments');
+    return r.data;
+  }
+
+  async createPayment(input: {
+    invoice_id?: string;
+    amount: number;
+    currency?: string;
+    payment_date: string;
+    payment_method: string;
+    notes?: string;
+  }) {
+    const r = await this.request<{ ok: true; data: { ok: boolean } }>('/v1/payments', {
+      method: 'POST',
+      body: input,
+    });
+    return r.data;
+  }
+
+  // Gmail
+  async getGmailStatus() {
+    const r = await this.request<{ ok: true; data: { connected: boolean; gmail_email?: string; todo_sync_enabled?: boolean } }>('/v1/gmail/status');
+    return r.data;
+  }
+
+  async getGmailAuthUrl() {
+    const r = await this.request<{ ok: true; data: { auth_url: string } }>('/v1/gmail/auth');
+    return r.data;
+  }
+
+  async getGmailMessages(folder?: string) {
+    const q = folder ? `?folder=${folder}` : '';
+    const r = await this.request<{ ok: true; data: GmailMessage[] }>(`/v1/gmail/messages${q}`);
+    return r.data;
+  }
+
+  async sendGmailMessage(input: { to: string[]; subject: string; body: string; cc?: string[] }) {
+    return this.request<{ ok: true; data: { ok: boolean } }>('/v1/gmail/send', {
+      method: 'POST',
+      body: input,
+    });
+  }
+
+  async disconnectGmail() {
+    return this.request<{ ok: true; data: { ok: boolean } }>('/v1/gmail/disconnect', { method: 'DELETE' });
+  }
+
+  async updateGmailSettings(settings: { todo_sync_enabled: boolean }) {
+    return this.request<{ ok: true; data: { ok: boolean } }>('/v1/gmail/settings', {
+      method: 'PATCH',
+      body: settings,
+    });
   }
 
   // Dashboard
@@ -1214,6 +1290,110 @@ export interface Payment {
   payment_date: string;
   payment_method?: string;
   notes?: string;
+}
+
+export interface InvoiceStats {
+  sent: number;
+  paid: number;
+  draft: number;
+  overdue: number;
+  total_sent_amount: number;
+  total_paid_amount: number;
+}
+
+export interface InvoiceSummary {
+  id: string;
+  invoice_number: string;
+  invoice_date: string;
+  due_date: string;
+  status: string;
+  customer_name: string;
+  customer_country: string;
+  currency: string;
+  subtotal: number;
+  vat_amount: number;
+  total: number;
+  payment_method: string | null;
+  created_at: string;
+}
+
+export interface NewInvoiceItem {
+  description: string;
+  quantity: number;
+  unit_price: number;
+  total: number;
+  sort_order: number;
+}
+
+export interface InvoiceDetail extends InvoiceSummary {
+  customer_address: string | null;
+  customer_type: string;
+  customer_cvr: string | null;
+  customer_vat: string | null;
+  customer_email: string | null;
+  vat_rate: number;
+  vat_note: string | null;
+  payment_terms_days: number;
+  bank_account: string | null;
+  notes: string | null;
+  lead_id: string | null;
+  deal_id: string | null;
+  items: NewInvoiceItem[];
+}
+
+export interface CreateInvoiceItem {
+  description: string;
+  quantity: number;
+  unit_price: number;
+}
+
+export interface CreateInvoiceInput {
+  invoice_date: string;
+  due_date: string;
+  delivery_date?: string;
+  customer_name: string;
+  customer_address?: string;
+  customer_country: string;
+  customer_type: 'company' | 'private';
+  customer_cvr?: string;
+  customer_vat?: string;
+  customer_email?: string;
+  currency: string;
+  vat_rate: number;
+  vat_note?: string;
+  payment_method: string;
+  payment_terms_days: number;
+  bank_account?: string;
+  notes?: string;
+  lead_id?: string;
+  deal_id?: string;
+  items: CreateInvoiceItem[];
+}
+
+export interface PaymentRecord {
+  id: string;
+  company_id: string;
+  invoice_id: string | null;
+  invoice_number: string | null;
+  amount: number;
+  currency: string;
+  payment_date: string;
+  payment_method: string;
+  status: string;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface GmailMessage {
+  id: string;
+  from: string;
+  to: string;
+  subject: string;
+  date: string;
+  snippet: string;
+  read: boolean;
+  labels: string[];
+  internalDate: string;
 }
 
 export interface PaginationMeta {

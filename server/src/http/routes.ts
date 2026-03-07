@@ -9,6 +9,10 @@ import { generateInviteCode } from '../core/inviteCode';
 import { supabaseAdmin, supabaseAnon } from '../core/supabase';
 import { env } from '../config/env';
 import { isServiceUnavailableError } from '../core/serviceUnavailable';
+import { buildGmailAuthUrl, exchangeGmailCode } from '../services/email/gmailClient';
+
+// In-memory store for Gmail OAuth state tokens (maps state → userId, expires after 10 min)
+const gmailAuthStates = new Map<string, { userId: string; expiresAt: number }>();
 
 const paymentStatusSchema = z.enum(['pending', 'active', 'past_due', 'cancelled', 'trial']);
 
@@ -1029,6 +1033,443 @@ export function registerRoutes(app: Application) {
     );
 
     ok(res, rows);
+  });
+
+  // ── INVOICES ───────────────────────────────────────────────────────────────
+
+  app.get('/api/v1/invoices/stats', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+    const rows = await query<{ status: string; count: string; total: string }>(
+      `select status, count(*)::text as count, coalesce(sum(total),0)::text as total
+       from invoices where company_id=$1 group by status`,
+      [authUser.companyId]
+    );
+    const stats = { sent: 0, paid: 0, draft: 0, overdue: 0, total_sent_amount: 0, total_paid_amount: 0 };
+    for (const row of rows) {
+      const n = Number(row.count);
+      const t = Number(row.total);
+      if (row.status === 'sent') { stats.sent = n; stats.total_sent_amount = t; }
+      if (row.status === 'paid') { stats.paid = n; stats.total_paid_amount = t; }
+      if (row.status === 'draft') stats.draft = n;
+      if (row.status === 'overdue') stats.overdue = n;
+    }
+    ok(res, stats);
+  });
+
+  app.get('/api/v1/invoices', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+    const rows = await query<{
+      id: string; invoice_number: string; invoice_date: string; due_date: string;
+      status: string; customer_name: string; customer_country: string; currency: string;
+      subtotal: string; vat_amount: string; total: string; payment_method: string | null;
+      created_at: string;
+    }>(
+      `select id, invoice_number, invoice_date, due_date, status, customer_name, customer_country,
+              currency, subtotal, vat_amount, total, payment_method, created_at
+       from invoices where company_id=$1 ${status ? 'and status=$2' : ''}
+       order by created_at desc limit 200`,
+      status ? [authUser.companyId, status] : [authUser.companyId]
+    );
+    ok(res, rows.map(r => ({ ...r, subtotal: Number(r.subtotal), vat_amount: Number(r.vat_amount), total: Number(r.total) })));
+  });
+
+  app.get('/api/v1/invoices/:id', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+    const rows = await query<Record<string, unknown>>(
+      `select i.*, array_agg(row_to_json(ii.*) order by ii.sort_order) filter (where ii.id is not null) as items
+       from invoices i left join invoice_items ii on ii.invoice_id=i.id
+       where i.id=$1 and i.company_id=$2 group by i.id`,
+      [req.params.id, authUser.companyId]
+    );
+    if (!rows[0]) { fail(res, 404, 'not_found', 'Invoice not found'); return; }
+    const inv = rows[0] as Record<string, unknown>;
+    ok(res, { ...inv, subtotal: Number(inv.subtotal), vat_amount: Number(inv.vat_amount), total: Number(inv.total) });
+  });
+
+  app.post('/api/v1/invoices', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+
+    const itemSchema = z.object({
+      description: z.string().min(1),
+      quantity: z.number().positive(),
+      unit_price: z.number().min(0),
+    });
+    const schema = z.object({
+      invoice_date: z.string(),
+      due_date: z.string(),
+      delivery_date: z.string().optional(),
+      customer_name: z.string().min(1),
+      customer_address: z.string().optional(),
+      customer_country: z.string().default('DK'),
+      customer_type: z.enum(['company', 'private']).default('company'),
+      customer_cvr: z.string().optional(),
+      customer_vat: z.string().optional(),
+      customer_email: z.string().optional(),
+      currency: z.string().default('DKK'),
+      vat_rate: z.number().min(0).max(100).default(25),
+      vat_note: z.string().optional(),
+      payment_method: z.string().default('bank_transfer'),
+      payment_terms_days: z.number().int().min(0).default(14),
+      bank_account: z.string().optional(),
+      notes: z.string().optional(),
+      lead_id: z.string().uuid().optional(),
+      deal_id: z.string().uuid().optional(),
+      items: z.array(itemSchema).min(1),
+    });
+
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) { fail(res, 400, 'invalid_payload', 'Invalid payload', parsed.error.flatten()); return; }
+    const d = parsed.data;
+
+    // Generate invoice number: YYYY-NNNN
+    const year = new Date(d.invoice_date).getFullYear();
+    const countRows = await query<{ cnt: string }>(
+      `select count(*)::text as cnt from invoices where company_id=$1 and extract(year from invoice_date)=$2`,
+      [authUser.companyId, year]
+    );
+    const seq = (Number(countRows[0]?.cnt || 0) + 1).toString().padStart(4, '0');
+    const invoiceNumber = `${year}-${seq}`;
+
+    // Calculate totals
+    const subtotal = d.items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
+    const vatAmount = subtotal * (d.vat_rate / 100);
+    const total = subtotal + vatAmount;
+
+    try {
+      let invoiceId: string;
+      await withTransaction(async (client) => {
+        const invResult = await client.query<{ id: string }>(
+          `insert into invoices (company_id, invoice_number, invoice_date, due_date, delivery_date,
+            customer_name, customer_address, customer_country, customer_type, customer_cvr, customer_vat, customer_email,
+            currency, vat_rate, vat_note, subtotal, vat_amount, total,
+            payment_method, payment_terms_days, bank_account, notes, lead_id, deal_id, created_by)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
+           returning id`,
+          [authUser.companyId, invoiceNumber, d.invoice_date, d.due_date, d.delivery_date || null,
+           d.customer_name, d.customer_address || null, d.customer_country, d.customer_type,
+           d.customer_cvr || null, d.customer_vat || null, d.customer_email || null,
+           d.currency, d.vat_rate, d.vat_note || null, subtotal, vatAmount, total,
+           d.payment_method, d.payment_terms_days, d.bank_account || null, d.notes || null,
+           d.lead_id || null, d.deal_id || null, authUser.id]
+        );
+        invoiceId = invResult.rows[0].id;
+        for (let i = 0; i < d.items.length; i++) {
+          const item = d.items[i];
+          await client.query(
+            `insert into invoice_items (invoice_id, description, quantity, unit_price, total, sort_order)
+             values ($1,$2,$3,$4,$5,$6)`,
+            [invoiceId, item.description, item.quantity, item.unit_price, item.quantity * item.unit_price, i]
+          );
+        }
+      });
+      const newInv = await query<Record<string, unknown>>(
+        `select i.*, array_agg(row_to_json(ii.*) order by ii.sort_order) filter (where ii.id is not null) as items
+         from invoices i left join invoice_items ii on ii.invoice_id=i.id
+         where i.id=$1 group by i.id`,
+        [invoiceId!]
+      );
+      ok(res, { ...newInv[0], subtotal: Number((newInv[0] as Record<string, unknown>).subtotal), vat_amount: Number((newInv[0] as Record<string, unknown>).vat_amount), total: Number((newInv[0] as Record<string, unknown>).total) }, 201);
+    } catch (error) {
+      fail(res, 500, 'invoice_create_failed', (error as Error).message);
+    }
+  });
+
+  app.patch('/api/v1/invoices/:id', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+    const schema = z.object({ status: z.string().optional(), notes: z.string().optional() });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) { fail(res, 400, 'invalid_payload', 'Invalid payload'); return; }
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    if (parsed.data.status !== undefined) { values.push(parsed.data.status); fields.push(`status=$${values.length}`); }
+    if (parsed.data.notes !== undefined) { values.push(parsed.data.notes); fields.push(`notes=$${values.length}`); }
+    if (!fields.length) { fail(res, 400, 'no_changes', 'No fields to update'); return; }
+    values.push(authUser.companyId); values.push(req.params.id);
+    const rows = await query<Record<string, unknown>>(
+      `update invoices set ${fields.join(',')}, updated_at=now() where company_id=$${values.length - 1} and id=$${values.length} returning *`,
+      values
+    );
+    if (!rows[0]) { fail(res, 404, 'not_found', 'Invoice not found'); return; }
+    ok(res, rows[0]);
+  });
+
+  // ── PAYMENTS ───────────────────────────────────────────────────────────────
+
+  app.get('/api/v1/payments/stats', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+    const rows = await query<{ count: string; total: string }>(
+      `select count(*)::text as count, coalesce(sum(amount),0)::text as total from payments where company_id=$1`,
+      [authUser.companyId]
+    );
+    ok(res, { count: Number(rows[0]?.count || 0), total: Number(rows[0]?.total || 0) });
+  });
+
+  app.get('/api/v1/payments', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+    const rows = await query<Record<string, unknown>>(
+      `select p.*, i.invoice_number from payments p
+       left join invoices i on i.id=p.invoice_id
+       where p.company_id=$1 order by p.created_at desc limit 200`,
+      [authUser.companyId]
+    );
+    ok(res, rows.map(r => ({ ...r, amount: Number(r.amount) })));
+  });
+
+  app.post('/api/v1/payments', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+    const schema = z.object({
+      invoice_id: z.string().uuid().optional(),
+      amount: z.number().positive(),
+      currency: z.string().default('DKK'),
+      payment_date: z.string(),
+      payment_method: z.string().default('manual'),
+      notes: z.string().optional(),
+      external_ref: z.string().optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) { fail(res, 400, 'invalid_payload', 'Invalid payload', parsed.error.flatten()); return; }
+    const d = parsed.data;
+    try {
+      await withTransaction(async (client) => {
+        await client.query(
+          `insert into payments (company_id, invoice_id, amount, currency, payment_date, payment_method, notes, external_ref, created_by)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [authUser.companyId, d.invoice_id || null, d.amount, d.currency, d.payment_date,
+           d.payment_method, d.notes || null, d.external_ref || null, authUser.id]
+        );
+        if (d.invoice_id) {
+          await client.query(`update invoices set status='paid', updated_at=now() where id=$1 and company_id=$2`, [d.invoice_id, authUser.companyId]);
+        }
+      });
+      ok(res, { ok: true }, 201);
+    } catch (error) {
+      fail(res, 500, 'payment_create_failed', (error as Error).message);
+    }
+  });
+
+  // ── GMAIL ──────────────────────────────────────────────────────────────────
+
+  app.get('/api/v1/gmail/status', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    const rows = await query<{ gmail_email: string; todo_sync_enabled: boolean; created_at: string }>(
+      `select gmail_email, todo_sync_enabled, created_at from user_gmail_tokens where user_id=$1`,
+      [authUser.id]
+    );
+    if (!rows[0]) { ok(res, { connected: false }); return; }
+    ok(res, { connected: true, gmail_email: rows[0].gmail_email, todo_sync_enabled: rows[0].todo_sync_enabled });
+  });
+
+  app.get('/api/v1/gmail/auth', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!env.gmailClientId || !env.gmailClientSecret) {
+      fail(res, 503, 'gmail_not_configured', 'Gmail OAuth not configured. Set GMAIL_CLIENT_ID and GMAIL_CLIENT_SECRET in Railway environment variables.');
+      return;
+    }
+    const state = randomUUID();
+    gmailAuthStates.set(state, { userId: authUser.id, expiresAt: Date.now() + 10 * 60 * 1000 });
+    const authUrl = buildGmailAuthUrl(
+      {
+        clientId: env.gmailClientId,
+        clientSecret: env.gmailClientSecret,
+        redirectUri: env.gmailRedirectUri,
+        scopes: [
+          'https://www.googleapis.com/auth/gmail.readonly',
+          'https://www.googleapis.com/auth/gmail.send',
+          'https://www.googleapis.com/auth/gmail.modify',
+          'https://www.googleapis.com/auth/userinfo.email',
+        ],
+      },
+      state
+    );
+    ok(res, { auth_url: authUrl });
+  });
+
+  app.get('/api/gmail/callback', async (req: Request, res: Response) => {
+    const code = typeof req.query.code === 'string' ? req.query.code : null;
+    const state = typeof req.query.state === 'string' ? req.query.state : null;
+    const frontendBase = env.publicBaseUrl;
+
+    if (!code || !state) {
+      res.redirect(`${frontendBase}/en/app/emails?gmail=error&reason=missing_params`);
+      return;
+    }
+
+    const stateEntry = gmailAuthStates.get(state);
+    if (!stateEntry || stateEntry.expiresAt < Date.now()) {
+      gmailAuthStates.delete(state);
+      res.redirect(`${frontendBase}/en/app/emails?gmail=error&reason=state_expired`);
+      return;
+    }
+    gmailAuthStates.delete(state);
+
+    try {
+      const tokens = await exchangeGmailCode(
+        {
+          clientId: env.gmailClientId,
+          clientSecret: env.gmailClientSecret,
+          redirectUri: env.gmailRedirectUri,
+          scopes: [],
+        },
+        code
+      );
+
+      // Get gmail email address
+      const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${tokens.accessToken}` },
+      });
+      const userInfo = await userInfoRes.json() as { email?: string };
+      const gmailEmail = userInfo.email || 'unknown';
+
+      await query(
+        `insert into user_gmail_tokens (user_id, gmail_email, access_token, refresh_token, token_expiry)
+         values ($1,$2,$3,$4,$5)
+         on conflict (user_id) do update set
+           gmail_email=$2, access_token=$3, refresh_token=coalesce($4, user_gmail_tokens.refresh_token),
+           token_expiry=$5, updated_at=now()`,
+        [stateEntry.userId, gmailEmail, tokens.accessToken, tokens.refreshToken || null, tokens.expiresAt]
+      );
+
+      res.redirect(`${frontendBase}/en/app/emails?gmail=connected`);
+    } catch (error) {
+      const msg = encodeURIComponent((error as Error).message || 'unknown');
+      res.redirect(`${frontendBase}/en/app/emails?gmail=error&reason=${msg}`);
+    }
+  });
+
+  app.get('/api/v1/gmail/messages', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    const tokenRows = await query<{ access_token: string; refresh_token: string | null; token_expiry: string | null }>(
+      `select access_token, refresh_token, token_expiry from user_gmail_tokens where user_id=$1`,
+      [authUser.id]
+    );
+    if (!tokenRows[0]) { fail(res, 404, 'gmail_not_connected', 'Gmail not connected'); return; }
+
+    const { access_token } = tokenRows[0];
+    const folder = typeof req.query.folder === 'string' ? req.query.folder : 'INBOX';
+    const maxResults = 30;
+
+    try {
+      // Fetch message list
+      const listRes = await fetch(
+        `https://gmail.googleapis.com/gmail/v1/users/me/messages?labelIds=${folder}&maxResults=${maxResults}`,
+        { headers: { Authorization: `Bearer ${access_token}` } }
+      );
+      if (!listRes.ok) {
+        const errText = await listRes.text();
+        fail(res, 502, 'gmail_api_error', `Gmail API error: ${errText}`);
+        return;
+      }
+      const listData = await listRes.json() as { messages?: Array<{ id: string }> };
+      const messageIds = listData.messages || [];
+
+      // Fetch details for each (batch via Promise.all, max 30)
+      const details = await Promise.all(
+        messageIds.slice(0, maxResults).map(async (msg) => {
+          const detailRes = await fetch(
+            `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msg.id}?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date`,
+            { headers: { Authorization: `Bearer ${access_token}` } }
+          );
+          if (!detailRes.ok) return null;
+          const detail = await detailRes.json() as {
+            id: string;
+            snippet: string;
+            labelIds: string[];
+            internalDate: string;
+            payload: { headers: Array<{ name: string; value: string }> };
+          };
+          const headers = detail.payload?.headers || [];
+          const getHeader = (name: string) => headers.find(h => h.name.toLowerCase() === name.toLowerCase())?.value || '';
+          return {
+            id: detail.id,
+            from: getHeader('From'),
+            to: getHeader('To'),
+            subject: getHeader('Subject'),
+            date: getHeader('Date'),
+            snippet: detail.snippet || '',
+            read: !detail.labelIds?.includes('UNREAD'),
+            labels: detail.labelIds || [],
+            internalDate: detail.internalDate,
+          };
+        })
+      );
+
+      ok(res, details.filter(Boolean));
+    } catch (error) {
+      fail(res, 502, 'gmail_fetch_failed', (error as Error).message);
+    }
+  });
+
+  app.post('/api/v1/gmail/send', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    const schema = z.object({
+      to: z.array(z.string().email()).min(1),
+      subject: z.string().min(1),
+      body: z.string().min(1),
+      cc: z.array(z.string().email()).optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) { fail(res, 400, 'invalid_payload', 'Invalid payload', parsed.error.flatten()); return; }
+
+    const tokenRows = await query<{ access_token: string }>(
+      `select access_token from user_gmail_tokens where user_id=$1`,
+      [authUser.id]
+    );
+    if (!tokenRows[0]) { fail(res, 404, 'gmail_not_connected', 'Gmail not connected'); return; }
+
+    const { to, subject, body: emailBody, cc } = parsed.data;
+    const lines = [
+      `To: ${to.join(', ')}`,
+      ...(cc?.length ? [`Cc: ${cc.join(', ')}`] : []),
+      `Subject: ${subject}`,
+      'Content-Type: text/plain; charset=utf-8',
+      '',
+      emailBody,
+    ];
+    const raw = Buffer.from(lines.join('\r\n')).toString('base64url');
+
+    try {
+      const sendRes = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${tokenRows[0].access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ raw }),
+      });
+      if (!sendRes.ok) {
+        const err = await sendRes.text();
+        fail(res, 502, 'gmail_send_failed', `Gmail send error: ${err}`);
+        return;
+      }
+      ok(res, { ok: true });
+    } catch (error) {
+      fail(res, 502, 'gmail_send_failed', (error as Error).message);
+    }
+  });
+
+  app.delete('/api/v1/gmail/disconnect', authMiddleware, async (req: Request, res: Response) => {
+    await query(`delete from user_gmail_tokens where user_id=$1`, [req.authUser!.id]);
+    ok(res, { ok: true });
+  });
+
+  app.patch('/api/v1/gmail/settings', authMiddleware, async (req: Request, res: Response) => {
+    const schema = z.object({ todo_sync_enabled: z.boolean() });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) { fail(res, 400, 'invalid_payload', 'Invalid payload'); return; }
+    await query(
+      `update user_gmail_tokens set todo_sync_enabled=$1, updated_at=now() where user_id=$2`,
+      [parsed.data.todo_sync_enabled, req.authUser!.id]
+    );
+    ok(res, { ok: true });
   });
 
   app.use('/api', (_req: Request, res: Response) => {
