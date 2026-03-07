@@ -45,24 +45,29 @@ export default function ClowdBotPage() {
     clearbit: true,
   });
 
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const loadData = useCallback(async () => {
-    const [statusRes, integrationsRes, jobsRes] = await Promise.all([
-      api.getClowdBotStatus(),
-      api.listClowdBotIntegrations(),
-      api.listClowdBotJobs(),
-    ]);
-    setStatus(statusRes.totals);
-    setIntegrations(integrationsRes.data);
-    setJobs(jobsRes.data as Job[]);
+    setLoadError(null);
+    try {
+      const [statusRes, integrationsRes, jobsRes] = await Promise.all([
+        api.getClowdBotStatus(),
+        api.listClowdBotIntegrations(),
+        api.listClowdBotJobs(),
+      ]);
+      setStatus(statusRes.totals);
+      setIntegrations(integrationsRes.data);
+      setJobs(jobsRes.data as Job[]);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Could not load ClowdBot data');
+    }
   }, []);
 
   useEffect(() => {
     let active = true;
-    loadData()
-      .catch(() => undefined)
-      .finally(() => {
-        if (active) setLoading(false);
-      });
+    loadData().finally(() => {
+      if (active) setLoading(false);
+    });
     return () => {
       active = false;
     };
@@ -168,6 +173,8 @@ export default function ClowdBotPage() {
         <h1 className="text-2xl font-semibold">ClowdBot</h1>
         <p className="text-sm text-muted-foreground">Automated lead generation + Meta Lead Ads intake</p>
       </div>
+
+      {loadError && <p className="text-sm text-destructive">{loadError}</p>}
 
       <Card className="p-6 space-y-2 bg-card/70 backdrop-blur border-border">
         <div className="text-sm font-semibold">Status</div>

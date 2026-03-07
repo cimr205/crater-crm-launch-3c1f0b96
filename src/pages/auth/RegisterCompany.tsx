@@ -23,14 +23,18 @@ export default function RegisterCompanyPage() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [language, setLanguage] = useState<typeof locale>(locale);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleGoogleSignup = async () => {
     setLoading(true);
+    setError(null);
     try {
       await loginWithGoogle({
         createIfMissing: true,
         companyName: companyName || undefined,
       });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google signup failed');
     } finally {
       setLoading(false);
     }
@@ -39,6 +43,7 @@ export default function RegisterCompanyPage() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
+    setError(null);
     try {
       const response = await api.registerCompany({
         companyName,
@@ -58,6 +63,8 @@ export default function RegisterCompanyPage() {
       });
 
       navigate(`/${language}/app/dashboard`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -98,6 +105,7 @@ export default function RegisterCompanyPage() {
             <div className="text-xs text-muted-foreground">{t('theme.label')}</div>
             <ThemeSelector value={theme} onChange={setTheme} />
           </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? t('common.loading') : t('auth.createCompanyCta')}
           </Button>
@@ -109,4 +117,3 @@ export default function RegisterCompanyPage() {
     </div>
   );
 }
-

@@ -59,6 +59,8 @@ export default function CompanySettingsPage() {
 
       setTenant(response.tenant);
       toast({ title: t('common.save') });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not save settings', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -72,6 +74,8 @@ export default function CompanySettingsPage() {
       const response = await api.regenerateInviteCode();
       setTenant({ ...tenant, invite_code: response.invite_code });
       toast({ title: 'Invitation code regenerated' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not regenerate code', variant: 'destructive' });
     } finally {
       setRegeneratingCode(false);
     }

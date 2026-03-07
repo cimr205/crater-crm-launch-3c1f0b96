@@ -17,10 +17,12 @@ export default function JoinCompanyPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
+    setError(null);
     try {
       const response = await api.joinCompany({ invitationCode: joinCode, name, email, password });
 
@@ -34,6 +36,8 @@ export default function JoinCompanyPage() {
       });
 
       navigate(`/${locale}/app/dashboard`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not join company');
     } finally {
       setLoading(false);
     }
@@ -58,6 +62,7 @@ export default function JoinCompanyPage() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? t('common.loading') : t('auth.joinCompanyCta')}
           </Button>
@@ -66,4 +71,3 @@ export default function JoinCompanyPage() {
     </div>
   );
 }
-

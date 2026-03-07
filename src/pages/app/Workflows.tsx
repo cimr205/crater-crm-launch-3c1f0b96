@@ -29,15 +29,21 @@ export default function WorkflowsPage() {
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
   const [testLeadId, setTestLeadId] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadWorkflows = async () => {
-    const result = await api.listWorkflows();
-    setWorkflows(result.data as Workflow[]);
-    setSuggestions((result.suggestions || []) as Array<Record<string, unknown>>);
+    setLoadError(null);
+    try {
+      const result = await api.listWorkflows();
+      setWorkflows(result.data as Workflow[]);
+      setSuggestions((result.suggestions || []) as Array<Record<string, unknown>>);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Could not load workflows');
+    }
   };
 
   useEffect(() => {
-    loadWorkflows().catch(() => undefined);
+    loadWorkflows();
   }, []);
 
   const addStep = (type: WorkflowStep['type']) => {
@@ -126,6 +132,8 @@ export default function WorkflowsPage() {
         <h1 className="text-2xl font-semibold">Workflows</h1>
         <p className="text-sm text-muted-foreground">Automate lead actions with triggers and steps.</p>
       </div>
+
+      {loadError && <p className="text-sm text-destructive">{loadError}</p>}
 
       <Card className="p-6 space-y-4 bg-card/70 backdrop-blur border-border">
         <div className="text-sm font-semibold">Create workflow</div>

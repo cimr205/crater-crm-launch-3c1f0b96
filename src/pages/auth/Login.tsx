@@ -14,11 +14,15 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleGoogleLogin = async () => {
     setLoading(true);
+    setError(null);
     try {
       await loginWithGoogle();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google login failed');
     } finally {
       setLoading(false);
     }
@@ -27,9 +31,12 @@ export default function LoginPage() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
+    setError(null);
     try {
       await login(email, password);
       navigate(`/${locale}/app/dashboard`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -52,6 +59,7 @@ export default function LoginPage() {
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
+          {error && <p className="text-sm text-destructive">{error}</p>}
           <Button type="submit" className="w-full" disabled={loading}>
             {loading ? t('common.loading') : t('auth.loginCta')}
           </Button>
@@ -63,7 +71,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-
-
-
