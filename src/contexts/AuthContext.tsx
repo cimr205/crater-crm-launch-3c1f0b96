@@ -20,7 +20,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const token = api.getToken();
+    const refreshToken = api.getRefreshToken();
     if (token) {
+      // Restore Supabase session so Lovable Cloud can see the logged-in user
+      if (refreshToken) {
+        supabase.auth.setSession({ access_token: token, refresh_token: refreshToken }).catch(() => {});
+      }
       api.getMe()
         .then((response) => setUser(response.data))
         .catch(() => api.setSession(null))
@@ -32,6 +37,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const response = await api.login(email, password);
+    // Sync session with Supabase client so Lovable Cloud can see the user
+    const accessToken = api.getToken();
+    const refreshToken = api.getRefreshToken();
+    if (accessToken && refreshToken) {
+      await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).catch(() => {});
+    }
     setUser(response.user);
   };
 
@@ -68,11 +79,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     companyName?: string;
   }) => {
     const response = await api.exchangeGoogleSession(input);
+    // Sync session with Supabase client so Lovable Cloud can see the user
+    const accessToken = api.getToken();
+    const refreshToken = api.getRefreshToken();
+    if (accessToken && refreshToken) {
+      await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).catch(() => {});
+    }
     setUser(response.user);
   };
 
   const logout = async () => {
     await api.logout();
+    await supabase.auth.signOut().catch(() => {});
     setUser(null);
   };
 

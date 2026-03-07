@@ -6,6 +6,7 @@ import { useI18n, isLocale } from '@/lib/i18n';
 import ThemeSelector from '@/components/settings/ThemeSelector';
 import LanguageSelector from '@/components/settings/LanguageSelector';
 import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { useTenant } from '@/contexts/TenantContext';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -52,6 +53,13 @@ export default function RegisterCompanyPage() {
         password,
         plan: 'starter',
       });
+
+      // Sync session with Supabase client so Lovable Cloud can see the user
+      const accessToken = api.getToken();
+      const refreshToken = api.getRefreshToken();
+      if (accessToken && refreshToken) {
+        await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).catch(() => {});
+      }
 
       setTenantDefaults({
         tenantId: response.tenant.id,

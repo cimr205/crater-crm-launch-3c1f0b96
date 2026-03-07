@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useI18n, isLocale } from '@/lib/i18n';
 import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { useTenant } from '@/contexts/TenantContext';
 
 export default function JoinCompanyPage() {
@@ -25,6 +26,13 @@ export default function JoinCompanyPage() {
     setError(null);
     try {
       const response = await api.joinCompany({ invitationCode: joinCode, name, email, password });
+
+      // Sync session with Supabase client so Lovable Cloud can see the user
+      const accessToken = api.getToken();
+      const refreshToken = api.getRefreshToken();
+      if (accessToken && refreshToken) {
+        await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken }).catch(() => {});
+      }
 
       setTenantDefaults({
         tenantId: response.tenant.id,
