@@ -9,7 +9,7 @@ import {
   Plus, Download, Eye, Trash2, FileText, TrendingUp, CheckCircle, AlertCircle,
   Search, UserCheck, Pencil, X, ImagePlus, Mail, CheckCircle2,
 } from 'lucide-react';
-import CvrSearchInput, { type CvrData } from '@/components/CvrSearchInput';
+import CvrSearchInput, { VatSearchInput, type CvrData, type VatData } from '@/components/CvrSearchInput';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -569,8 +569,8 @@ function CreateInvoiceDialog({
                   </Select>
                 </div>
               </div>
-              {/* CVR autofyld — kun DK virksomheder */}
-              {isDK && customerType === 'company' && (
+              {/* Auto-udfyld fra register */}
+              {customerType === 'company' && isDK && (
                 <CvrSearchInput
                   value={customerCvr}
                   onChange={setCustomerCvr}
@@ -579,13 +579,24 @@ function CreateInvoiceDialog({
                     setCustomerAddress(`${d.address}, ${d.zipcode} ${d.city}`.trim());
                     if (d.email) setCustomerEmail(d.email);
                   }}
-                  placeholder="Kundens CVR-nummer — auto-udfylder fra Virk.dk"
+                  placeholder="CVR-nummer — auto-udfylder fra Virk.dk"
                 />
               )}
+              {customerType === 'company' && !isDK && (
+                <VatSearchInput
+                  countryCode={customerCountry}
+                  value={customerVat}
+                  onChange={setCustomerVat}
+                  onResult={(d: VatData) => {
+                    setCustomerName(d.name);
+                    if (d.address) setCustomerAddress(d.address);
+                  }}
+                />
+              )}
+
               <Input placeholder="Kundenavn *" value={customerName} onChange={e => setCustomerName(e.target.value)} />
               <Input placeholder="Adresse" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)} />
               <div className="grid grid-cols-2 gap-3">
-                {isEU && customerType === 'company' && <Input placeholder="VAT-nummer (krævet for EU)" value={customerVat} onChange={e => setCustomerVat(e.target.value)} />}
                 <Input type="email" placeholder="Kundens email (til afsendelse)" value={customerEmail} onChange={e => setCustomerEmail(e.target.value)} />
               </div>
             </div>
