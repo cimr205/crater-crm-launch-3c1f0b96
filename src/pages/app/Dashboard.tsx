@@ -15,6 +15,23 @@ function fmtAmount(n: number) {
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
   return fmt(n);
 }
+
+function useCountUp(target: number, duration = 950): number {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    if (!target) return;
+    let startTs: number | null = null;
+    const tick = (ts: number) => {
+      if (!startTs) startTs = ts;
+      const p = Math.min((ts - startTs) / duration, 1);
+      const ease = 1 - (1 - p) ** 3; // cubic ease-out
+      setVal(Math.round(ease * target));
+      if (p < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [target, duration]);
+  return val;
+}
 function greet(name?: string | null) {
   const h = new Date().getHours();
   const g = h < 12 ? 'God morgen' : h < 18 ? 'God eftermiddag' : 'God aften';
@@ -44,12 +61,19 @@ function PipelineBar({ leads }: { leads: LeadRow[] }) {
   );
 }
 
-function StatCard({ icon, label, value, sub, color, onClick }: { icon: React.ReactNode; label: string; value: string; sub?: string; color: string; onClick?: () => void; }) {
+function StatCard({ icon, label, value, sub, color, onClick, rawValue, suffix }: {
+  icon: React.ReactNode; label: string; value: string; sub?: string;
+  color: string; onClick?: () => void; rawValue?: number; suffix?: string;
+}) {
+  const animated = useCountUp(rawValue ?? 0);
+  const display = rawValue !== undefined
+    ? fmtAmount(animated) + (suffix ?? '')
+    : value;
   return (
     <button className="rounded-2xl border bg-card p-5 text-left w-full transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 cursor-pointer" onClick={onClick}>
       <div className={`inline-flex h-9 w-9 items-center justify-center rounded-lg ${color} mb-3`}>{icon}</div>
       <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
-      <p className="text-3xl font-bold mt-0.5 tabular-nums">{value}</p>
+      <p className="text-3xl font-bold mt-0.5 tabular-nums">{display}</p>
       {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
     </button>
   );
@@ -114,10 +138,10 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={<Users className="h-5 w-5 text-white" />} color="bg-blue-500" label="Leads i alt" value={totals ? fmt(totals.leads) : '—'} sub={totals ? `+${totals.leads_today} i dag` : undefined} onClick={() => go('/app/crm/leads')} />
-        <StatCard icon={<TrendingUp className="h-5 w-5 text-white" />} color="bg-violet-500" label="Pipeline" value={`${fmtAmount(pipelineValue)} kr`} sub={`${pipelineLeads.length} aktive leads`} onClick={() => go('/app/crm/deals')} />
-        <StatCard icon={<FileText className="h-5 w-5 text-white" />} color="bg-amber-500" label="Sendte fakturaer" value={invoiceStats ? fmt(invoiceStats.sent) : '—'} sub={invoiceStats ? `${fmtAmount(invoiceStats.total_sent_amount)} kr udestående` : undefined} onClick={() => go('/app/finance/invoices')} />
-        <StatCard icon={<CreditCard className="h-5 w-5 text-white" />} color="bg-green-500" label="Betaling modtaget" value={paymentTotal !== null ? `${fmtAmount(paymentTotal)} kr` : '—'} sub={invoiceStats ? `${invoiceStats.paid} betalte fakturaer` : undefined} onClick={() => go('/app/finance/payments')} />
+        <StatCard icon={<Users className="h-5 w-5 text-white" />} color="bg-blue-500" label="Leads i alt" value={totals ? fmt(totals.leads) : '—'} rawValue={totals?.leads} sub={totals ? `+${totals.leads_today} i dag` : undefined} onClick={() => go('/app/crm/leads')} />
+        <StatCard icon={<TrendingUp className="h-5 w-5 text-white" />} color="bg-violet-500" label="Pipeline" value={`${fmtAmount(pipelineValue)} kr`} rawValue={pipelineValue} suffix=" kr" sub={`${pipelineLeads.length} aktive leads`} onClick={() => go('/app/crm/deals')} />
+        <StatCard icon={<FileText className="h-5 w-5 text-white" />} color="bg-amber-500" label="Sendte fakturaer" value={invoiceStats ? fmt(invoiceStats.sent) : '—'} rawValue={invoiceStats?.sent} sub={invoiceStats ? `${fmtAmount(invoiceStats.total_sent_amount)} kr udestående` : undefined} onClick={() => go('/app/finance/invoices')} />
+        <StatCard icon={<CreditCard className="h-5 w-5 text-white" />} color="bg-green-500" label="Betaling modtaget" value={paymentTotal !== null ? `${fmtAmount(paymentTotal)} kr` : '—'} rawValue={paymentTotal ?? undefined} suffix=" kr" sub={invoiceStats ? `${invoiceStats.paid} betalte fakturaer` : undefined} onClick={() => go('/app/finance/payments')} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-3">
