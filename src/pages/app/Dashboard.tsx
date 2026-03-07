@@ -88,22 +88,22 @@ export default function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-3 rounded-2xl border border-border bg-card/70 backdrop-blur p-6">
           <div className="flex items-center justify-between mb-4">
-            <div className="text-sm font-semibold">AI Focus Today</div>
+            <div className="text-sm font-semibold">{t('dashboard.aiFocusTitle')}</div>
             <Button size="sm" variant="outline" onClick={refreshFocus} disabled={focusLoading}>
-              Refresh AI focus
+              {t('dashboard.aiFocusRefresh')}
             </Button>
           </div>
           {dailyFocus.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No AI focus yet.</div>
+            <div className="text-sm text-muted-foreground">{t('dashboard.aiFocusEmpty')}</div>
           ) : (
             <div className="grid gap-3 md:grid-cols-2">
               {dailyFocus.map((item, index) => (
                 <div key={index} className="rounded-lg border border-border p-3">
-                  <div className="text-sm font-medium">{String(item.title || 'Priority')}</div>
+                  <div className="text-sm font-medium">{String(item.title || t('dashboard.aiFocusTitle'))}</div>
                   <div className="text-xs text-muted-foreground">{String(item.description || '')}</div>
                   <div className="mt-2 flex gap-2">
                     <Button size="sm" variant="ghost" onClick={() => handleFocusAction(item)}>
-                      View
+                      {t('dashboard.view')}
                     </Button>
                   </div>
                 </div>
@@ -116,7 +116,7 @@ export default function DashboardPage() {
           <AIInboxPanel items={[]} emptyLabel={t('aiInbox.empty')} />
         </div>
         <div className="rounded-2xl border border-border bg-card/70 backdrop-blur p-6">
-          <div className="text-sm font-semibold mb-4">Live leads</div>
+          <div className="text-sm font-semibold mb-4">{t('dashboard.liveLeads')}</div>
           {recent.length === 0 ? (
             <div className="text-sm text-muted-foreground">{t('crm.empty')}</div>
           ) : (
@@ -133,9 +133,9 @@ export default function DashboardPage() {
           )}
         </div>
         <div className="rounded-2xl border border-border bg-card/70 backdrop-blur p-6 lg:col-span-3">
-          <div className="text-sm font-semibold mb-4">AI activity</div>
+          <div className="text-sm font-semibold mb-4">{t('dashboard.aiActivity')}</div>
           {activity.length === 0 ? (
-            <div className="text-sm text-muted-foreground">No AI activity yet.</div>
+            <div className="text-sm text-muted-foreground">{t('dashboard.aiActivityEmpty')}</div>
           ) : (
             <div className="grid gap-2">
               {activity.slice(0, 6).map((item) => (
