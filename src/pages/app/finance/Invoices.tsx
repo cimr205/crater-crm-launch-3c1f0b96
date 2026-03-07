@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { api, type InvoiceSummary, type InvoiceDetail, type InvoiceStats, type CreateInvoiceItem } from '@/lib/api';
+import { api, type InvoiceSummary, type InvoiceDetail, type InvoiceStats, type CreateInvoiceItem, type Customer } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, Download, Eye, Trash2, FileText, TrendingUp, CheckCircle, AlertCircle } from 'lucide-react';
+import { Plus, Download, Eye, Trash2, FileText, TrendingUp, CheckCircle, AlertCircle, Search, UserCheck } from 'lucide-react';
 
 // ─── Country / VAT helpers ──────────────────────────────────────────────────
 
@@ -187,6 +187,76 @@ function PrintDialog({ inv, company, onClose }: { inv: InvoiceDetail; company: C
   );
 }
 
+// ─── Customer picker ──────────────────────────────────────────────────────────
+
+function CustomerPicker({ onSelect }: {
+  onSelect: (c: Customer) => void;
+}) {
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getCustomers({ limit: 100 })
+      .then(r => setCustomers(r.data))
+      .catch(() => {/* silent — not all tenants have customers */})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filtered = customers.filter(c =>
+    !query || c.name.toLowerCase().includes(query.toLowerCase()) ||
+    c.company_name?.toLowerCase().includes(query.toLowerCase()) ||
+    c.email?.toLowerCase().includes(query.toLowerCase())
+  );
+
+  if (!loading && customers.length === 0) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg bg-muted/40 border border-dashed px-3 py-2.5 text-sm text-muted-foreground">
+        <UserCheck className="h-4 w-4 shrink-0" />
+        <span>Ingen gemte kunder endnu — udfyld kundeinfo nedenfor manuelt.</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Vælg eksisterende kunde</p>
+      <div className="relative">
+        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        <Input
+          className="pl-8 text-sm"
+          placeholder="Søg på navn, virksomhed eller email…"
+          value={query}
+          onChange={e => { setQuery(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+        />
+      </div>
+      {open && filtered.length > 0 && (
+        <div className="border rounded-lg shadow-lg bg-popover overflow-hidden max-h-48 overflow-y-auto z-50 relative">
+          {filtered.slice(0, 10).map(c => (
+            <button
+              key={c.id}
+              type="button"
+              className="w-full text-left px-3 py-2 text-sm hover:bg-accent flex items-center gap-3 border-b last:border-0"
+              onMouseDown={() => { onSelect(c); setQuery(c.company_name || c.name); setOpen(false); }}
+            >
+              <UserCheck className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div>
+                <p className="font-medium leading-tight">{c.company_name || c.name}</p>
+                {c.company_name && <p className="text-xs text-muted-foreground">{c.name} · {c.email}</p>}
+                {!c.company_name && c.email && <p className="text-xs text-muted-foreground">{c.email}</p>}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+      <p className="text-xs text-muted-foreground">Eller udfyld kundeinfo manuelt nedenfor ↓</p>
+    </div>
+  );
+}
+
 // ─── Create invoice dialog ────────────────────────────────────────────────────
 
 function CreateInvoiceDialog({ open, onClose, company, onCreated }: { open: boolean; onClose: () => void; company: CompanyInfo; onCreated: () => void }) {
@@ -210,6 +280,20 @@ function CreateInvoiceDialog({ open, onClose, company, onCreated }: { open: bool
   const [bankAccount, setBankAccount] = useState('');
   const [notes, setNotes] = useState('');
   const [items, setItems] = useState<LineItem[]>([{ id: '1', description: '', quantity: 1, unit_price: 0 }]);
+
+  const fillFromCustomer = (c: Customer) => {
+    setCustomerName(c.company_name || c.name);
+    if (c.email) setCustomerEmail(c.email);
+    if (c.billing_address) {
+      const a = c.billing_address;
+      const parts = [a.address_street_1, a.address_street_2, a.zip && a.city ? `${a.zip} ${a.city}` : (a.city || a.zip)].filter(Boolean);
+      setCustomerAddress(parts.join(', '));
+      if (a.country) {
+        const match = COUNTRIES.find(co => co.label.toLowerCase() === a.country!.toLowerCase() || co.code === a.country!.toUpperCase());
+        if (match) setCustomerCountry(match.code);
+      }
+    }
+  };
 
   const vatInfo = getVatInfo(customerCountry, customerType);
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unit_price, 0);
@@ -269,9 +353,12 @@ function CreateInvoiceDialog({ open, onClose, company, onCreated }: { open: bool
             <div><label className="text-xs text-muted-foreground">Forfaldsdato</label><Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></div>
           </div>
 
+          {/* Customer picker */}
+          <CustomerPicker onSelect={fillFromCustomer} />
+
           {/* Customer */}
           <div className="space-y-2">
-            <p className="text-sm font-semibold">Kunde</p>
+            <p className="text-sm font-semibold">Kundeoplysninger</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-muted-foreground">Land</label>
