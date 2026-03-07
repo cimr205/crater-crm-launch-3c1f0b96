@@ -5,9 +5,11 @@ import { useI18n, isLocale } from '@/lib/i18n';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useToast } from '@/components/ui/use-toast';
 
 export default function DashboardPage() {
   const { t } = useI18n();
+  const { toast } = useToast();
   const navigate = useNavigate();
   const params = useParams();
   const locale = isLocale(params.locale) ? params.locale : 'en';
@@ -30,7 +32,10 @@ export default function DashboardPage() {
         setTotals(data.totals);
         setRecent(data.recent || []);
       })
-      .catch(() => undefined);
+      .catch((err: unknown) => {
+        if (!active) return;
+        toast({ title: err instanceof Error ? err.message : 'Could not load dashboard', variant: 'destructive' });
+      });
     api
       .getAiActivity()
       .then((data) => {

@@ -94,6 +94,8 @@ export default function OnboardingPage() {
         theme: tenant.defaultTheme,
       });
       setStep('team');
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not save settings', variant: 'destructive' });
     } finally {
       setSavingBasics(false);
     }
@@ -106,6 +108,9 @@ export default function OnboardingPage() {
       await api.createInvitation(inviteEmail.trim(), inviteRole);
       setInvites((prev) => [...prev, { email: inviteEmail.trim(), role: inviteRole }]);
       setInviteEmail('');
+      toast({ title: `Invitation sent to ${inviteEmail.trim()}` });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not send invitation', variant: 'destructive' });
     } finally {
       setSavingInvite(false);
     }
@@ -158,6 +163,9 @@ export default function OnboardingPage() {
       );
       setMetaCapiToken('');
       setStep('finish');
+      toast({ title: 'Integrations saved' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not save integrations', variant: 'destructive' });
     } finally {
       setSavingIntegrations(false);
     }

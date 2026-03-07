@@ -4,9 +4,11 @@ import StatCards from '@/components/StatCards';
 import DataTable from '@/components/DataTable';
 import { useI18n } from '@/lib/i18n';
 import { api, AdminCompany, AdminUser } from '@/lib/api';
+import { useToast } from '@/components/ui/use-toast';
 
 export default function AdminOverviewPage() {
   const { t } = useI18n();
+  const { toast } = useToast();
   const [companies, setCompanies] = useState<AdminCompany[]>([]);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [selectedCompanyUsers, setSelectedCompanyUsers] = useState<AdminUser[]>([]);
@@ -36,8 +38,9 @@ export default function AdminOverviewPage() {
     try {
       const users = await api.getAdminCompanyUsers(companyId);
       setSelectedCompanyUsers(users);
-    } catch {
+    } catch (err) {
       setSelectedCompanyUsers([]);
+      toast({ title: err instanceof Error ? err.message : 'Could not load company users', variant: 'destructive' });
     }
   };
 
@@ -49,6 +52,9 @@ export default function AdminOverviewPage() {
       if (selectedCompanyId === company.id) {
         await loadCompanyUsers(company.id);
       }
+      toast({ title: company.is_active ? 'Company deactivated' : 'Company activated' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not update company status', variant: 'destructive' });
     } finally {
       setBusyCompanyId(null);
     }

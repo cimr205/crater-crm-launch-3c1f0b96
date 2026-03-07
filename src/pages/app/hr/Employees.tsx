@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
 import {
   Table,
   TableBody,
@@ -26,6 +27,7 @@ type RoleOption = {
 
 export default function EmployeesPage() {
   const { t } = useI18n();
+  const { toast } = useToast();
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [roles, setRoles] = useState<RoleOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,13 +39,15 @@ export default function EmployeesPage() {
       const [companyUsers, availableRoles] = await Promise.all([api.getCompanyUsers(), api.getRoles()]);
       setUsers(companyUsers);
       setRoles(availableRoles.map((role) => ({ slug: role.slug, label: role.label })));
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not load employees', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    load().catch(() => undefined);
+    load();
   }, []);
 
   const updateRole = async (userId: string, role: string) => {
@@ -51,6 +55,9 @@ export default function EmployeesPage() {
     try {
       await api.updateCompanyUserRole(userId, role);
       await load();
+      toast({ title: 'Role updated' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not update role', variant: 'destructive' });
     } finally {
       setBusyUserId(null);
     }

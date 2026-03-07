@@ -78,6 +78,7 @@ export default function IntegrationsPage() {
     try {
       await api.disconnectIntegration(providerId);
       await loadData();
+      toast({ title: 'Integration disconnected' });
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : 'Disconnect failed', variant: 'destructive' });
     } finally {

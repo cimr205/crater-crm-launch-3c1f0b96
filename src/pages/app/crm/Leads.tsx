@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useToast } from '@/components/ui/use-toast';
 
 type LeadRow = {
   id: string;
@@ -23,6 +24,7 @@ const statusOptions = ['cold', 'contacted', 'qualified', 'customer', 'lost'];
 
 export default function LeadsPage() {
   const { t } = useI18n();
+  const { toast } = useToast();
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
@@ -46,13 +48,15 @@ export default function LeadsPage() {
         q: query || undefined,
       });
       setLeads(result.data as LeadRow[]);
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not load leads', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   }, [statusFilter, sourceFilter, query]);
 
   useEffect(() => {
-    loadLeads().catch(() => undefined);
+    loadLeads();
   }, [loadLeads]);
 
   const sources = useMemo(() => {
@@ -76,6 +80,9 @@ export default function LeadsPage() {
       });
       await loadLeads();
       setEditingId(null);
+      toast({ title: 'Lead updated' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not update lead', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -98,6 +105,9 @@ export default function LeadsPage() {
       setNewLeadCompany('');
       setNewLeadStatus('cold');
       await loadLeads();
+      toast({ title: 'Lead created' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not create lead', variant: 'destructive' });
     } finally {
       setLoading(false);
     }

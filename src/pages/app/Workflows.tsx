@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
+import { useToast } from '@/components/ui/use-toast';
 
 type WorkflowStep = {
   type: 'condition' | 'action' | 'delay';
@@ -20,6 +21,7 @@ type Workflow = {
 };
 
 export default function WorkflowsPage() {
+  const { toast } = useToast();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [suggestions, setSuggestions] = useState<Array<Record<string, unknown>>>([]);
   const [name, setName] = useState('');
@@ -78,6 +80,9 @@ export default function WorkflowsPage() {
       setName('');
       setSteps([]);
       await loadWorkflows();
+      toast({ title: 'Workflow created' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not create workflow', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -88,10 +93,14 @@ export default function WorkflowsPage() {
     try {
       if (workflow.status === 'active') {
         await api.pauseWorkflow(workflow.id);
+        toast({ title: 'Workflow paused' });
       } else {
         await api.activateWorkflow(workflow.id);
+        toast({ title: 'Workflow activated' });
       }
       await loadWorkflows();
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not update workflow', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -101,6 +110,9 @@ export default function WorkflowsPage() {
     setLoading(true);
     try {
       await api.runWorkflowTest(workflowId, testLeadId || undefined);
+      toast({ title: 'Test run started' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Test run failed', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -111,6 +123,9 @@ export default function WorkflowsPage() {
     try {
       await api.approveAiSuggestion(id);
       await loadWorkflows();
+      toast({ title: 'Suggestion approved' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not approve suggestion', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -121,6 +136,9 @@ export default function WorkflowsPage() {
     try {
       await api.rejectAiSuggestion(id);
       await loadWorkflows();
+      toast({ title: 'Suggestion rejected' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not reject suggestion', variant: 'destructive' });
     } finally {
       setLoading(false);
     }

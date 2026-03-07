@@ -132,6 +132,9 @@ export default function ClowdBotPage() {
       });
       setJobName('');
       await loadData();
+      toast({ title: 'Search job created' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not create job', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -142,6 +145,9 @@ export default function ClowdBotPage() {
     try {
       await api.runClowdBotJob(jobId);
       await loadData();
+      toast({ title: 'Job started' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not run job', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -152,6 +158,9 @@ export default function ClowdBotPage() {
     try {
       await api.updateClowdBotJob(jobId, { status });
       await loadData();
+      toast({ title: status === 'active' ? 'Job resumed' : 'Job paused' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not update job', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -162,6 +171,8 @@ export default function ClowdBotPage() {
     try {
       await api.syncMetaLeads();
       toast({ title: 'Meta leads synced' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Sync failed', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
