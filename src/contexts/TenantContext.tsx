@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { loadTenantDefaults, loadThemeOverride, saveTenantDefaults, saveThemeOverride, TenantDefaults, ThemeMode } from '@/lib/tenant';
 import type { Locale } from '@/lib/i18n';
@@ -30,27 +30,33 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
     setTheme(themeToApply);
   }, [tenant, userThemeOverride, setTheme]);
 
-  const setTenantDefaults = (next: TenantDefaults) => {
+  const setTenantDefaults = useCallback((next: TenantDefaults) => {
     setTenant(next);
     saveTenantDefaults(next);
-  };
+  }, []);
 
-  const setUserThemeOverride = (next: ThemeMode | null) => {
+  const setUserThemeOverride = useCallback((next: ThemeMode | null) => {
     setUserThemeOverrideState(next);
     saveThemeOverride(next);
-  };
+  }, []);
 
-  const setTenantLanguage = (next: Locale) => {
-    if (!tenant) return;
-    const updated = { ...tenant, defaultLanguage: next };
-    setTenantDefaults(updated);
-  };
+  const setTenantLanguage = useCallback((next: Locale) => {
+    setTenant((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, defaultLanguage: next };
+      saveTenantDefaults(updated);
+      return updated;
+    });
+  }, []);
 
-  const setTenantTheme = (next: ThemeMode) => {
-    if (!tenant) return;
-    const updated = { ...tenant, defaultTheme: next };
-    setTenantDefaults(updated);
-  };
+  const setTenantTheme = useCallback((next: ThemeMode) => {
+    setTenant((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, defaultTheme: next };
+      saveTenantDefaults(updated);
+      return updated;
+    });
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -61,7 +67,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       setTenantLanguage,
       setTenantTheme,
     }),
-    [tenant, userThemeOverride]
+    [tenant, userThemeOverride, setTenantDefaults, setUserThemeOverride, setTenantLanguage, setTenantTheme]
   );
 
   return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>;

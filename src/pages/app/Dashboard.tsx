@@ -53,7 +53,7 @@ export default function DashboardPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [toast]);
 
   const refreshFocus = async () => {
     setFocusLoading(true);

@@ -109,7 +109,12 @@
     "employeesTitle": "Medarbejdere",
     "empty": "Ingen medarbejdere endnu",
     "role": "Rolle",
-    "status": "Status"
+    "status": "Status",
+    "name": "Navn",
+    "email": "Email",
+    "created": "Oprettet",
+    "active": "Aktiv",
+    "refresh": "Opdater"
   },
   "aiInbox": {
     "title": "AI Inbox",
@@ -188,12 +193,23 @@
       "companies": "Virksomheder",
       "users": "Brugere",
       "verifiedUsers": "Bekræftede brugere",
-      "admins": "Admins"
+      "admins": "Admins",
+      "active": "Aktive",
+      "inactive": "Inaktive"
     },
     "tables": {
       "companiesTitle": "Virksomheder",
-      "usersTitle": "Brugere"
+      "usersTitle": "Brugere i valgt virksomhed"
     },
+    "activate": "Aktiver",
+    "deactivate": "Deaktiver",
+    "companyActivated": "Virksomhed aktiveret",
+    "companyDeactivated": "Virksomhed deaktiveret",
+    "noCompanies": "Ingen virksomheder",
+    "selectCompany": "Vælg en virksomhed ovenfor",
+    "noUsersInCompany": "Ingen brugere i denne virksomhed",
+    "plan": "Plan",
+    "paymentStatus": "Betalingsstatus",
     "columns": {
       "companyName": "Virksomhed",
       "joinCode": "Join-kode",

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import StatCards from '@/components/StatCards';
 import DataTable from '@/components/DataTable';
@@ -16,7 +16,7 @@ export default function AdminOverviewPage() {
   const [busyCompanyId, setBusyCompanyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const loadOverview = async () => {
+  const loadOverview = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -27,11 +27,11 @@ export default function AdminOverviewPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     loadOverview().catch(() => undefined);
-  }, []);
+  }, [loadOverview]);
 
   const loadCompanyUsers = async (companyId: string) => {
     setSelectedCompanyId(companyId);
@@ -52,7 +52,7 @@ export default function AdminOverviewPage() {
       if (selectedCompanyId === company.id) {
         await loadCompanyUsers(company.id);
       }
-      toast({ title: company.is_active ? 'Company deactivated' : 'Company activated' });
+      toast({ title: company.is_active ? t('admin.companyDeactivated') : t('admin.companyActivated') });
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : 'Could not update company status', variant: 'destructive' });
     } finally {
@@ -66,12 +66,12 @@ export default function AdminOverviewPage() {
     const inactiveCompanies = companies.length - activeCompanies;
 
     return [
-      { title: 'Companies', value: String(companies.length) },
-      { title: 'Users', value: String(totalUsers) },
-      { title: 'Active', value: String(activeCompanies) },
-      { title: 'Inactive', value: String(inactiveCompanies) },
+      { title: t('admin.stats.companies'), value: String(companies.length) },
+      { title: t('admin.stats.users'), value: String(totalUsers) },
+      { title: t('admin.stats.active'), value: String(activeCompanies) },
+      { title: t('admin.stats.inactive'), value: String(inactiveCompanies) },
     ];
-  }, [companies]);
+  }, [companies, t]);
 
   const companyRows = useMemo(
     () =>
@@ -114,18 +114,18 @@ export default function AdminOverviewPage() {
           <StatCards items={stats} />
 
           <div className="rounded-xl border border-border bg-card/70 backdrop-blur p-4 space-y-3">
-            <div className="text-sm font-semibold">Companies</div>
+            <div className="text-sm font-semibold">{t('admin.tables.companiesTitle')}</div>
             <DataTable
               columns={[
-                { key: 'name', label: 'Company' },
-                { key: 'plan', label: 'Plan' },
-                { key: 'payment', label: 'Payment status' },
-                { key: 'users', label: 'Users' },
-                { key: 'status', label: 'Status' },
-                { key: 'created', label: 'Created' },
+                { key: 'name', label: t('admin.columns.companyName') },
+                { key: 'plan', label: t('admin.plan') },
+                { key: 'payment', label: t('admin.paymentStatus') },
+                { key: 'users', label: t('admin.columns.users') },
+                { key: 'status', label: t('hr.status') },
+                { key: 'created', label: t('admin.columns.created') },
               ]}
               rows={companyRows}
-              emptyLabel="No companies"
+              emptyLabel={t('admin.noCompanies')}
             />
 
             <div className="flex flex-wrap gap-2">
@@ -143,8 +143,8 @@ export default function AdminOverviewPage() {
                     {busyCompanyId === company.id
                       ? t('common.loading')
                       : company.is_active
-                      ? 'Deactivate'
-                      : 'Activate'}
+                      ? t('admin.deactivate')
+                      : t('admin.activate')}
                   </Button>
                 </div>
               ))}
@@ -152,16 +152,16 @@ export default function AdminOverviewPage() {
           </div>
 
           <div className="rounded-xl border border-border bg-card/70 backdrop-blur p-4 space-y-3">
-            <div className="text-sm font-semibold">Users in selected company</div>
+            <div className="text-sm font-semibold">{t('admin.tables.usersTitle')}</div>
             <DataTable
               columns={[
-                { key: 'name', label: 'Name' },
-                { key: 'email', label: 'Email' },
-                { key: 'role', label: 'Role' },
-                { key: 'created', label: 'Created' },
+                { key: 'name', label: t('admin.columns.userName') },
+                { key: 'email', label: t('admin.columns.email') },
+                { key: 'role', label: t('admin.columns.role') },
+                { key: 'created', label: t('admin.columns.created') },
               ]}
               rows={userRows}
-              emptyLabel={selectedCompanyId ? 'No users in this company' : 'Select a company above'}
+              emptyLabel={selectedCompanyId ? t('admin.noUsersInCompany') : t('admin.selectCompany')}
             />
           </div>
         </>

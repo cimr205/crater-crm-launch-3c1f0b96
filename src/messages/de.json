@@ -109,7 +109,12 @@
     "employeesTitle": "Mitarbeiter",
     "empty": "Noch keine Mitarbeiter",
     "role": "Rolle",
-    "status": "Status"
+    "status": "Status",
+    "name": "Name",
+    "email": "E-Mail",
+    "created": "Erstellt",
+    "active": "Aktiv",
+    "refresh": "Aktualisieren"
   },
   "aiInbox": {
     "title": "AI Inbox",
@@ -188,12 +193,23 @@
       "companies": "Unternehmen",
       "users": "Benutzer",
       "verifiedUsers": "Verifizierte Benutzer",
-      "admins": "Admins"
+      "admins": "Admins",
+      "active": "Aktiv",
+      "inactive": "Inaktiv"
     },
     "tables": {
       "companiesTitle": "Unternehmen",
-      "usersTitle": "Benutzer"
+      "usersTitle": "Benutzer im gewählten Unternehmen"
     },
+    "activate": "Aktivieren",
+    "deactivate": "Deaktivieren",
+    "companyActivated": "Unternehmen aktiviert",
+    "companyDeactivated": "Unternehmen deaktiviert",
+    "noCompanies": "Keine Unternehmen",
+    "selectCompany": "Unternehmen oben auswählen",
+    "noUsersInCompany": "Keine Benutzer in diesem Unternehmen",
+    "plan": "Tarif",
+    "paymentStatus": "Zahlungsstatus",
     "columns": {
       "companyName": "Unternehmen",
       "joinCode": "Join-Code",

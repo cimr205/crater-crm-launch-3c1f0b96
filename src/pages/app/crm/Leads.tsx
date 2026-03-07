@@ -53,7 +53,7 @@ export default function LeadsPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, sourceFilter, query]);
+  }, [statusFilter, sourceFilter, query, toast]);
 
   useEffect(() => {
     loadLeads();
