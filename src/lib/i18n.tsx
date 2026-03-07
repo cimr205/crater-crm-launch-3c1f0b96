@@ -7,10 +7,6 @@ export type Locale = 'en' | 'da' | 'de';
 
 export const SUPPORTED_LOCALES: Locale[] = ['en', 'da', 'de'];
 
-export function isLocale(value: unknown): value is Locale {
-  return typeof value === 'string' && (SUPPORTED_LOCALES as string[]).includes(value);
-}
-
 const messages: Record<Locale, Record<string, unknown>> = { en, da, de };
 
 function getNestedValue(obj: Record<string, unknown>, path: string): string {
@@ -22,6 +18,15 @@ function getNestedValue(obj: Record<string, unknown>, path: string): string {
   }
   if (typeof current === 'string') return current;
   return path;
+}
+
+export function isLocale(value: unknown): value is Locale {
+  return typeof value === 'string' && (SUPPORTED_LOCALES as string[]).includes(value);
+}
+
+export function createTranslator(locale: Locale): (key: string) => string {
+  const dict = messages[locale] ?? messages.en;
+  return (key: string) => getNestedValue(dict, key);
 }
 
 interface I18nContextValue {
@@ -48,9 +53,4 @@ export function I18nProvider({ locale, children }: { locale: Locale; children: R
 
 export function useI18n() {
   return useContext(I18nContext);
-}
-
-export function createTranslator(locale: Locale): (key: string) => string {
-  const dict = messages[locale] ?? messages.en;
-  return (key: string) => getNestedValue(dict, key);
 }

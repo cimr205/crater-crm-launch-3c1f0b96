@@ -199,6 +199,65 @@ class ApiClient {
   }
 
   // Auth
+  async signup(fullName: string, email: string, password: string) {
+    const response = await this.request<{
+      ok: true;
+      data: {
+        session: {
+          access_token: string;
+          refresh_token: string;
+        };
+        user: User;
+      };
+    }>('/v1/auth/signup', {
+      method: 'POST',
+      body: { full_name: fullName, email, password },
+    });
+
+    this.setSession({
+      accessToken: response.data.session.access_token,
+      refreshToken: response.data.session.refresh_token,
+    });
+
+    return { user: response.data.user };
+  }
+
+  async getGate() {
+    const response = await this.request<{
+      ok: true;
+      data: {
+        onboarding_completed: boolean;
+        has_company: boolean;
+        needs_onboarding: boolean;
+      };
+    }>('/v1/auth/gate');
+    return response.data;
+  }
+
+  async completeOnboarding(input: {
+    company_name: string;
+    industry: string;
+    size: string;
+    goal: string;
+  }) {
+    const response = await this.request<{
+      ok: true;
+      data: {
+        user: User;
+        company: { id: string; name: string };
+      };
+    }>('/v1/onboarding/complete', {
+      method: 'POST',
+      body: input,
+    });
+
+    if (response.data.company) {
+      await this.hydrateTenant(response.data.company);
+    }
+
+    return { user: response.data.user };
+  }
+
   async login(email: string, password: string) {
     const response = await this.request<{
       ok: true;
@@ -208,10 +267,7 @@ class ApiClient {
           refresh_token: string;
         };
         user: User;
-        company: {
-          id: string;
-          name: string;
-        };
+        company: { id: string; name: string } | null;
       };
     }>('/v1/auth/login', {
       method: 'POST',
@@ -223,11 +279,12 @@ class ApiClient {
       refreshToken: response.data.session.refresh_token,
     });
 
-    const tenant = await this.hydrateTenant(response.data.company);
+    if (response.data.company) {
+      await this.hydrateTenant(response.data.company);
+    }
 
     return {
       user: response.data.user,
-      tenant,
     };
   }
 
@@ -245,10 +302,7 @@ class ApiClient {
           refresh_token: string | null;
         };
         user: User;
-        company: {
-          id: string;
-          name: string;
-        };
+        company: { id: string; name: string } | null;
       };
     }>('/v1/auth/google/exchange', {
       method: 'POST',
@@ -267,11 +321,11 @@ class ApiClient {
       refreshToken,
     });
 
-    const tenant = await this.hydrateTenant(response.data.company);
-    return {
-      user: response.data.user,
-      tenant,
-    };
+    if (response.data.company) {
+      await this.hydrateTenant(response.data.company);
+    }
+
+    return { user: response.data.user };
   }
 
   async logout() {
@@ -281,7 +335,7 @@ class ApiClient {
 
   async getMe() {
     const response = await this.request<{ ok: true; data: { user: User } }>('/v1/auth/me');
-    return { data: response.data.user };
+    return response.data.user;
   }
 
   async getAdminOverview() {
@@ -919,322 +973,108 @@ class ApiClient {
     return response.blob();
   }
 
-  // ─── Meta Ads ────────────────────────────────────────────────────────────────
-
-  async getMetaCampaigns() {
-    return this.request<{
-      data: Array<{
-        id: string;
-        name: string;
-        status: string;
-        objective: string;
-        budget: number;
-        spend: number;
-        impressions: number;
-        clicks: number;
-        ctr: number;
-        cpc: number;
-        leads: number;
-        costPerLead: number;
-      }>;
-    }>('/meta/campaigns');
+  // Emails
+  async listEmails(params?: { folder?: string; q?: string; page?: number; limit?: number }) {
+    const search = new URLSearchParams();
+    if (params?.folder) search.set('folder', params.folder);
+    if (params?.q) search.set('q', params.q);
+    if (params?.page) search.set('page', String(params.page));
+    if (params?.limit) search.set('limit', String(params.limit));
+    const query = search.toString() ? `?${search.toString()}` : '';
+    return this.request<{ data: Email[]; meta: PaginationMeta }>(`/v1/emails${query}`);
   }
 
-  async getMetaAdSets(campaignId: string) {
-    return this.request<{
-      data: Array<{
-        id: string;
-        name: string;
-        status: string;
-        budget: number;
-        spend: number;
-        impressions: number;
-        clicks: number;
-        ctr: number;
-      }>;
-    }>(`/meta/campaigns/${campaignId}/adsets`);
-  }
-
-  async getMetaAds(adSetId: string) {
-    return this.request<{
-      data: Array<{
-        id: string;
-        name: string;
-        status: string;
-        primaryText: string;
-        headline: string;
-        callToAction: string;
-        impressions: number;
-        clicks: number;
-        ctr: number;
-        spend: number;
-      }>;
-    }>(`/meta/adsets/${adSetId}/ads`);
-  }
-
-  async createMetaAd(input: {
-    campaignId: string;
-    adSetId: string;
-    name: string;
-    primaryText: string;
-    headline: string;
-    callToAction: string;
-    imageUrl?: string;
+  async sendEmail(input: {
+    to: string[];
+    subject: string;
+    body: string;
+    cc?: string[];
+    bcc?: string[];
+    replyTo?: string;
   }) {
-    return this.request<{ data: Record<string, unknown> }>('/meta/ads', {
+    return this.request<{ data: Email }>('/v1/emails/send', {
       method: 'POST',
       body: {
-        campaign_id: input.campaignId,
-        adset_id: input.adSetId,
-        name: input.name,
-        primary_text: input.primaryText,
-        headline: input.headline,
-        call_to_action: input.callToAction,
-        image_url: input.imageUrl,
+        to: input.to,
+        subject: input.subject,
+        body: input.body,
+        cc: input.cc,
+        bcc: input.bcc,
+        reply_to: input.replyTo,
       },
     });
   }
 
-  async updateMetaAd(adId: string, input: { primaryText?: string; headline?: string; status?: string }) {
-    return this.request<{ data: Record<string, unknown> }>(`/meta/ads/${adId}`, {
-      method: 'PATCH',
-      body: {
-        primary_text: input.primaryText,
-        headline: input.headline,
-        status: input.status,
-      },
-    });
+  // Campaigns
+  async listCampaigns() {
+    return this.request<{ data: Campaign[] }>('/v1/campaigns');
   }
 
-  async publishMetaAd(adId: string) {
-    return this.request<{ status: string }>(`/meta/ads/${adId}/publish`, { method: 'POST' });
+  async getCampaign(id: string) {
+    return this.request<{ data: Campaign }>(`/v1/campaigns/${id}`);
   }
 
-  async getMetaInsights(campaignId: string) {
-    return this.request<{
-      impressions: number;
-      clicks: number;
-      ctr: number;
-      cpc: number;
-      spend: number;
-      leads: number;
-      costPerLead: number;
-    }>(`/meta/campaigns/${campaignId}/insights`);
-  }
-
-  async aiAnalyzeMeta(input: { campaignId?: string; adId?: string; question: string }) {
-    return this.request<{ answer: string; suggestions: string[] }>('/meta/ai-analyze', {
-      method: 'POST',
-      body: {
-        campaign_id: input.campaignId,
-        ad_id: input.adId,
-        question: input.question,
-      },
-    });
-  }
-
-  // ─── Gmail / Email Campaigns ─────────────────────────────────────────────────
-
-  async getGmailStatus() {
-    return this.request<{
-      connected: boolean;
-      email: string | null;
-      connectedAt: string | null;
-    }>('/gmail/status');
-  }
-
-  async connectGmail() {
-    const token = this.getToken();
-    if (!token) return null;
-    const params = new URLSearchParams({ token });
-    return `${BACKEND_BASE_URL}/auth/gmail/start?${params.toString()}`;
-  }
-
-  async disconnectGmail() {
-    return this.request<{ status: string }>('/gmail/disconnect', { method: 'POST' });
-  }
-
-  async listEmailCampaigns() {
-    return this.request<{
-      data: Array<{
-        id: string;
-        name: string;
-        subject: string;
-        status: 'draft' | 'scheduled' | 'sending' | 'sent' | 'paused';
-        recipientCount: number;
-        sentCount: number;
-        openCount: number;
-        replyCount: number;
-        createdAt: string;
-        scheduledAt: string | null;
-        sentAt: string | null;
-      }>;
-    }>('/email-campaigns');
-  }
-
-  async createEmailCampaign(input: {
+  async createCampaign(input: {
     name: string;
     subject: string;
     body: string;
-    recipients: Array<{ email: string; name?: string }>;
+    audienceFilter?: Record<string, unknown>;
     scheduledAt?: string;
-    trackOpens?: boolean;
-    trackReplies?: boolean;
   }) {
-    return this.request<{ data: Record<string, unknown> }>('/email-campaigns', {
+    return this.request<{ data: Campaign }>('/v1/campaigns', {
       method: 'POST',
       body: {
         name: input.name,
         subject: input.subject,
         body: input.body,
-        recipients: input.recipients,
+        audience_filter: input.audienceFilter,
         scheduled_at: input.scheduledAt,
-        track_opens: input.trackOpens ?? true,
-        track_replies: input.trackReplies ?? true,
       },
     });
   }
 
-  async sendEmailCampaign(campaignId: string) {
-    return this.request<{ status: string; queued: number }>(`/email-campaigns/${campaignId}/send`, {
-      method: 'POST',
-    });
-  }
-
-  async pauseEmailCampaign(campaignId: string) {
-    return this.request<{ status: string }>(`/email-campaigns/${campaignId}/pause`, { method: 'POST' });
-  }
-
-  async getEmailCampaignStats(campaignId: string) {
-    return this.request<{
-      sent: number;
-      opens: number;
-      replies: number;
-      openRate: number;
-      replyRate: number;
-      recipients: Array<{
-        email: string;
-        name: string;
-        status: 'queued' | 'sent' | 'opened' | 'replied' | 'bounced';
-        openedAt: string | null;
-        repliedAt: string | null;
-      }>;
-    }>(`/email-campaigns/${campaignId}/stats`);
-  }
-
-  async syncGmailInbox() {
-    return this.request<{ status: string; synced: number }>('/gmail/sync', { method: 'POST' });
-  }
-
-  async listEmailTemplates() {
-    return this.request<{
-      data: Array<{ id: string; name: string; subject: string; body: string; createdAt: string }>;
-    }>('/email-templates');
-  }
-
-  async createEmailTemplate(input: { name: string; subject: string; body: string }) {
-    return this.request<{ data: Record<string, unknown> }>('/email-templates', {
-      method: 'POST',
+  async updateCampaign(id: string, input: { status?: 'draft' | 'scheduled' | 'sent' | 'cancelled'; name?: string }) {
+    return this.request<{ data: Campaign }>(`/v1/campaigns/${id}`, {
+      method: 'PATCH',
       body: input,
     });
   }
 
-  // ─── AI Tasks ────────────────────────────────────────────────────────────────
-
-  async listTasks(params?: { status?: string; source?: string; assignedTo?: string }) {
+  // Todos
+  async listTodos(params?: { status?: string; assignedTo?: string }) {
     const search = new URLSearchParams();
     if (params?.status) search.set('status', params.status);
-    if (params?.source) search.set('source', params.source);
     if (params?.assignedTo) search.set('assigned_to', params.assignedTo);
     const query = search.toString() ? `?${search.toString()}` : '';
-    return this.request<{
-      data: Array<{
-        id: string;
-        title: string;
-        description: string;
-        priority: 'low' | 'medium' | 'high' | 'urgent';
-        status: 'pending_approval' | 'approved' | 'in_progress' | 'done' | 'rejected';
-        source: 'email' | 'meta' | 'crm' | 'manual' | 'ai';
-        deadline: string | null;
-        leadId: string | null;
-        leadName: string | null;
-        assignedTo: string | null;
-        assignedToName: string | null;
-        emailSubject: string | null;
-        emailFrom: string | null;
-        aiReason: string | null;
-        createdAt: string;
-      }>;
-    }>(`/tasks${query}`);
+    return this.request<{ data: Todo[] }>(`/v1/todos${query}`);
   }
 
-  async createTask(input: {
-    title: string;
-    description?: string;
-    priority?: 'low' | 'medium' | 'high' | 'urgent';
-    deadline?: string;
-    leadId?: string;
-    assignedTo?: string;
-  }) {
-    return this.request<{ data: Record<string, unknown> }>('/tasks', {
+  async createTodo(input: { title: string; description?: string; dueDate?: string; assignedTo?: string }) {
+    return this.request<{ data: Todo }>('/v1/todos', {
       method: 'POST',
       body: {
         title: input.title,
         description: input.description,
-        priority: input.priority || 'medium',
-        deadline: input.deadline,
-        lead_id: input.leadId,
+        due_date: input.dueDate,
         assigned_to: input.assignedTo,
       },
     });
   }
 
-  async updateTask(taskId: string, input: { status?: string; priority?: string; deadline?: string; assignedTo?: string }) {
-    return this.request<{ data: Record<string, unknown> }>(`/tasks/${taskId}`, {
+  async updateTodo(id: string, input: { status?: string; title?: string; description?: string; dueDate?: string }) {
+    return this.request<{ data: Todo }>(`/v1/todos/${id}`, {
       method: 'PATCH',
       body: {
         status: input.status,
-        priority: input.priority,
-        deadline: input.deadline,
-        assigned_to: input.assignedTo,
+        title: input.title,
+        description: input.description,
+        due_date: input.dueDate,
       },
     });
   }
 
-  async approveTask(taskId: string) {
-    return this.request<{ status: string }>(`/tasks/${taskId}/approve`, { method: 'POST' });
-  }
-
-  async rejectTask(taskId: string) {
-    return this.request<{ status: string }>(`/tasks/${taskId}/reject`, { method: 'POST' });
-  }
-
-  async deleteTask(taskId: string) {
-    return this.request<{ status: string }>(`/tasks/${taskId}`, { method: 'DELETE' });
-  }
-
-  async analyzeEmailForTasks(input: { emailId?: string; subject: string; body: string; from: string }) {
-    return this.request<{
-      tasks: Array<{
-        title: string;
-        description: string;
-        priority: 'low' | 'medium' | 'high' | 'urgent';
-        deadline: string | null;
-        reason: string;
-      }>;
-    }>('/tasks/analyze-email', {
-      method: 'POST',
-      body: {
-        email_id: input.emailId,
-        subject: input.subject,
-        body: input.body,
-        from: input.from,
-      },
-    });
-  }
-
-  async generateAiTasks() {
-    return this.request<{ status: string; created: number }>('/tasks/ai-generate', { method: 'POST' });
+  async deleteTodo(id: string) {
+    return this.request<{ ok: true }>(`/v1/todos/${id}`, { method: 'DELETE' });
   }
 
   async downloadAdminCompaniesHistoryCsv(month?: string) {
@@ -1260,12 +1100,14 @@ class ApiClient {
 export interface User {
   id: string;
   email: string;
-  role: string;
+  role: string | null;
   full_name?: string | null;
-  company_id?: string;
-  company_name?: string;
+  company_id?: string | null;
+  company_name?: string | null;
   permissions?: string[];
   is_global_admin?: boolean;
+  onboarding_completed?: boolean;
+  needs_onboarding?: boolean;
 
   // Legacy compatibility
   name?: string;
@@ -1414,6 +1256,39 @@ export interface WorkHistoryMonth {
   month: string;
   total: number;
   totals: WorkHistorySummary;
+}
+
+export interface Email {
+  id: string;
+  from: string;
+  to: string[];
+  subject: string;
+  body: string;
+  folder: string;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface Campaign {
+  id: string;
+  name: string;
+  subject: string;
+  body: string;
+  status: 'draft' | 'scheduled' | 'sent' | 'cancelled';
+  audienceFilter?: Record<string, unknown>;
+  scheduledAt?: string;
+  sentAt?: string;
+  createdAt: string;
+}
+
+export interface Todo {
+  id: string;
+  title: string;
+  description?: string;
+  status: 'open' | 'done' | 'cancelled';
+  dueDate?: string;
+  assignedTo?: string;
+  createdAt: string;
 }
 
 export const api = new ApiClient();

@@ -37,7 +37,14 @@
     "createCompanyCta": "Unternehmen erstellen",
     "joinCompanyTitle": "Unternehmen beitreten",
     "joinCompanySubtitle": "Code vom Admin eingeben",
-    "joinCompanyCta": "Unternehmen beitreten"
+    "joinCompanyCta": "Unternehmen beitreten",
+    "fieldsMissing": "Bitte alle Felder ausfüllen",
+    "alreadyHaveAccount": "Bereits ein Konto?",
+    "noAccount": "Noch kein Konto?",
+    "signIn": "Anmelden",
+    "createCompany": "Unternehmen erstellen",
+    "haveJoinCode": "Join-Code vorhanden?",
+    "useJoinCode": "Mit Code beitreten"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -52,10 +59,33 @@
     "history": "Historie",
     "settings": "Einstellungen",
     "company": "Unternehmen",
-    "admin": "Admin",
-    "metaAds": "Meta Ads",
-    "emailCampaigns": "E-Mail-Kampagnen",
-    "tasks": "KI-Aufgaben"
+    "admin": "Admin Übersicht",
+    "customers": "Kunden",
+    "campaigns": "Kampagnen",
+    "invoices": "Rechnungen",
+    "payments": "Zahlungen",
+    "attendance": "Anwesenheit",
+    "vacation": "Urlaub",
+    "salary": "Gehalt",
+    "recruitment": "Rekrutierung",
+    "tasks": "Aufgaben",
+    "calendar": "Kalender",
+    "todos": "To-dos",
+    "inbox": "Posteingang",
+    "emails": "E-Mails",
+    "adminUsers": "Benutzer",
+    "adminCompany": "Unternehmen",
+    "adminEmployees": "Mitarbeiter",
+    "adminSettings": "Systemeinstellungen",
+    "section": {
+      "crm": "CRM",
+      "finance": "Finanzen",
+      "hr": "HR",
+      "productivity": "Produktivität",
+      "communication": "Kommunikation",
+      "system": "System",
+      "admin": "Admin"
+    }
   },
   "dashboard": {
     "title": "Übersicht",
@@ -65,14 +95,7 @@
     "statTasks": "Offene Aufgaben",
     "statRevenue": "Umsatzprognose",
     "statLeadsToday": "Leads heute",
-    "statActiveJobs": "Aktive Suchen",
-    "aiFocusTitle": "KI-Fokus heute",
-    "aiFocusRefresh": "KI-Fokus aktualisieren",
-    "aiFocusEmpty": "Noch kein KI-Fokus.",
-    "liveLeads": "Live Leads",
-    "aiActivity": "KI-Aktivität",
-    "aiActivityEmpty": "Noch keine KI-Aktivität.",
-    "view": "Anzeigen"
+    "statActiveJobs": "Aktive Suchen"
   },
   "crm": {
     "leadsTitle": "Leads",
@@ -84,37 +107,13 @@
     "pipelineNew": "Neu",
     "pipelineContacted": "Kontaktiert",
     "pipelineProposal": "Angebot",
-    "pipelineNegotiation": "Verhandlung",
-    "addLead": "Lead hinzufügen",
-    "name": "Name",
-    "phone": "Telefon",
-    "email": "E-Mail",
-    "company": "Unternehmen",
-    "namePhoneRequired": "Name + Telefon erforderlich",
-    "saveLead": "Lead speichern",
-    "refresh": "Aktualisieren",
-    "search": "Suchen",
-    "allStatuses": "Alle Status",
-    "allSources": "Alle Quellen",
-    "source": "Quelle",
-    "actions": "Aktionen",
-    "edit": "Bearbeiten",
-    "updateLead": "Lead aktualisieren",
-    "markContacted": "Als kontaktiert markieren",
-    "notes": "Notizen",
-    "save": "Speichern",
-    "cancel": "Abbrechen"
+    "pipelineNegotiation": "Verhandlung"
   },
   "hr": {
     "employeesTitle": "Mitarbeiter",
     "empty": "Noch keine Mitarbeiter",
     "role": "Rolle",
-    "status": "Status",
-    "name": "Name",
-    "email": "E-Mail",
-    "created": "Erstellt",
-    "active": "Aktiv",
-    "refresh": "Aktualisieren"
+    "status": "Status"
   },
   "aiInbox": {
     "title": "AI Inbox",
@@ -129,23 +128,6 @@
     "defaultLanguage": "Standard­sprache",
     "defaultTheme": "Standard­thema",
     "updateCta": "Unternehmen aktualisieren",
-    "companyNameLabel": "Unternehmensname",
-    "cvrLabel": "Handelsregister",
-    "addressLabel": "Adresse",
-    "countryLabel": "Land",
-    "phoneLabel": "Telefon",
-    "emailLabel": "E-Mail",
-    "planLabel": "Tarif",
-    "userLimitLabel": "Benutzerlimit",
-    "paymentStatusLabel": "Zahlungsstatus",
-    "companyStatusLabel": "Unternehmensstatus",
-    "statusActive": "Aktiv",
-    "statusInactive": "Inaktiv",
-    "createdLabel": "Erstellt",
-    "inviteCodeLabel": "Einladungscode (nur Inhaber)",
-    "regenerate": "Erneuern",
-    "inviteRegenerated": "Einladungscode erneuert",
-    "loadError": "Unternehmenseinstellungen konnten nicht geladen werden",
     "integrationsTitle": "Integrationen",
     "integrationsSubtitle": "Meta Ads und Website-Tracking verbinden",
     "metaStatus": "Meta Ads",
@@ -193,23 +175,12 @@
       "companies": "Unternehmen",
       "users": "Benutzer",
       "verifiedUsers": "Verifizierte Benutzer",
-      "admins": "Admins",
-      "active": "Aktiv",
-      "inactive": "Inaktiv"
+      "admins": "Admins"
     },
     "tables": {
       "companiesTitle": "Unternehmen",
-      "usersTitle": "Benutzer im gewählten Unternehmen"
+      "usersTitle": "Benutzer"
     },
-    "activate": "Aktivieren",
-    "deactivate": "Deaktivieren",
-    "companyActivated": "Unternehmen aktiviert",
-    "companyDeactivated": "Unternehmen deaktiviert",
-    "noCompanies": "Keine Unternehmen",
-    "selectCompany": "Unternehmen oben auswählen",
-    "noUsersInCompany": "Keine Benutzer in diesem Unternehmen",
-    "plan": "Tarif",
-    "paymentStatus": "Zahlungsstatus",
     "columns": {
       "companyName": "Unternehmen",
       "joinCode": "Join-Code",
@@ -307,4 +278,3 @@
     "back": "Zur Startseite"
   }
 }
-

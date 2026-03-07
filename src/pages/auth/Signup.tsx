@@ -3,16 +3,18 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
-import { useI18n, isLocale } from '@/lib/i18n';
+import { isLocale } from '@/lib/i18n';
 
-export default function LoginPage() {
-  const { t } = useI18n();
-  const { login, loginWithGoogle } = useAuth();
+export default function SignupPage() {
+  const { signup } = useAuth();
   const params = useParams();
   const locale = isLocale(params.locale) ? params.locale : 'en';
   const navigate = useNavigate();
+
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [shaking, setShaking] = useState(false);
@@ -21,34 +23,31 @@ export default function LoginPage() {
     setError(msg);
     setShaking(true);
     setTimeout(() => setShaking(false), 400);
-    setTimeout(() => setError(''), 3000);
-  };
-
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      await loginWithGoogle();
-    } catch (e) {
-      showError(e instanceof Error ? e.message : 'Google login fejlede');
-    } finally {
-      setLoading(false);
-    }
+    setTimeout(() => setError(''), 4000);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!email || !password) {
-      showError(t('auth.fieldsMissing'));
+    if (!name || !email || !password || !confirmPassword) {
+      showError('Udfyld alle felter');
       return;
     }
+    if (password !== confirmPassword) {
+      showError('Adgangskoderne stemmer ikke overens');
+      return;
+    }
+    if (password.length < 8) {
+      showError('Adgangskoden skal være mindst 8 tegn');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
-      const { needsOnboarding } = await login(email, password);
-      navigate(`/${locale}/${needsOnboarding ? 'app/onboarding' : 'app/dashboard'}`);
+      await signup(name, email, password);
+      navigate(`/${locale}/app/onboarding`);
     } catch (e) {
-      showError(e instanceof Error ? e.message : 'Login fejlede');
+      showError(e instanceof Error ? e.message : 'Oprettelse fejlede');
     } finally {
       setLoading(false);
     }
@@ -57,50 +56,59 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen grid place-items-center bg-gradient-to-br from-background to-muted/40 px-4">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card/80 backdrop-blur p-8">
-        <h1 className="text-2xl font-semibold">{t('auth.loginTitle')}</h1>
-        <p className="text-sm text-muted-foreground mt-2">{t('auth.loginSubtitle')}</p>
+        <h1 className="text-2xl font-semibold">Opret konto</h1>
+        <p className="text-sm text-muted-foreground mt-2">
+          Kom i gang – opsæt din virksomhed i næste trin
+        </p>
         <form
           className={`mt-6 space-y-4 ${shaking ? 'form-shake' : ''}`}
           onSubmit={handleSubmit}
         >
           <Input
-            placeholder={t('auth.email')}
+            placeholder="Navn"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={loading}
+            autoFocus
+          />
+          <Input
+            placeholder="Email"
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={loading}
           />
           <Input
-            placeholder={t('auth.password')}
+            placeholder="Adgangskode"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
+          />
+          <Input
+            placeholder="Bekræft adgangskode"
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
             disabled={loading}
           />
           {error && (
             <p className="text-sm text-destructive font-medium">{error}</p>
           )}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? t('common.loading') : t('auth.loginCta')}
-          </Button>
-          <Button type="button" variant="outline" className="w-full" disabled={loading} onClick={handleGoogleLogin}>
-            {t('auth.loginWithGoogle')}
+            {loading ? 'Opretter...' : 'Opret konto'}
           </Button>
         </form>
-        <div className="mt-6 flex flex-col gap-2 text-sm text-center text-muted-foreground">
-          <span>
-            Ingen konto?{' '}
-            <Link to={`/${locale}/auth/signup`} className="text-primary underline underline-offset-4">
-              Opret konto
-            </Link>
-          </span>
-          <span>
-            {t('auth.haveJoinCode')}{' '}
-            <Link to={`/${locale}/auth/join-company`} className="text-primary underline underline-offset-4">
-              {t('auth.useJoinCode')}
-            </Link>
-          </span>
-        </div>
+        <p className="mt-6 text-sm text-center text-muted-foreground">
+          Har du allerede en konto?{' '}
+          <Link
+            to={`/${locale}/auth/login`}
+            className="text-primary underline underline-offset-4"
+          >
+            Log ind
+          </Link>
+        </p>
       </div>
     </div>
   );

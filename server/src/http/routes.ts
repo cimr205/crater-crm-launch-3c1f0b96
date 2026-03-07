@@ -52,15 +52,29 @@ const googleExchangeSchema = z.object({
   company_name: z.string().min(2).max(120).optional(),
 });
 
+const simpleSignupSchema = z.object({
+  full_name: z.string().min(2),
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+
+const onboardingCompleteSchema = z.object({
+  company_name: z.string().min(2),
+  industry: z.string().min(1),
+  size: z.string().min(1),
+  goal: z.string().min(1),
+});
+
 type AppUserRow = {
   id: string;
-  company_id: string;
-  company_name: string;
-  company_is_active: boolean;
-  role: string;
+  company_id: string | null;
+  company_name: string | null;
+  company_is_active: boolean | null;
+  role: string | null;
   email: string;
   full_name: string | null;
   is_global_admin: boolean;
+  onboarding_completed: boolean;
   permissions: string[];
 };
 
@@ -76,9 +90,10 @@ async function getAppUserProfile(userId: string) {
       u.email,
       u.full_name,
       u.is_global_admin,
+      u.onboarding_completed,
       coalesce(array_agg(rp.permission) filter (where rp.permission is not null), '{}') as permissions
     from users u
-    join companies c on c.id = u.company_id
+    left join companies c on c.id = u.company_id
     left join role_permissions rp on rp.role_slug = u.role
     where u.id = $1
     group by u.id, c.id
@@ -87,6 +102,10 @@ async function getAppUserProfile(userId: string) {
   );
 
   return rows[0] || null;
+}
+
+function needsOnboarding(profile: AppUserRow): boolean {
+  return !profile.onboarding_completed || !profile.company_id;
 }
 
 function serializeSession(session: Session | null) {
@@ -110,6 +129,8 @@ function mapProfile(profile: AppUserRow) {
     full_name: profile.full_name,
     is_global_admin: profile.is_global_admin,
     permissions: profile.permissions || [],
+    onboarding_completed: profile.onboarding_completed,
+    needs_onboarding: needsOnboarding(profile),
   };
 }
 
@@ -142,6 +163,149 @@ async function signInViaSupabase(email: string, password: string) {
 export function registerRoutes(app: Application) {
   app.get('/api/health', async (_req: Request, res: Response) => {
     ok(res, { status: 'ok', service: 'railway-backend', auth: 'supabase' });
+  });
+
+  // ── Simple signup (user only, no company) ──────────────────────────────────
+  app.post('/api/v1/auth/signup', async (req: Request, res: Response) => {
+    const parsed = simpleSignupSchema.safeParse(req.body);
+    if (!parsed.success) {
+      fail(res, 400, 'invalid_payload', 'Invalid payload', parsed.error.flatten());
+      return;
+    }
+
+    const email = parsed.data.email.toLowerCase().trim();
+    const isGlobalAdmin = env.globalAdminEmails.includes(email);
+
+    const { data: authUserData, error: createAuthError } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      password: parsed.data.password,
+      email_confirm: true,
+      user_metadata: { full_name: parsed.data.full_name },
+    });
+
+    if (createAuthError || !authUserData.user) {
+      fail(res, 400, 'auth_create_failed', createAuthError?.message || 'Failed to create auth user');
+      return;
+    }
+
+    const authUserId = authUserData.user.id;
+
+    try {
+      await query(
+        `insert into users (id, company_id, role, email, full_name, is_global_admin, onboarding_completed)
+         values ($1, null, null, $2, $3, $4, false)`,
+        [authUserId, email, parsed.data.full_name, isGlobalAdmin]
+      );
+
+      const signIn = await signInViaSupabase(email, parsed.data.password);
+      if (signIn.error || !signIn.userId) {
+        fail(res, 500, 'signin_failed', signIn.error || 'Could not sign in after signup');
+        return;
+      }
+
+      const profile = await getAppUserProfile(signIn.userId);
+      if (!profile) {
+        fail(res, 500, 'profile_missing', 'User profile was not created');
+        return;
+      }
+
+      ok(
+        res,
+        {
+          session: serializeSession(signIn.session),
+          user: mapProfile(profile),
+        },
+        201
+      );
+    } catch (error) {
+      await supabaseAdmin.auth.admin.deleteUser(authUserId);
+      fail(res, 500, 'signup_failed', (error as Error).message || 'Failed to complete signup');
+    }
+  });
+
+  // ── Gate check ─────────────────────────────────────────────────────────────
+  app.get('/api/v1/auth/gate', authMiddleware, async (req: Request, res: Response) => {
+    const user = req.authUser!;
+    const profile = await getAppUserProfile(user.id);
+    if (!profile) {
+      fail(res, 404, 'profile_missing', 'User profile not found');
+      return;
+    }
+    ok(res, {
+      onboarding_completed: profile.onboarding_completed,
+      has_company: !!profile.company_id,
+      needs_onboarding: needsOnboarding(profile),
+    });
+  });
+
+  // ── Complete onboarding (atomic: company + member + mark done) ─────────────
+  app.post('/api/v1/onboarding/complete', authMiddleware, async (req: Request, res: Response) => {
+    const parsed = onboardingCompleteSchema.safeParse(req.body);
+    if (!parsed.success) {
+      fail(res, 400, 'invalid_payload', 'Invalid payload', parsed.error.flatten());
+      return;
+    }
+
+    const user = req.authUser!;
+
+    // Idempotent: if already onboarded, just return current profile
+    if (user.onboardingCompleted && user.companyId) {
+      const profile = await getAppUserProfile(user.id);
+      if (profile) {
+        ok(res, { user: mapProfile(profile), company: { id: profile.company_id, name: profile.company_name } });
+        return;
+      }
+    }
+
+    const inviteCode = await generateUniqueInviteCode();
+
+    try {
+      let companyId: string;
+
+      await withTransaction(async (client) => {
+        const companyResult = await client.query<{ id: string }>(
+          `insert into companies (name, industry, size, goal, email, plan, payment_status, invite_code, created_by)
+           values ($1,$2,$3,$4,$5,'starter','trial',$6,$7)
+           returning id`,
+          [
+            parsed.data.company_name,
+            parsed.data.industry,
+            parsed.data.size,
+            parsed.data.goal,
+            user.email,
+            inviteCode,
+            user.id,
+          ]
+        );
+
+        companyId = companyResult.rows[0]?.id;
+        if (!companyId) throw new Error('Failed to create company');
+
+        await client.query(
+          `update users set company_id=$1, role='owner', onboarding_completed=true where id=$2`,
+          [companyId, user.id]
+        );
+
+        await client.query(
+          `insert into activity_logs (company_id, user_id, action, metadata)
+           values ($1,$2,'onboarding.completed',$3::jsonb)`,
+          [companyId, user.id, JSON.stringify({ company_name: parsed.data.company_name })]
+        );
+      });
+
+      const profile = await getAppUserProfile(user.id);
+      if (!profile) {
+        fail(res, 500, 'profile_missing', 'Profile not found after onboarding');
+        return;
+      }
+
+      ok(res, {
+        user: mapProfile(profile),
+        company: { id: profile.company_id, name: profile.company_name },
+      });
+    } catch (error) {
+      fail(res, 500, 'onboarding_failed', (error as Error).message || 'Onboarding failed');
+    }
   });
 
   app.post('/api/v1/auth/validate-invite-code', async (req: Request, res: Response) => {
@@ -378,10 +542,10 @@ export function registerRoutes(app: Application) {
 
     const profile = await getAppUserProfile(signIn.userId);
     if (!profile) {
-      fail(res, 403, 'profile_missing', 'No company user profile found');
+      fail(res, 403, 'profile_missing', 'No user profile found. Please sign up first.');
       return;
     }
-    if (!profile.company_is_active && !profile.is_global_admin) {
+    if (profile.company_id && profile.company_is_active === false && !profile.is_global_admin) {
       fail(res, 403, 'company_inactive', 'Company is inactive. Access blocked.');
       return;
     }
@@ -411,9 +575,9 @@ export function registerRoutes(app: Application) {
 
     const authUser = authUserData.user;
     let profile = await getAppUserProfile(authUser.id);
-    let created = false;
 
-    if (!profile && parsed.data.create_if_missing) {
+    // Always autocreate a profile for first-time Google users (no company yet)
+    if (!profile) {
       const email = authUser.email?.toLowerCase().trim();
       if (!email) {
         fail(res, 400, 'email_missing', 'Google account has no email address');
@@ -425,49 +589,23 @@ export function registerRoutes(app: Application) {
         (typeof authUser.user_metadata?.name === 'string' && authUser.user_metadata.name.trim()) ||
         email.split('@')[0];
 
-      const companyName = parsed.data.company_name?.trim() || `${displayName}'s Company`;
       const isGlobalAdmin = env.globalAdminEmails.includes(email);
-      const inviteCode = await generateUniqueInviteCode();
 
-      await withTransaction(async (client) => {
-        const companyResult = await client.query<{ id: string }>(
-          `
-          insert into companies (name, email, plan, payment_status, invite_code, created_by)
-          values ($1,$2,'starter','trial',$3,$4)
-          returning id
-          `,
-          [companyName, email, inviteCode, authUser.id]
-        );
-
-        const companyId = companyResult.rows[0]?.id;
-        if (!companyId) {
-          throw new Error('Failed to create company');
-        }
-
-        await client.query(
-          `
-          insert into users (id, company_id, role, email, full_name, is_global_admin)
-          values ($1,$2,'owner',$3,$4,$5)
-          `,
-          [authUser.id, companyId, email, displayName, isGlobalAdmin]
-        );
-
-        await client.query(
-          `insert into activity_logs (company_id, user_id, action, metadata)
-           values ($1, $2, $3, $4::jsonb)`,
-          [companyId, authUser.id, 'company.owner_signup_google', JSON.stringify({ email })]
-        );
-      });
+      await query(
+        `insert into users (id, company_id, role, email, full_name, is_global_admin, onboarding_completed)
+         values ($1, null, null, $2, $3, $4, false)
+         on conflict (id) do nothing`,
+        [authUser.id, email, displayName, isGlobalAdmin]
+      );
 
       profile = await getAppUserProfile(authUser.id);
-      created = true;
     }
 
     if (!profile) {
-      fail(res, 403, 'profile_missing', 'No company user profile found');
+      fail(res, 500, 'profile_create_failed', 'Failed to load user profile');
       return;
     }
-    if (!profile.company_is_active && !profile.is_global_admin) {
+    if (profile.company_id && profile.company_is_active === false && !profile.is_global_admin) {
       fail(res, 403, 'company_inactive', 'Company is inactive. Access blocked.');
       return;
     }
@@ -478,11 +616,7 @@ export function registerRoutes(app: Application) {
         refresh_token: parsed.data.refresh_token || null,
       },
       user: mapProfile(profile),
-      company: {
-        id: profile.company_id,
-        name: profile.company_name,
-      },
-      is_new_user: created,
+      company: profile.company_id ? { id: profile.company_id, name: profile.company_name } : null,
     });
   });
 
@@ -501,10 +635,10 @@ export function registerRoutes(app: Application) {
 
     const profile = await getAppUserProfile(result.data.user.id);
     if (!profile) {
-      fail(res, 403, 'profile_missing', 'No company user profile found');
+      fail(res, 403, 'profile_missing', 'No user profile found');
       return;
     }
-    if (!profile.company_is_active && !profile.is_global_admin) {
+    if (profile.company_id && profile.company_is_active === false && !profile.is_global_admin) {
       fail(res, 403, 'company_inactive', 'Company is inactive. Access blocked.');
       return;
     }
@@ -512,10 +646,7 @@ export function registerRoutes(app: Application) {
     ok(res, {
       session: serializeSession(result.data.session),
       user: mapProfile(profile),
-      company: {
-        id: profile.company_id,
-        name: profile.company_name,
-      },
+      company: profile.company_id ? { id: profile.company_id, name: profile.company_name } : null,
     });
   });
 
@@ -525,6 +656,8 @@ export function registerRoutes(app: Application) {
       fail(res, 401, 'unauthorized', 'Authentication required');
       return;
     }
+
+    const profile = await getAppUserProfile(user.id);
 
     ok(res, {
       user: {
@@ -536,6 +669,8 @@ export function registerRoutes(app: Application) {
         company_name: user.companyName,
         is_global_admin: user.isGlobalAdmin,
         permissions: user.permissions,
+        onboarding_completed: user.onboardingCompleted,
+        needs_onboarding: profile ? needsOnboarding(profile) : true,
       },
     });
   });
@@ -563,7 +698,7 @@ export function registerRoutes(app: Application) {
       where id = $1
       limit 1
       `,
-      [authUser.companyId]
+      [authUser.companyId!]
     );
 
     const company = rows[0];
@@ -625,7 +760,7 @@ export function registerRoutes(app: Application) {
       return;
     }
 
-    values.push(authUser.companyId);
+    values.push(authUser.companyId!);
 
     const rows = await query<{
       id: string;
@@ -667,7 +802,7 @@ export function registerRoutes(app: Application) {
     const inviteCode = await generateUniqueInviteCode();
     const rows = await query<{ invite_code: string }>(
       'update companies set invite_code = $1 where id = $2 returning invite_code',
-      [inviteCode, authUser.companyId]
+      [inviteCode, authUser.companyId!]
     );
 
     ok(res, { invite_code: rows[0]?.invite_code || inviteCode });
@@ -688,7 +823,7 @@ export function registerRoutes(app: Application) {
       where company_id = $1
       order by created_at asc
       `,
-      [authUser.companyId]
+      [authUser.companyId!]
     );
 
     ok(res, rows);
@@ -716,7 +851,7 @@ export function registerRoutes(app: Application) {
       where id = $2 and company_id = $3
       returning id, role
       `,
-      [parsed.data.role, req.params.id, authUser.companyId]
+      [parsed.data.role, req.params.id, authUser.companyId!]
     );
 
     if (!rows[0]) {
@@ -727,7 +862,7 @@ export function registerRoutes(app: Application) {
     await query(
       `insert into activity_logs (company_id, user_id, action, metadata)
        values ($1,$2,$3,$4::jsonb)`,
-      [authUser.companyId, authUser.id, 'user.role_updated', JSON.stringify({ target_user_id: req.params.id, role: parsed.data.role })]
+      [authUser.companyId!, authUser.id, 'user.role_updated', JSON.stringify({ target_user_id: req.params.id, role: parsed.data.role })]
     );
 
     ok(res, rows[0]);
@@ -748,7 +883,7 @@ export function registerRoutes(app: Application) {
     }
 
     const schema = z.object({
-      slug: z.string().min(2).max(64).regex(/^[a-z0-9_\-]+$/),
+      slug: z.string().min(2).max(64).regex(/^[a-z0-9_-]+$/),
       label: z.string().min(2).max(100),
       description: z.string().max(255).optional(),
       permissions: z.array(z.string().min(2)).default([]),
@@ -803,7 +938,7 @@ export function registerRoutes(app: Application) {
       order by timestamp desc
       limit 200
       `,
-      [authUser.companyId]
+      [authUser.companyId!]
     );
 
     ok(res, rows);

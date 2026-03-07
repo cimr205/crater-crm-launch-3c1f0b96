@@ -37,7 +37,14 @@
     "createCompanyCta": "Create company",
     "joinCompanyTitle": "Join your company",
     "joinCompanySubtitle": "Enter the join code from your admin",
-    "joinCompanyCta": "Join company"
+    "joinCompanyCta": "Join company",
+    "fieldsMissing": "Please fill in all fields",
+    "alreadyHaveAccount": "Already have an account?",
+    "noAccount": "No account yet?",
+    "signIn": "Sign in",
+    "createCompany": "Create company",
+    "haveJoinCode": "Have a join code?",
+    "useJoinCode": "Join with code"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -52,10 +59,33 @@
     "history": "History",
     "settings": "Settings",
     "company": "Company",
-    "admin": "Admin",
-    "metaAds": "Meta Ads",
-    "emailCampaigns": "Email Campaigns",
-    "tasks": "AI Tasks"
+    "admin": "Admin overview",
+    "customers": "Customers",
+    "campaigns": "Campaigns",
+    "invoices": "Invoices",
+    "payments": "Payments",
+    "attendance": "Attendance",
+    "vacation": "Vacation",
+    "salary": "Salary",
+    "recruitment": "Recruitment",
+    "tasks": "Tasks",
+    "calendar": "Calendar",
+    "todos": "To-dos",
+    "inbox": "Inbox",
+    "emails": "Emails",
+    "adminUsers": "Users",
+    "adminCompany": "Companies",
+    "adminEmployees": "Employees",
+    "adminSettings": "System settings",
+    "section": {
+      "crm": "CRM",
+      "finance": "Finance",
+      "hr": "HR",
+      "productivity": "Productivity",
+      "communication": "Communication",
+      "system": "System",
+      "admin": "Admin"
+    }
   },
   "dashboard": {
     "title": "Overview",
@@ -65,14 +95,7 @@
     "statTasks": "Open tasks",
     "statRevenue": "Revenue forecast",
     "statLeadsToday": "Leads today",
-    "statActiveJobs": "Active searches",
-    "aiFocusTitle": "AI Focus Today",
-    "aiFocusRefresh": "Refresh AI focus",
-    "aiFocusEmpty": "No AI focus yet.",
-    "liveLeads": "Live leads",
-    "aiActivity": "AI activity",
-    "aiActivityEmpty": "No AI activity yet.",
-    "view": "View"
+    "statActiveJobs": "Active searches"
   },
   "crm": {
     "leadsTitle": "Leads",
@@ -84,37 +107,13 @@
     "pipelineNew": "New",
     "pipelineContacted": "Contacted",
     "pipelineProposal": "Proposal",
-    "pipelineNegotiation": "Negotiation",
-    "addLead": "Add lead",
-    "name": "Name",
-    "phone": "Phone",
-    "email": "Email",
-    "company": "Company",
-    "namePhoneRequired": "Name + phone required",
-    "saveLead": "Save lead",
-    "refresh": "Refresh",
-    "search": "Search",
-    "allStatuses": "All statuses",
-    "allSources": "All sources",
-    "source": "Source",
-    "actions": "Actions",
-    "edit": "Edit",
-    "updateLead": "Update lead",
-    "markContacted": "Mark contacted",
-    "notes": "Notes",
-    "save": "Save",
-    "cancel": "Cancel"
+    "pipelineNegotiation": "Negotiation"
   },
   "hr": {
     "employeesTitle": "Employees",
     "empty": "No employees yet",
     "role": "Role",
-    "status": "Status",
-    "name": "Name",
-    "email": "Email",
-    "created": "Created",
-    "active": "Active",
-    "refresh": "Refresh"
+    "status": "Status"
   },
   "aiInbox": {
     "title": "AI Inbox",
@@ -129,23 +128,6 @@
     "defaultLanguage": "Default language",
     "defaultTheme": "Default theme",
     "updateCta": "Update company",
-    "companyNameLabel": "Company name",
-    "cvrLabel": "CVR",
-    "addressLabel": "Address",
-    "countryLabel": "Country",
-    "phoneLabel": "Phone",
-    "emailLabel": "Email",
-    "planLabel": "Plan",
-    "userLimitLabel": "User limit",
-    "paymentStatusLabel": "Payment status",
-    "companyStatusLabel": "Company status",
-    "statusActive": "Active",
-    "statusInactive": "Inactive",
-    "createdLabel": "Created",
-    "inviteCodeLabel": "Invitation code (owner only)",
-    "regenerate": "Regenerate",
-    "inviteRegenerated": "Invitation code regenerated",
-    "loadError": "Could not load company settings",
     "integrationsTitle": "Integrations",
     "integrationsSubtitle": "Connect Meta Ads and website tracking",
     "metaStatus": "Meta Ads",
@@ -193,23 +175,12 @@
       "companies": "Companies",
       "users": "Users",
       "verifiedUsers": "Verified users",
-      "admins": "Admins",
-      "active": "Active",
-      "inactive": "Inactive"
+      "admins": "Admins"
     },
     "tables": {
       "companiesTitle": "Companies",
-      "usersTitle": "Users in selected company"
+      "usersTitle": "Users"
     },
-    "activate": "Activate",
-    "deactivate": "Deactivate",
-    "companyActivated": "Company activated",
-    "companyDeactivated": "Company deactivated",
-    "noCompanies": "No companies",
-    "selectCompany": "Select a company above",
-    "noUsersInCompany": "No users in this company",
-    "plan": "Plan",
-    "paymentStatus": "Payment status",
     "columns": {
       "companyName": "Company",
       "joinCode": "Join code",
@@ -307,4 +278,3 @@
     "back": "Return to Home"
   }
 }
-

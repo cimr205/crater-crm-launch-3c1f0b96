@@ -9,12 +9,13 @@ export type AuthUser = {
   id: string;
   email: string;
   fullName: string | null;
-  companyId: string;
-  companyName: string;
-  companyIsActive: boolean;
-  role: string;
+  companyId: string | null;
+  companyName: string | null;
+  companyIsActive: boolean | null;
+  role: string | null;
   isGlobalAdmin: boolean;
   permissions: string[];
+  onboardingCompleted: boolean;
 };
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
@@ -25,7 +26,7 @@ if (env.supabaseUrl) {
     jwks = createRemoteJWKSet(new URL(`${base}/auth/v1/.well-known/jwks.json`));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    // eslint-disable-next-line no-console
+     
     console.log(`Invalid SUPABASE_URL for JWKS setup: ${message}`);
     jwks = null;
   }
@@ -50,12 +51,13 @@ async function loadAuthUser(userId: string): Promise<AuthUser | null> {
     id: string;
     email: string;
     full_name: string | null;
-    company_id: string;
-    company_name: string;
-    company_is_active: boolean;
-    role: string;
+    company_id: string | null;
+    company_name: string | null;
+    company_is_active: boolean | null;
+    role: string | null;
     is_global_admin: boolean;
     permissions: string[] | null;
+    onboarding_completed: boolean;
   }>(
     `
     select
@@ -67,9 +69,10 @@ async function loadAuthUser(userId: string): Promise<AuthUser | null> {
       c.is_active as company_is_active,
       u.role,
       u.is_global_admin,
+      u.onboarding_completed,
       coalesce(array_agg(rp.permission) filter (where rp.permission is not null), '{}') as permissions
     from users u
-    join companies c on c.id = u.company_id
+    left join companies c on c.id = u.company_id
     left join role_permissions rp on rp.role_slug = u.role
     where u.id = $1
     group by u.id, c.name, c.is_active
@@ -88,6 +91,7 @@ async function loadAuthUser(userId: string): Promise<AuthUser | null> {
     role: rows[0].role,
     isGlobalAdmin: rows[0].is_global_admin,
     permissions: rows[0].permissions || [],
+    onboardingCompleted: rows[0].onboarding_completed,
   };
 }
 
@@ -107,7 +111,9 @@ export async function authMiddleware(req: Request, res: Response, next: NextFunc
       fail(res, 401, 'unauthorized', 'No application profile found for this user');
       return;
     }
-    if (!user.companyIsActive && !user.isGlobalAdmin) {
+
+    // Only block if the user has a company that is explicitly inactive
+    if (user.companyId && user.companyIsActive === false && !user.isGlobalAdmin) {
       fail(res, 403, 'company_inactive', 'Company is inactive. Contact support.');
       return;
     }
