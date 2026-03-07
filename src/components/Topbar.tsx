@@ -1,11 +1,10 @@
 import { Bell, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useI18n } from '@/lib/i18n';
+import { useI18n, isLocale } from '@/lib/i18n';
 import LanguagePicker from '@/components/LanguagePicker';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { useNavigate, useParams } from 'react-router-dom';
-import { isLocale } from '@/lib/i18n';
 
 export default function Topbar() {
   const { t } = useI18n();

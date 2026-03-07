@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
 import {
   Table,
   TableBody,
@@ -26,31 +27,37 @@ type RoleOption = {
 
 export default function EmployeesPage() {
   const { t } = useI18n();
+  const { toast } = useToast();
   const [users, setUsers] = useState<CompanyUser[]>([]);
   const [roles, setRoles] = useState<RoleOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyUserId, setBusyUserId] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const [companyUsers, availableRoles] = await Promise.all([api.getCompanyUsers(), api.getRoles()]);
       setUsers(companyUsers);
       setRoles(availableRoles.map((role) => ({ slug: role.slug, label: role.label })));
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not load employees', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
 
   useEffect(() => {
-    load().catch(() => undefined);
-  }, []);
+    load();
+  }, [load]);
 
   const updateRole = async (userId: string, role: string) => {
     setBusyUserId(userId);
     try {
       await api.updateCompanyUserRole(userId, role);
       await load();
+      toast({ title: 'Role updated' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not update role', variant: 'destructive' });
     } finally {
       setBusyUserId(null);
     }
@@ -61,7 +68,7 @@ export default function EmployeesPage() {
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{t('hr.employeesTitle')}</h1>
         <Button variant="outline" onClick={() => load()} disabled={loading}>
-          Refresh
+          {t('hr.refresh')}
         </Button>
       </div>
 
@@ -74,11 +81,11 @@ export default function EmployeesPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
+                <TableHead>{t('hr.name')}</TableHead>
+                <TableHead>{t('hr.email')}</TableHead>
                 <TableHead>{t('hr.role')}</TableHead>
                 <TableHead>{t('hr.status')}</TableHead>
-                <TableHead>Created</TableHead>
+                <TableHead>{t('hr.created')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -100,7 +107,7 @@ export default function EmployeesPage() {
                       ))}
                     </select>
                   </TableCell>
-                  <TableCell>{busyUserId === user.id ? t('common.loading') : 'Active'}</TableCell>
+                  <TableCell>{busyUserId === user.id ? t('common.loading') : t('hr.active')}</TableCell>
                   <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
                 </TableRow>
               ))}

@@ -24,15 +24,21 @@ export default function IntegrationsPage() {
   const [providers, setProviders] = useState<Provider[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
-    const result = await api.listIntegrationProviders();
-    setProviders(result.providers);
-    setConnections(result.connections);
+    setLoadError(null);
+    try {
+      const result = await api.listIntegrationProviders();
+      setProviders(result.providers);
+      setConnections(result.connections);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Could not load integrations');
+    }
   }, []);
 
   useEffect(() => {
-    loadData().catch(() => undefined);
+    loadData();
     const handler = (event: MessageEvent) => {
       if (event.data?.type === 'integration:connected') {
         loadData().catch(() => undefined);
@@ -72,6 +78,9 @@ export default function IntegrationsPage() {
     try {
       await api.disconnectIntegration(providerId);
       await loadData();
+      toast({ title: 'Integration disconnected' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Disconnect failed', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -83,6 +92,8 @@ export default function IntegrationsPage() {
         <h1 className="text-2xl font-semibold">Integrations</h1>
         <p className="text-sm text-muted-foreground">Connect external services via OAuth popup.</p>
       </div>
+
+      {loadError && <p className="text-sm text-destructive">{loadError}</p>}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {providers.map((provider) => {

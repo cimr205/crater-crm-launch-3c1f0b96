@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { useToast } from '@/components/ui/use-toast';
 
 type LeadRow = {
   id: string;
@@ -23,6 +24,7 @@ const statusOptions = ['cold', 'contacted', 'qualified', 'customer', 'lost'];
 
 export default function LeadsPage() {
   const { t } = useI18n();
+  const { toast } = useToast();
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState('');
@@ -46,13 +48,15 @@ export default function LeadsPage() {
         q: query || undefined,
       });
       setLeads(result.data as LeadRow[]);
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not load leads', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, sourceFilter, query]);
+  }, [statusFilter, sourceFilter, query, toast]);
 
   useEffect(() => {
-    loadLeads().catch(() => undefined);
+    loadLeads();
   }, [loadLeads]);
 
   const sources = useMemo(() => {
@@ -76,6 +80,9 @@ export default function LeadsPage() {
       });
       await loadLeads();
       setEditingId(null);
+      toast({ title: 'Lead updated' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not update lead', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -98,6 +105,9 @@ export default function LeadsPage() {
       setNewLeadCompany('');
       setNewLeadStatus('cold');
       await loadLeads();
+      toast({ title: 'Lead created' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not create lead', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -108,30 +118,30 @@ export default function LeadsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">{t('crm.leadsTitle')}</h1>
         <Button variant="outline" onClick={() => loadLeads()} disabled={loading}>
-          Refresh
+          {t('crm.refresh')}
         </Button>
       </div>
 
       <div className="rounded-xl border border-border bg-card/70 backdrop-blur p-4 space-y-3">
-        <div className="text-sm font-semibold">Add lead</div>
+        <div className="text-sm font-semibold">{t('crm.addLead')}</div>
         <div className="grid gap-3 md:grid-cols-2">
           <Input
-            placeholder="Name"
+            placeholder={t('crm.name')}
             value={newLeadName}
             onChange={(event) => setNewLeadName(event.target.value)}
           />
           <Input
-            placeholder="Phone"
+            placeholder={t('crm.phone')}
             value={newLeadPhone}
             onChange={(event) => setNewLeadPhone(event.target.value)}
           />
           <Input
-            placeholder="Email"
+            placeholder={t('crm.email')}
             value={newLeadEmail}
             onChange={(event) => setNewLeadEmail(event.target.value)}
           />
           <Input
-            placeholder="Company"
+            placeholder={t('crm.company')}
             value={newLeadCompany}
             onChange={(event) => setNewLeadCompany(event.target.value)}
           />
@@ -148,21 +158,21 @@ export default function LeadsPage() {
           </select>
           <div className="flex items-center gap-2">
             <Button onClick={createLead} disabled={loading || !newLeadName.trim() || !newLeadPhone.trim()}>
-              Save lead
+              {t('crm.saveLead')}
             </Button>
-            <div className="text-xs text-muted-foreground">Name + phone required</div>
+            <div className="text-xs text-muted-foreground">{t('crm.namePhoneRequired')}</div>
           </div>
         </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-3">
-        <Input placeholder="Search" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <Input placeholder={t('crm.search')} value={query} onChange={(event) => setQuery(event.target.value)} />
         <select
           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
           value={statusFilter}
           onChange={(event) => setStatusFilter(event.target.value)}
         >
-          <option value="">All statuses</option>
+          <option value="">{t('crm.allStatuses')}</option>
           {statusOptions.map((status) => (
             <option key={status} value={status}>
               {status}
@@ -174,7 +184,7 @@ export default function LeadsPage() {
           value={sourceFilter}
           onChange={(event) => setSourceFilter(event.target.value)}
         >
-          <option value="">All sources</option>
+          <option value="">{t('crm.allSources')}</option>
           {sources.map((source) => (
             <option key={source} value={source}>
               {source}
@@ -188,11 +198,11 @@ export default function LeadsPage() {
           <TableHeader>
             <TableRow>
               <TableHead>{t('crm.leadsTitle')}</TableHead>
-              <TableHead>Company</TableHead>
+              <TableHead>{t('crm.company')}</TableHead>
               <TableHead>{t('crm.status')}</TableHead>
               <TableHead>{t('crm.score')}</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>Actions</TableHead>
+              <TableHead>{t('crm.source')}</TableHead>
+              <TableHead>{t('crm.actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -215,7 +225,7 @@ export default function LeadsPage() {
                   <TableCell className="text-xs text-muted-foreground">{lead.source || '—'}</TableCell>
                   <TableCell>
                     <Button size="sm" variant="outline" onClick={() => startEdit(lead)}>
-                      Edit
+                      {t('crm.edit')}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -227,7 +237,7 @@ export default function LeadsPage() {
 
       {editingId && (
         <div className="rounded-xl border border-border bg-card/70 backdrop-blur p-4 space-y-3">
-          <div className="text-sm font-semibold">Update lead</div>
+          <div className="text-sm font-semibold">{t('crm.updateLead')}</div>
           <div className="grid gap-3 md:grid-cols-2">
             <select
               className="h-10 rounded-md border border-input bg-background px-3 text-sm"
@@ -241,20 +251,20 @@ export default function LeadsPage() {
               ))}
             </select>
             <Button onClick={() => setEditingStatus('contacted')} variant="ghost">
-              Mark contacted
+              {t('crm.markContacted')}
             </Button>
           </div>
           <Textarea
-            placeholder="Notes"
+            placeholder={t('crm.notes')}
             value={editingNotes}
             onChange={(event) => setEditingNotes(event.target.value)}
           />
           <div className="flex gap-2">
             <Button onClick={() => saveEdit(editingId)} disabled={loading}>
-              Save
+              {t('crm.save')}
             </Button>
             <Button variant="ghost" onClick={() => setEditingId(null)}>
-              Cancel
+              {t('crm.cancel')}
             </Button>
           </div>
         </div>

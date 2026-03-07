@@ -883,7 +883,7 @@ export function registerRoutes(app: Application) {
     }
 
     const schema = z.object({
-      slug: z.string().min(2).max(64).regex(/^[a-z0-9_\-]+$/),
+      slug: z.string().min(2).max(64).regex(/^[a-z0-9_-]+$/),
       label: z.string().min(2).max(100),
       description: z.string().max(255).optional(),
       permissions: z.array(z.string().min(2)).default([]),

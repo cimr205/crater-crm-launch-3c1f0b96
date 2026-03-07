@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { api } from '@/lib/api';
+import { useToast } from '@/components/ui/use-toast';
 
 type WorkflowStep = {
   type: 'condition' | 'action' | 'delay';
@@ -20,6 +21,7 @@ type Workflow = {
 };
 
 export default function WorkflowsPage() {
+  const { toast } = useToast();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [suggestions, setSuggestions] = useState<Array<Record<string, unknown>>>([]);
   const [name, setName] = useState('');
@@ -29,15 +31,21 @@ export default function WorkflowsPage() {
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
   const [testLeadId, setTestLeadId] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const loadWorkflows = async () => {
-    const result = await api.listWorkflows();
-    setWorkflows(result.data as Workflow[]);
-    setSuggestions((result.suggestions || []) as Array<Record<string, unknown>>);
+    setLoadError(null);
+    try {
+      const result = await api.listWorkflows();
+      setWorkflows(result.data as Workflow[]);
+      setSuggestions((result.suggestions || []) as Array<Record<string, unknown>>);
+    } catch (err) {
+      setLoadError(err instanceof Error ? err.message : 'Could not load workflows');
+    }
   };
 
   useEffect(() => {
-    loadWorkflows().catch(() => undefined);
+    loadWorkflows();
   }, []);
 
   const addStep = (type: WorkflowStep['type']) => {
@@ -72,6 +80,9 @@ export default function WorkflowsPage() {
       setName('');
       setSteps([]);
       await loadWorkflows();
+      toast({ title: 'Workflow created' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not create workflow', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -82,10 +93,14 @@ export default function WorkflowsPage() {
     try {
       if (workflow.status === 'active') {
         await api.pauseWorkflow(workflow.id);
+        toast({ title: 'Workflow paused' });
       } else {
         await api.activateWorkflow(workflow.id);
+        toast({ title: 'Workflow activated' });
       }
       await loadWorkflows();
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not update workflow', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -95,6 +110,9 @@ export default function WorkflowsPage() {
     setLoading(true);
     try {
       await api.runWorkflowTest(workflowId, testLeadId || undefined);
+      toast({ title: 'Test run started' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Test run failed', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -105,6 +123,9 @@ export default function WorkflowsPage() {
     try {
       await api.approveAiSuggestion(id);
       await loadWorkflows();
+      toast({ title: 'Suggestion approved' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not approve suggestion', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -115,6 +136,9 @@ export default function WorkflowsPage() {
     try {
       await api.rejectAiSuggestion(id);
       await loadWorkflows();
+      toast({ title: 'Suggestion rejected' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not reject suggestion', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -126,6 +150,8 @@ export default function WorkflowsPage() {
         <h1 className="text-2xl font-semibold">Workflows</h1>
         <p className="text-sm text-muted-foreground">Automate lead actions with triggers and steps.</p>
       </div>
+
+      {loadError && <p className="text-sm text-destructive">{loadError}</p>}
 
       <Card className="p-6 space-y-4 bg-card/70 backdrop-blur border-border">
         <div className="text-sm font-semibold">Create workflow</div>

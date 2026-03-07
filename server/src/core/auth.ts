@@ -26,7 +26,7 @@ if (env.supabaseUrl) {
     jwks = createRemoteJWKSet(new URL(`${base}/auth/v1/.well-known/jwks.json`));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    // eslint-disable-next-line no-console
+     
     console.log(`Invalid SUPABASE_URL for JWKS setup: ${message}`);
     jwks = null;
   }

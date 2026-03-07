@@ -59,6 +59,8 @@ export default function CompanySettingsPage() {
 
       setTenant(response.tenant);
       toast({ title: t('common.save') });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not save settings', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
@@ -71,7 +73,9 @@ export default function CompanySettingsPage() {
     try {
       const response = await api.regenerateInviteCode();
       setTenant({ ...tenant, invite_code: response.invite_code });
-      toast({ title: 'Invitation code regenerated' });
+      toast({ title: t('settings.inviteRegenerated') });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Could not regenerate code', variant: 'destructive' });
     } finally {
       setRegeneratingCode(false);
     }
@@ -82,7 +86,7 @@ export default function CompanySettingsPage() {
   }
 
   if (!tenant) {
-    return <div className="text-sm text-destructive">Could not load company settings</div>;
+    return <div className="text-sm text-destructive">{t('settings.loadError')}</div>;
   }
 
   return (
@@ -95,37 +99,37 @@ export default function CompanySettingsPage() {
       <Card className="p-6 space-y-4 bg-card/70 backdrop-blur border-border">
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <div className="text-xs text-muted-foreground mb-1">Company name</div>
+            <div className="text-xs text-muted-foreground mb-1">{t('settings.companyNameLabel')}</div>
             <Input value={tenant.name || ''} onChange={(event) => setTenant({ ...tenant, name: event.target.value })} />
           </div>
           <div>
-            <div className="text-xs text-muted-foreground mb-1">CVR</div>
+            <div className="text-xs text-muted-foreground mb-1">{t('settings.cvrLabel')}</div>
             <Input value={tenant.cvr || ''} onChange={(event) => setTenant({ ...tenant, cvr: event.target.value })} />
           </div>
           <div>
-            <div className="text-xs text-muted-foreground mb-1">Address</div>
+            <div className="text-xs text-muted-foreground mb-1">{t('settings.addressLabel')}</div>
             <Input
               value={tenant.address || ''}
               onChange={(event) => setTenant({ ...tenant, address: event.target.value })}
             />
           </div>
           <div>
-            <div className="text-xs text-muted-foreground mb-1">Country</div>
+            <div className="text-xs text-muted-foreground mb-1">{t('settings.countryLabel')}</div>
             <Input
               value={tenant.country || ''}
               onChange={(event) => setTenant({ ...tenant, country: event.target.value })}
             />
           </div>
           <div>
-            <div className="text-xs text-muted-foreground mb-1">Phone</div>
+            <div className="text-xs text-muted-foreground mb-1">{t('settings.phoneLabel')}</div>
             <Input value={tenant.phone || ''} onChange={(event) => setTenant({ ...tenant, phone: event.target.value })} />
           </div>
           <div>
-            <div className="text-xs text-muted-foreground mb-1">Email</div>
+            <div className="text-xs text-muted-foreground mb-1">{t('settings.emailLabel')}</div>
             <Input value={tenant.email || ''} onChange={(event) => setTenant({ ...tenant, email: event.target.value })} />
           </div>
           <div>
-            <div className="text-xs text-muted-foreground mb-1">Plan</div>
+            <div className="text-xs text-muted-foreground mb-1">{t('settings.planLabel')}</div>
             <Input
               value={tenant.plan || ''}
               onChange={(event) => setTenant({ ...tenant, plan: event.target.value })}
@@ -133,7 +137,7 @@ export default function CompanySettingsPage() {
             />
           </div>
           <div>
-            <div className="text-xs text-muted-foreground mb-1">User limit</div>
+            <div className="text-xs text-muted-foreground mb-1">{t('settings.userLimitLabel')}</div>
             <Input
               type="number"
               value={tenant.user_limit || ''}
@@ -146,7 +150,7 @@ export default function CompanySettingsPage() {
 
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <div className="text-xs text-muted-foreground mb-1">Payment status</div>
+            <div className="text-xs text-muted-foreground mb-1">{t('settings.paymentStatusLabel')}</div>
             <select
               className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               value={tenant.payment_status || 'pending'}
@@ -161,28 +165,28 @@ export default function CompanySettingsPage() {
             </select>
           </div>
           <div>
-            <div className="text-xs text-muted-foreground mb-1">Company status</div>
+            <div className="text-xs text-muted-foreground mb-1">{t('settings.companyStatusLabel')}</div>
             <div className="h-10 rounded-md border border-input bg-muted/40 px-3 text-sm flex items-center">
-              {tenant.is_active ? 'Active' : 'Inactive'}
+              {tenant.is_active ? t('settings.statusActive') : t('settings.statusInactive')}
             </div>
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <div className="text-xs text-muted-foreground mb-1">Created</div>
+            <div className="text-xs text-muted-foreground mb-1">{t('settings.createdLabel')}</div>
             <div className="h-10 rounded-md border border-input bg-muted/40 px-3 text-sm flex items-center">
               {tenant.created_at ? new Date(tenant.created_at).toLocaleString() : '—'}
             </div>
           </div>
 
           <div>
-            <div className="text-xs text-muted-foreground mb-1">Invitation code (owner only)</div>
+            <div className="text-xs text-muted-foreground mb-1">{t('settings.inviteCodeLabel')}</div>
             <div className="flex gap-2">
               <Input value={tenant.invite_code || 'Hidden'} readOnly />
               {isOwner && (
                 <Button variant="outline" onClick={handleRegenerateInviteCode} disabled={regeneratingCode}>
-                  {regeneratingCode ? t('common.loading') : 'Regenerate'}
+                  {regeneratingCode ? t('common.loading') : t('settings.regenerate')}
                 </Button>
               )}
             </div>
