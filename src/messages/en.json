@@ -109,13 +109,37 @@
     "pipelineNew": "New",
     "pipelineContacted": "Contacted",
     "pipelineProposal": "Proposal",
-    "pipelineNegotiation": "Negotiation"
+    "pipelineNegotiation": "Negotiation",
+    "actions": "Actions",
+    "addLead": "Add lead",
+    "allSources": "All sources",
+    "allStatuses": "All statuses",
+    "cancel": "Cancel",
+    "company": "Company",
+    "edit": "Edit",
+    "email": "Email",
+    "markContacted": "Mark contacted",
+    "name": "Name",
+    "namePhoneRequired": "Name and phone are required",
+    "notes": "Notes",
+    "phone": "Phone",
+    "refresh": "Refresh",
+    "save": "Save",
+    "saveLead": "Save lead",
+    "search": "Search",
+    "source": "Source",
+    "updateLead": "Update lead"
   },
   "hr": {
     "employeesTitle": "Employees",
     "empty": "No employees yet",
     "role": "Role",
-    "status": "Status"
+    "status": "Status",
+    "active": "Active",
+    "created": "Created",
+    "email": "Email",
+    "name": "Name",
+    "refresh": "Refresh"
   },
   "aiInbox": {
     "title": "AI Inbox",
@@ -164,7 +188,24 @@
     "aiInputs": "Inputs",
     "aiOutputs": "Outputs",
     "aiSave": "Save AI settings",
-    "aiSaved": "AI settings saved"
+    "aiSaved": "AI settings saved",
+    "addressLabel": "Address",
+    "companyNameLabel": "Company name",
+    "companyStatusLabel": "Status",
+    "countryLabel": "Country",
+    "createdLabel": "Created",
+    "cvrLabel": "CVR number",
+    "emailLabel": "Email",
+    "inviteCodeLabel": "Invite code",
+    "inviteRegenerated": "Invite code regenerated",
+    "loadError": "Could not load settings",
+    "paymentStatusLabel": "Payment status",
+    "phoneLabel": "Phone",
+    "planLabel": "Plan",
+    "regenerate": "Regenerate",
+    "statusActive": "Active",
+    "statusInactive": "Inactive",
+    "userLimitLabel": "User limit"
   },
   "admin": {
     "title": "Admin overview",
@@ -177,7 +218,9 @@
       "companies": "Companies",
       "users": "Users",
       "verifiedUsers": "Verified users",
-      "admins": "Admins"
+      "admins": "Admins",
+      "active": "Active",
+      "inactive": "Inactive"
     },
     "tables": {
       "companiesTitle": "Companies",
@@ -199,7 +242,16 @@
     "emptyCompanies": "No companies yet",
     "emptyUsers": "No users yet",
     "verifiedYes": "Yes",
-    "verifiedNo": "No"
+    "verifiedNo": "No",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "companyActivated": "Company activated",
+    "companyDeactivated": "Company deactivated",
+    "noCompanies": "No companies found",
+    "noUsersInCompany": "No users in this company",
+    "paymentStatus": "Payment status",
+    "plan": "Plan",
+    "selectCompany": "Select a company to see its users"
   },
   "onboarding": {
     "title": "Get your workspace ready",
