@@ -89,6 +89,11 @@ export default function LoginPage() {
         </form>
         <div className="mt-6 flex flex-col gap-2 text-sm text-center text-muted-foreground">
           <span>
+            <Link to={`/${locale}/auth/forgot-password`} className="text-primary underline underline-offset-4">
+              Glemt adgangskode?
+            </Link>
+          </span>
+          <span>
             Ingen konto?{' '}
             <Link to={`/${locale}/auth/signup`} className="text-primary underline underline-offset-4">
               Opret konto

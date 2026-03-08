@@ -9,6 +9,19 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      users: {
+        Row: {
+          id: string;
+          company_id: string | null;
+          role: string;
+          email: string;
+          full_name: string | null;
+          is_global_admin: boolean;
+          created_at: string;
+        };
+        Insert: Omit<Database['public']['Tables']['users']['Row'], 'created_at'> & { id?: string };
+        Update: Partial<Database['public']['Tables']['users']['Insert']>;
+      };
       companies: {
         Row: {
           id: string;
@@ -71,6 +84,26 @@ export type Database = {
           id?: string;
         };
         Update: Partial<Database['public']['Tables']['leads']['Insert']>;
+      };
+      deals: {
+        Row: {
+          id: string;
+          company_id: string;
+          title: string;
+          value: number;
+          stage_id: string;
+          stage_entered_at: string;
+          lead_id: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: Omit<Database['public']['Tables']['deals']['Row'], 'id' | 'created_at' | 'updated_at' | 'stage_entered_at'> & {
+          id?: string;
+          stage_entered_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['deals']['Insert']>;
       };
       invitations: {
         Row: {

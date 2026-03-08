@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,6 +16,7 @@ import {
   Video, Upload, Mic, Image, Clock, Play, Loader2, CheckCircle2,
   XCircle, Layers, ChevronDown, ChevronUp, Globe, Wand2,
   Film, Trash2, Copy, Download, FolderOpen, ImageIcon,
+  Scissors, Maximize2,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1498,11 +1500,13 @@ function MediaCard({
   media,
   onCopyId,
   onDelete,
+  onOpenEditor,
   deleting,
 }: {
   media: MetaMedia;
   onCopyId: (m: MetaMedia) => void;
   onDelete: (id: string) => void;
+  onOpenEditor: () => void;
   deleting: boolean;
 }) {
   const isVideo = media.media_type === 'video';
@@ -1521,10 +1525,17 @@ function MediaCard({
                 <Film className="h-10 w-10 text-muted-foreground" />
               </div>
             )}
-            <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
               <div className="h-10 w-10 rounded-full bg-white/90 flex items-center justify-center">
                 <Play className="h-4 w-4 text-black ml-0.5" />
               </div>
+              <button
+                className="text-xs bg-primary text-primary-foreground rounded-full px-3 py-1 flex items-center gap-1 font-medium shadow hover:bg-primary/90 transition-colors"
+                onClick={(e) => { e.stopPropagation(); onOpenEditor(); }}
+              >
+                <Scissors className="h-3 w-3" />
+                Rediger i Editor
+              </button>
             </div>
             <div className="absolute top-2 left-2">
               <span className="text-xs bg-black/70 text-white rounded px-1.5 py-0.5 font-medium flex items-center gap-1">
@@ -1585,7 +1596,7 @@ function MediaCard({
   );
 }
 
-function MediaLibraryTab({ campaigns }: { campaigns: Campaign[] }) {
+function MediaLibraryTab({ campaigns, onOpenEditor }: { campaigns: Campaign[]; onOpenEditor: () => void }) {
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [media, setMedia] = useState<MetaMedia[]>([]);
@@ -1811,6 +1822,7 @@ function MediaLibraryTab({ campaigns }: { campaigns: Campaign[] }) {
               media={m}
               onCopyId={handleCopyId}
               onDelete={(id) => void handleDelete(id)}
+              onOpenEditor={onOpenEditor}
               deleting={deleting === m.media_id}
             />
           ))}
@@ -1842,16 +1854,204 @@ function MediaLibraryTab({ campaigns }: { campaigns: Campaign[] }) {
   );
 }
 
+// ─── Video Editor tab (OpenCut iframe) ───────────────────────────────────────
+
+const OPENCUT_BASE_URL =
+  (import.meta as { env?: Record<string, string> }).env?.VITE_OPENCUT_URL?.replace(/\/$/, '') ?? '';
+
+// postMessage events OpenCut kan sende (vi lytter og gemmer til mediebibliotek)
+type OpenCutExportMsg = {
+  type: 'opencut:export';
+  filename: string;
+  blob?: Blob;
+  url?: string;      // fallback hvis blob ikke er tilgængeligt
+  mimeType: string;
+};
+
+function VideoEditorTab({ companyId }: { companyId: string }) {
+  const { toast } = useToast();
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [lastExport, setLastExport] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Byg tenant-specifik editor URL — hvert firma får sin eget workspace via ?tenant=
+  const editorUrl = OPENCUT_BASE_URL
+    ? `${OPENCUT_BASE_URL}?tenant=${encodeURIComponent(companyId)}`
+    : '';
+
+  // Lyt på postMessage fra OpenCut iframe
+  useEffect(() => {
+    if (!editorUrl) return;
+    const handler = async (event: MessageEvent) => {
+      try {
+        if (OPENCUT_BASE_URL && event.origin !== new URL(OPENCUT_BASE_URL).origin) return;
+      } catch { return; }
+
+      const data = event.data as OpenCutExportMsg;
+      if (data?.type !== 'opencut:export') return;
+
+      setSaving(true);
+      try {
+        let file: File | null = null;
+        if (data.blob) {
+          file = new File([data.blob], data.filename, { type: data.mimeType });
+        } else if (data.url) {
+          const res = await fetch(data.url);
+          const blob = await res.blob();
+          file = new File([blob], data.filename, { type: data.mimeType });
+        }
+        if (file) {
+          await api.uploadMetaMedia(file);
+          setLastExport(data.filename);
+          toast({
+            title: `"${data.filename}" gemt til Mediebibliotek`,
+            description: 'Find filen under fanen Mediebibliotek i Meta Ads',
+          });
+        }
+      } catch (err) {
+        toast({
+          title: 'Kunne ikke gemme video',
+          description: err instanceof Error ? err.message : 'Prøv at downloade manuelt',
+          variant: 'destructive',
+        });
+      } finally {
+        setSaving(false);
+      }
+    };
+
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [editorUrl, toast]);
+
+  const toggleFullscreen = () => {
+    if (!isFullscreen) {
+      containerRef.current?.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+    setIsFullscreen((v) => !v);
+  };
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
+  if (!editorUrl) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
+        <Scissors className="h-10 w-10 text-muted-foreground" />
+        <p className="text-sm font-medium">Video Editor ikke konfigureret</p>
+        <p className="text-xs text-muted-foreground max-w-xs">
+          Kontakt platformsadministratoren for at aktivere Video Editor.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3" ref={containerRef}>
+      {/* Toolbar */}
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
+            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-xs text-muted-foreground font-medium">Video Editor</span>
+          </div>
+          {lastExport && (
+            <span className="text-xs text-green-600 flex items-center gap-1">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              {lastExport} gemt
+            </span>
+          )}
+          {saving && (
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Gemmer til mediebibliotek…
+            </span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            onClick={() => iframeRef.current?.contentWindow?.location.reload()}
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs"
+            onClick={toggleFullscreen}
+            title={isFullscreen ? 'Afslut fuldskærm' : 'Fuldskærm'}
+          >
+            <Maximize2 className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Info-banner */}
+      <div className="flex items-start gap-2 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 text-xs text-blue-700 dark:text-blue-300">
+        <Zap className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+        <span>
+          Rediger din video. Når du eksporterer, gemmes filen automatisk i{' '}
+          <button
+            className="underline font-medium"
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('crater:switch-meta-tab', { detail: 'media' }));
+            }}
+          >
+            Mediebiblioteket
+          </button>
+          {' '}og er klar til brug i dine Meta-annoncer.
+        </span>
+      </div>
+
+      {/* iframe */}
+      <div
+        className="rounded-2xl border border-border overflow-hidden shadow-sm bg-black"
+        style={{ height: isFullscreen ? '100vh' : 'calc(100vh - 280px)', minHeight: 520 }}
+      >
+        <iframe
+          ref={iframeRef}
+          src={editorUrl}
+          className="w-full h-full"
+          title="Video Editor"
+          allow="camera; microphone; clipboard-read; clipboard-write; fullscreen; autoplay"
+          sandbox="allow-scripts allow-same-origin allow-forms allow-downloads allow-popups allow-modals allow-top-navigation-by-user-activation"
+        />
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function MetaAdsPage() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const companyId = user?.company_id ?? '';
   const [metaConnected, setMetaConnected] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selected, setSelected] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [tab, setTab] = useState('dashboard');
+
+  // Lyt på intern event fra VideoEditorTab (link til mediebibliotek)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const target = (e as CustomEvent<string>).detail;
+      if (target) setTab(target);
+    };
+    window.addEventListener('crater:switch-meta-tab', handler);
+    return () => window.removeEventListener('crater:switch-meta-tab', handler);
+  }, []);
 
   const loadData = useCallback(async () => {
     setLoadError(null);
@@ -1961,6 +2161,10 @@ export default function MetaAdsPage() {
               <ImageIcon className="h-3.5 w-3.5" />
               Mediebibliotek
             </TabsTrigger>
+            <TabsTrigger value="editor" className="flex items-center gap-1.5">
+              <Scissors className="h-3.5 w-3.5" />
+              Video Editor
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard" className="mt-6">
@@ -1994,7 +2198,10 @@ export default function MetaAdsPage() {
             <VideoAdCreatorTab campaigns={campaigns} />
           </TabsContent>
           <TabsContent value="media" className="mt-6">
-            <MediaLibraryTab campaigns={campaigns} />
+            <MediaLibraryTab campaigns={campaigns} onOpenEditor={() => setTab('editor')} />
+          </TabsContent>
+          <TabsContent value="editor" className="mt-6">
+            <VideoEditorTab companyId={companyId} />
           </TabsContent>
         </Tabs>
       )}
