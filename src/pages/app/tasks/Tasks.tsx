@@ -6,7 +6,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { api } from '@/lib/api';
-import { Bot, Check, X, Plus, RefreshCw, Trash2, Clock } from 'lucide-react';
+import { isConfigured, getServiceConfig } from '@/lib/serviceConfig';
+import * as vk from '@/lib/vikunja';
+import { Bot, Check, X, Plus, RefreshCw, Trash2, Clock, Upload } from 'lucide-react';
 
 type Task = {
   id: string;
@@ -157,6 +159,8 @@ export default function TasksPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [showCreate, setShowCreate] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [vikunjaSyncing, setVikunjaSyncing] = useState(false);
+  const useVikunja = isConfigured('vikunja');
 
   // Create form
   const [newTitle, setNewTitle] = useState('');
@@ -268,6 +272,47 @@ export default function TasksPage() {
     }
   };
 
+  const handleSyncVikunja = async () => {
+    const approvedTasks = tasks.filter((t) => t.status === 'approved' || t.status === 'in_progress');
+    if (!approvedTasks.length) {
+      toast({ title: 'Ingen godkendte opgaver at synkronisere' });
+      return;
+    }
+    setVikunjaSyncing(true);
+    try {
+      const cfg = getServiceConfig('vikunja');
+      const projectId = Number(cfg?.defaultProjectId) || 0;
+      if (!projectId) {
+        // Try to get the first available project
+        const projects = await vk.listProjects();
+        const pid = projects[0]?.id;
+        if (!pid) { toast({ title: 'Ingen Vikunja-projekter fundet', variant: 'destructive' }); return; }
+        for (const task of approvedTasks) {
+          await vk.createTask(pid, {
+            title: task.title,
+            description: task.description,
+            priority: vk.mapPriority(task.priority),
+            due_date: task.deadline ?? null,
+          });
+        }
+      } else {
+        for (const task of approvedTasks) {
+          await vk.createTask(projectId, {
+            title: task.title,
+            description: task.description,
+            priority: vk.mapPriority(task.priority),
+            due_date: task.deadline ?? null,
+          });
+        }
+      }
+      toast({ title: `${approvedTasks.length} opgaver synkroniseret til Vikunja` });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Vikunja sync failed', variant: 'destructive' });
+    } finally {
+      setVikunjaSyncing(false);
+    }
+  };
+
   const pendingApproval = tasks.filter((t) => t.status === 'pending_approval');
   const activeTasks = tasks.filter((t) => ['approved', 'in_progress'].includes(t.status));
   const doneTasks = tasks.filter((t) => t.status === 'done');
@@ -299,6 +344,12 @@ export default function TasksPage() {
             <Bot className="h-4 w-4 mr-1" />
             {aiGenerating ? 'AI analyserer...' : 'AI scan'}
           </Button>
+          {useVikunja && (
+            <Button variant="outline" size="sm" onClick={() => void handleSyncVikunja()} disabled={vikunjaSyncing}>
+              <Upload className="h-4 w-4 mr-1" />
+              {vikunjaSyncing ? 'Synkroniserer...' : 'Sync til Vikunja'}
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => loadData()} disabled={loading}>
             <RefreshCw className="h-4 w-4 mr-1" />
             Opdater
