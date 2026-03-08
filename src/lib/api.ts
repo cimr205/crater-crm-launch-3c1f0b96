@@ -1229,6 +1229,11 @@ class ApiClient {
     scheduledAt?: string;                        // ISO — eller straks
     trackOpens: boolean;
     trackClicks: boolean;
+    attachments?: Array<{                        // vedhæftede filer (base64)
+      filename: string;
+      content_type: string;
+      data: string;
+    }>;
   }) {
     return this.request<{ job_id: string; queued: number; estimated_minutes: number }>(
       '/v1/bulk-email/jobs',
@@ -1246,6 +1251,7 @@ class ApiClient {
           scheduled_at: input.scheduledAt,
           track_opens: input.trackOpens,
           track_clicks: input.trackClicks,
+          attachments: input.attachments,
         },
       }
     );
