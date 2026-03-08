@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Briefcase, Settings, UserSquare2, ShieldCheck,
   History, Bot, Megaphone, FileText, CreditCard, Clock, Palmtree, Banknote,
   UserPlus, CheckSquare, CalendarDays, ListTodo, Inbox, Mail, Building2,
-  BarChart2, Send, X,
+  BarChart2, Send, X, Sparkles, Video,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/contexts/AuthContext';
@@ -58,12 +58,18 @@ const navSections: NavSection[] = [
     ],
   },
   {
+    titleKey: 'nav.section.ai',
+    items: [
+      { href: 'ai/media',  labelKey: 'nav.aiMedia',  icon: Sparkles },
+      { href: 'clowdbot',  labelKey: 'nav.clowdbot', icon: Bot },
+      { href: 'workflows', labelKey: 'nav.workflows', icon: Video },
+    ],
+  },
+  {
     titleKey: 'nav.section.system',
     items: [
       { href: 'history',          labelKey: 'nav.history',      icon: History },
       { href: 'integrations',     labelKey: 'nav.integrations', icon: Settings },
-      { href: 'workflows',        labelKey: 'nav.workflows',    icon: Settings },
-      { href: 'clowdbot',         labelKey: 'nav.clowdbot',     icon: Bot },
       { href: 'settings/company', labelKey: 'nav.settings',     icon: Settings },
     ],
   },
@@ -76,6 +82,7 @@ const adminSection: NavSection = {
     { href: 'admin/users',      labelKey: 'nav.adminUsers',      icon: Users },
     { href: 'admin/company',    labelKey: 'nav.adminCompany',    icon: Building2 },
     { href: 'admin/employees',  labelKey: 'nav.adminEmployees',  icon: UserSquare2 },
+    { href: 'admin/ai',         labelKey: 'nav.adminAi',         icon: Sparkles },
     { href: 'admin/settings',   labelKey: 'nav.adminSettings',   icon: Settings },
   ],
 };

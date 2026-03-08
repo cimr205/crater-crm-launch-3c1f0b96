@@ -79,12 +79,15 @@
     "adminCompany": "Unternehmen",
     "adminEmployees": "Mitarbeiter",
     "adminSettings": "Systemeinstellungen",
+    "adminAi": "KI-Nutzung",
+    "aiMedia": "KI-Medien",
     "section": {
       "crm": "CRM",
       "finance": "Finanzen",
       "hr": "HR",
       "productivity": "Produktivität",
       "communication": "Kommunikation",
+      "ai": "KI & Automatisierung",
       "system": "System",
       "admin": "Admin"
     }

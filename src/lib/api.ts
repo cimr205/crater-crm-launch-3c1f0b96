@@ -1270,6 +1270,51 @@ class ApiClient {
     }
     return response.blob();
   }
+
+  // ── AI Media Generation ───────────────────────────────────────────────────────
+
+  async generateAiImage(params: {
+    prompt: string;
+    style?: string;
+    aspectRatio?: string;
+  }) {
+    return this.request<AiGeneration>('/ai/generate/image', { method: 'POST', body: params });
+  }
+
+  async generateAiVideo(params: {
+    prompt: string;
+    duration?: number;
+    style?: string;
+    referenceImageUrl?: string;
+  }) {
+    return this.request<AiGeneration>('/ai/generate/video', { method: 'POST', body: params });
+  }
+
+  async listAiGenerations(params?: { type?: 'image' | 'video'; status?: string }) {
+    const q = params ? '?' + new URLSearchParams(params as Record<string, string>).toString() : '';
+    return this.request<{ data: AiGeneration[] }>(`/ai/generations${q}`);
+  }
+
+  async getAiGenerationStatus(id: string) {
+    return this.request<AiGeneration>(`/ai/generations/${id}`);
+  }
+
+  async deleteAiGeneration(id: string) {
+    return this.request<{ success: boolean }>(`/ai/generations/${id}`, { method: 'DELETE' });
+  }
+
+  async getAiUsageStats() {
+    return this.request<AiUsageStats>('/ai/usage/stats');
+  }
+
+  async getAdminAiUsage() {
+    return this.request<{
+      companies: AdminAiCompanyUsage[];
+      serverStatus: 'online' | 'offline' | 'degraded';
+      totalToday: number;
+      failedToday: number;
+    }>('/admin/ai/usage');
+  }
 }
 
 // Types
@@ -1569,6 +1614,44 @@ export interface Todo {
   dueDate?: string;
   assignedTo?: string;
   createdAt: string;
+}
+
+// ── AI Generation types ────────────────────────────────────────────────────────
+
+export interface AiGeneration {
+  id: string;
+  type: 'image' | 'video';
+  prompt: string;
+  style?: string;
+  aspectRatio?: string;
+  duration?: number;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  outputUrl?: string;
+  thumbnailUrl?: string;
+  errorMessage?: string;
+  companyId: string;
+  userId: string;
+  createdAt: string;
+  completedAt?: string;
+  durationMs?: number;
+}
+
+export interface AiUsageStats {
+  totalImages: number;
+  totalVideos: number;
+  totalCompleted: number;
+  totalFailed: number;
+  totalPending: number;
+  recentGenerations: AiGeneration[];
+}
+
+export interface AdminAiCompanyUsage {
+  companyId: string;
+  companyName: string;
+  totalImages: number;
+  totalVideos: number;
+  failedCount: number;
+  lastActivityAt?: string;
 }
 
 export const api = new ApiClient();
