@@ -28,9 +28,9 @@ type Task = {
 };
 
 const priorityColors: Record<string, string> = {
-  urgent: 'bg-red-500/10 text-red-600 border-red-500/20',
-  high: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
-  medium: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20',
+  urgent: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
+  high: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20',
+  medium: 'bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 border-yellow-500/20',
   low: 'bg-muted text-muted-foreground',
 };
 
@@ -389,7 +389,7 @@ export default function TasksPage() {
             filterStatus === 'done' ? 'bg-muted' : 'bg-card/60'
           }`}
         >
-          <div className="text-lg font-semibold text-green-600">{doneTasks.length}</div>
+          <div className="text-lg font-semibold text-green-600 dark:text-green-400">{doneTasks.length}</div>
           <div className="text-xs text-muted-foreground">Færdige</div>
         </button>
         <button

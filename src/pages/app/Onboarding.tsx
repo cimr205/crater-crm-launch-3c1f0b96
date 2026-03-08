@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { isLocale } from '@/lib/i18n';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/lib/supabase';
 
 const INDUSTRY_OPTIONS = [
   'Teknologi & software',
@@ -37,7 +38,7 @@ export default function OnboardingPage() {
   const params = useParams();
   const locale = isLocale(params.locale) ? params.locale : 'en';
   const navigate = useNavigate();
-  const { refreshGate } = useAuth();
+  const { refreshGate, user } = useAuth();
 
   const [step, setStep] = useState<Step>(1);
   const [companyName, setCompanyName] = useState('');
@@ -62,6 +63,17 @@ export default function OnboardingPage() {
         size,
         goal,
       });
+      // Ensure the user has 'owner' role in the DB.
+      // The Railway backend should handle this, but we defensively upsert
+      // via Supabase to cover edge cases (backend lag, first-user fallback).
+      if (user?.id) {
+        await supabase
+          .from('users')
+          .update({ role: 'owner' })
+          .eq('id', user.id)
+          .then(() => undefined) // ignore RLS / 404 errors silently
+          .catch(() => undefined);
+      }
       // Refresh gate so ProtectedRoute allows /app
       await refreshGate();
       navigate(`/${locale}/app/dashboard`, { replace: true });
