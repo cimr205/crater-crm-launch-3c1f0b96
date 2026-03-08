@@ -765,7 +765,8 @@ class ApiClient {
 
   async createWorkflow(input: {
     name: string;
-    triggerType: 'new_lead_created' | 'integration_connected' | 'manual_trigger';
+    triggerType: WorkflowTrigger;
+    triggerConfig?: Record<string, unknown>;
     steps: Array<{ type: 'condition' | 'action' | 'delay'; config: Record<string, unknown>; stepOrder: number }>;
   }) {
     return this.request<{ data: Record<string, unknown> }>('/workflows', {
@@ -773,6 +774,7 @@ class ApiClient {
       body: {
         name: input.name,
         trigger_type: input.triggerType,
+        trigger_config: input.triggerConfig,
         steps: input.steps.map((step) => ({
           type: step.type,
           config: step.config,
@@ -1615,6 +1617,29 @@ export interface Todo {
   assignedTo?: string;
   createdAt: string;
 }
+
+// ── Workflow types ─────────────────────────────────────────────────────────────
+
+export type WorkflowTrigger =
+  | 'new_lead_created'
+  | 'lead_status_changed'
+  | 'lead_score_changed'
+  | 'new_employee_created'
+  | 'invoice_overdue'
+  | 'invoice_paid'
+  | 'task_completed'
+  | 'campaign_sent'
+  | 'integration_connected'
+  | 'manual_trigger';
+
+export type WorkflowAction =
+  | 'create_task'
+  | 'send_email'
+  | 'send_notification'
+  | 'update_lead_status'
+  | 'send_webhook'
+  | 'generate_ai_content'
+  | 'send_invitation_email';
 
 // ── AI Generation types ────────────────────────────────────────────────────────
 
