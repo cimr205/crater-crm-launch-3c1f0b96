@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1855,7 +1856,7 @@ function MediaLibraryTab({ campaigns, onOpenEditor }: { campaigns: Campaign[]; o
 
 // ─── Video Editor tab (OpenCut iframe) ───────────────────────────────────────
 
-const OPENCUT_URL =
+const OPENCUT_BASE_URL =
   (import.meta as { env?: Record<string, string> }).env?.VITE_OPENCUT_URL?.replace(/\/$/, '') ?? '';
 
 // postMessage events OpenCut kan sende (vi lytter og gemmer til mediebibliotek)
@@ -1867,44 +1868,33 @@ type OpenCutExportMsg = {
   mimeType: string;
 };
 
-function VideoEditorTab() {
+function VideoEditorTab({ companyId }: { companyId: string }) {
   const { toast } = useToast();
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [customUrl, setCustomUrl] = useState(() =>
-    localStorage.getItem('opencut_url') ?? OPENCUT_URL
-  );
-  const [inputUrl, setInputUrl] = useState(customUrl);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [lastExport, setLastExport] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Gem URL til localStorage når bruger ændrer den
-  const applyUrl = () => {
-    const clean = inputUrl.trim().replace(/\/$/, '');
-    setCustomUrl(clean);
-    localStorage.setItem('opencut_url', clean);
-  };
+  // Byg tenant-specifik editor URL — hvert firma får sin eget workspace via ?tenant=
+  const editorUrl = OPENCUT_BASE_URL
+    ? `${OPENCUT_BASE_URL}?tenant=${encodeURIComponent(companyId)}`
+    : '';
 
   // Lyt på postMessage fra OpenCut iframe
   useEffect(() => {
+    if (!editorUrl) return;
     const handler = async (event: MessageEvent) => {
-      // Sikkerheds-check: kun accept fra kendt OpenCut-origin
-      if (customUrl) {
-        try {
-          const origin = new URL(customUrl).origin;
-          if (event.origin !== origin) return;
-        } catch { return; }
-      }
+      try {
+        if (OPENCUT_BASE_URL && event.origin !== new URL(OPENCUT_BASE_URL).origin) return;
+      } catch { return; }
 
       const data = event.data as OpenCutExportMsg;
       if (data?.type !== 'opencut:export') return;
 
-      // Gem eksporteret fil til Meta Ads mediebibliotek
       setSaving(true);
       try {
         let file: File | null = null;
-
         if (data.blob) {
           file = new File([data.blob], data.filename, { type: data.mimeType });
         } else if (data.url) {
@@ -1912,7 +1902,6 @@ function VideoEditorTab() {
           const blob = await res.blob();
           file = new File([blob], data.filename, { type: data.mimeType });
         }
-
         if (file) {
           await api.uploadMetaMedia(file);
           setLastExport(data.filename);
@@ -1934,9 +1923,8 @@ function VideoEditorTab() {
 
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [customUrl, toast]);
+  }, [editorUrl, toast]);
 
-  // Fullscreen toggle
   const toggleFullscreen = () => {
     if (!isFullscreen) {
       containerRef.current?.requestFullscreen().catch(() => {});
@@ -1952,101 +1940,27 @@ function VideoEditorTab() {
     return () => document.removeEventListener('fullscreenchange', onFsChange);
   }, []);
 
-  const editorUrl = customUrl || OPENCUT_URL;
-
-  // ── Setup-skærm: ingen URL konfigureret ──────────────────────────────────
-
   if (!editorUrl) {
     return (
-      <div className="space-y-6">
-        <div className="rounded-2xl border bg-card p-8 text-center space-y-4 max-w-xl mx-auto">
-          <div className="h-16 w-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
-            <Scissors className="h-8 w-8 text-primary" />
-          </div>
-          <div>
-            <h2 className="text-lg font-bold">Opsæt OpenCut Video Editor</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              OpenCut er en gratis, open-source videoredigering. Self-host den og indsæt URL'en herunder for at bruge den direkte i CRM'et.
-            </p>
-          </div>
-
-          {/* Trin */}
-          <div className="text-left space-y-3 rounded-xl bg-muted/40 border border-border p-4">
-            <p className="text-xs font-semibold text-foreground">Kom i gang på 3 trin:</p>
-            {[
-              {
-                n: '1',
-                title: 'Klon og kør OpenCut',
-                code: 'git clone https://github.com/OpenCut-app/OpenCut.git\ncd OpenCut && docker compose up -d',
-              },
-              {
-                n: '2',
-                title: 'Sæt VITE_OPENCUT_URL i din .env',
-                code: 'VITE_OPENCUT_URL=https://editor.dindomæne.dk',
-              },
-              {
-                n: '3',
-                title: 'Eller indsæt URL direkte herunder',
-                code: null,
-              },
-            ].map(({ n, title, code }) => (
-              <div key={n} className="flex gap-3">
-                <div className="h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
-                  {n}
-                </div>
-                <div className="space-y-1.5 flex-1">
-                  <p className="text-xs font-medium">{title}</p>
-                  {code && (
-                    <pre className="text-xs bg-background border border-border rounded-lg px-3 py-2 overflow-x-auto whitespace-pre">{code}</pre>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* URL input */}
-          <div className="flex gap-2">
-            <Input
-              placeholder="https://editor.dindomæne.dk"
-              value={inputUrl}
-              onChange={(e) => setInputUrl(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') applyUrl(); }}
-            />
-            <Button onClick={applyUrl} disabled={!inputUrl.trim()}>
-              Forbind
-            </Button>
-          </div>
-
-          <a
-            href="https://github.com/OpenCut-app/OpenCut"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ExternalLink className="h-3.5 w-3.5" />
-            OpenCut på GitHub — MIT-licens, gratis
-          </a>
-        </div>
+      <div className="flex flex-col items-center justify-center py-20 text-center space-y-3">
+        <Scissors className="h-10 w-10 text-muted-foreground" />
+        <p className="text-sm font-medium">Video Editor ikke konfigureret</p>
+        <p className="text-xs text-muted-foreground max-w-xs">
+          Kontakt platformsadministratoren for at aktivere Video Editor.
+        </p>
       </div>
     );
   }
-
-  // ── Editor-skærm ─────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-3" ref={containerRef}>
       {/* Toolbar */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5">
             <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-xs text-muted-foreground font-medium">
-              OpenCut forbundet
-            </span>
+            <span className="text-xs text-muted-foreground font-medium">Video Editor</span>
           </div>
-          <span className="text-xs text-muted-foreground hidden sm:block truncate max-w-[200px]">
-            {editorUrl}
-          </span>
           {lastExport && (
             <span className="text-xs text-green-600 flex items-center gap-1">
               <CheckCircle2 className="h-3.5 w-3.5" />
@@ -2061,19 +1975,6 @@ function VideoEditorTab() {
           )}
         </div>
         <div className="flex gap-2">
-          {/* Skift URL */}
-          <div className="flex gap-1">
-            <Input
-              className="h-7 text-xs w-48"
-              value={inputUrl}
-              onChange={(e) => setInputUrl(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') applyUrl(); }}
-              placeholder="OpenCut URL…"
-            />
-            <Button size="sm" variant="outline" className="h-7 text-xs px-2" onClick={applyUrl}>
-              OK
-            </Button>
-          </div>
           <Button
             size="sm"
             variant="outline"
@@ -2091,16 +1992,6 @@ function VideoEditorTab() {
           >
             <Maximize2 className="h-3.5 w-3.5" />
           </Button>
-          <a
-            href={editorUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <Button size="sm" variant="outline" className="h-7 text-xs">
-              <ExternalLink className="h-3.5 w-3.5 mr-1" />
-              Åbn separat
-            </Button>
-          </a>
         </div>
       </div>
 
@@ -2108,11 +1999,10 @@ function VideoEditorTab() {
       <div className="flex items-start gap-2 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 px-3 py-2 text-xs text-blue-700 dark:text-blue-300">
         <Zap className="h-3.5 w-3.5 shrink-0 mt-0.5" />
         <span>
-          Rediger din video i OpenCut. Når du eksporterer, gemmes filen automatisk i{' '}
+          Rediger din video. Når du eksporterer, gemmes filen automatisk i{' '}
           <button
             className="underline font-medium"
             onClick={() => {
-              // Skift til media-fanen — vi trigger et custom event som MetaAdsPage lytter på
               window.dispatchEvent(new CustomEvent('crater:switch-meta-tab', { detail: 'media' }));
             }}
           >
@@ -2123,13 +2013,15 @@ function VideoEditorTab() {
       </div>
 
       {/* iframe */}
-      <div className="rounded-2xl border border-border overflow-hidden shadow-sm bg-black"
-           style={{ height: isFullscreen ? '100vh' : 'calc(100vh - 280px)', minHeight: 520 }}>
+      <div
+        className="rounded-2xl border border-border overflow-hidden shadow-sm bg-black"
+        style={{ height: isFullscreen ? '100vh' : 'calc(100vh - 280px)', minHeight: 520 }}
+      >
         <iframe
           ref={iframeRef}
           src={editorUrl}
           className="w-full h-full"
-          title="OpenCut Video Editor"
+          title="Video Editor"
           allow="camera; microphone; clipboard-read; clipboard-write; fullscreen; autoplay"
           sandbox="allow-scripts allow-same-origin allow-forms allow-downloads allow-popups allow-modals allow-top-navigation-by-user-activation"
         />
@@ -2142,6 +2034,8 @@ function VideoEditorTab() {
 
 export default function MetaAdsPage() {
   const { toast } = useToast();
+  const { user } = useAuth();
+  const companyId = user?.company_id ?? '';
   const [metaConnected, setMetaConnected] = useState(false);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [selected, setSelected] = useState<Campaign | null>(null);
@@ -2307,7 +2201,7 @@ export default function MetaAdsPage() {
             <MediaLibraryTab campaigns={campaigns} onOpenEditor={() => setTab('editor')} />
           </TabsContent>
           <TabsContent value="editor" className="mt-6">
-            <VideoEditorTab />
+            <VideoEditorTab companyId={companyId} />
           </TabsContent>
         </Tabs>
       )}
