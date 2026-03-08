@@ -69,6 +69,8 @@
     "todos": "To-dos",
     "inbox": "Indbakke",
     "emails": "Emails",
+    "emailCampaigns": "E-mail kampagner",
+    "metaAds": "Meta Ads",
     "history": "Historik",
     "settings": "Indstillinger",
     "company": "Virksomhed",
@@ -107,13 +109,37 @@
     "pipelineNew": "Ny",
     "pipelineContacted": "Kontaktet",
     "pipelineProposal": "Tilbud",
-    "pipelineNegotiation": "Forhandling"
+    "pipelineNegotiation": "Forhandling",
+    "actions": "Handlinger",
+    "addLead": "Tilføj lead",
+    "allSources": "Alle kilder",
+    "allStatuses": "Alle statusser",
+    "cancel": "Annuller",
+    "company": "Virksomhed",
+    "edit": "Rediger",
+    "email": "Email",
+    "markContacted": "Markér kontaktet",
+    "name": "Navn",
+    "namePhoneRequired": "Navn og telefon er påkrævet",
+    "notes": "Noter",
+    "phone": "Telefon",
+    "refresh": "Opdater",
+    "save": "Gem",
+    "saveLead": "Gem lead",
+    "search": "Søg",
+    "source": "Kilde",
+    "updateLead": "Opdater lead"
   },
   "hr": {
     "employeesTitle": "Medarbejdere",
     "empty": "Ingen medarbejdere endnu",
     "role": "Rolle",
-    "status": "Status"
+    "status": "Status",
+    "active": "Aktiv",
+    "created": "Oprettet",
+    "email": "Email",
+    "name": "Navn",
+    "refresh": "Opdater"
   },
   "aiInbox": {
     "title": "AI Inbox",
@@ -162,7 +188,24 @@
     "aiInputs": "Input",
     "aiOutputs": "Output",
     "aiSave": "Gem AI-indstillinger",
-    "aiSaved": "AI-indstillinger gemt"
+    "aiSaved": "AI-indstillinger gemt",
+    "addressLabel": "Adresse",
+    "companyNameLabel": "Virksomhedsnavn",
+    "companyStatusLabel": "Status",
+    "countryLabel": "Land",
+    "createdLabel": "Oprettet",
+    "cvrLabel": "CVR-nummer",
+    "emailLabel": "Email",
+    "inviteCodeLabel": "Invitationskode",
+    "inviteRegenerated": "Invitationskode fornyet",
+    "loadError": "Kunne ikke hente indstillinger",
+    "paymentStatusLabel": "Betalingsstatus",
+    "phoneLabel": "Telefon",
+    "planLabel": "Plan",
+    "regenerate": "Forny",
+    "statusActive": "Aktiv",
+    "statusInactive": "Inaktiv",
+    "userLimitLabel": "Brugergrænse"
   },
   "admin": {
     "title": "Admin overblik",
@@ -175,7 +218,9 @@
       "companies": "Virksomheder",
       "users": "Brugere",
       "verifiedUsers": "Bekræftede brugere",
-      "admins": "Admins"
+      "admins": "Admins",
+      "active": "Aktive",
+      "inactive": "Inaktive"
     },
     "tables": {
       "companiesTitle": "Virksomheder",
@@ -197,7 +242,16 @@
     "emptyCompanies": "Ingen virksomheder endnu",
     "emptyUsers": "Ingen brugere endnu",
     "verifiedYes": "Ja",
-    "verifiedNo": "Nej"
+    "verifiedNo": "Nej",
+    "activate": "Aktivér",
+    "deactivate": "Deaktivér",
+    "companyActivated": "Virksomhed aktiveret",
+    "companyDeactivated": "Virksomhed deaktiveret",
+    "noCompanies": "Ingen virksomheder fundet",
+    "noUsersInCompany": "Ingen brugere i denne virksomhed",
+    "paymentStatus": "Betalingsstatus",
+    "plan": "Plan",
+    "selectCompany": "Vælg en virksomhed for at se dens brugere"
   },
   "onboarding": {
     "title": "Gør dit workspace klar",

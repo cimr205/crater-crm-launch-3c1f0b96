@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus, CreditCard, TrendingUp, CheckCircle } from 'lucide-react';
+import { Plus, CreditCard, TrendingUp, CheckCircle, Info } from 'lucide-react';
 
 const PAYMENT_METHODS = [
   { value: 'bank_transfer', label: 'Bankoverførsel' },
@@ -68,42 +68,69 @@ function RegisterPaymentDialog({ open, onClose, invoices, onCreated }: {
       <DialogContent className="max-w-md">
         <DialogHeader><DialogTitle>Registrer betaling</DialogTitle></DialogHeader>
         <div className="space-y-4 py-2">
-          <div>
-            <label className="text-xs text-muted-foreground">Tilknyt faktura (valgfri)</label>
-            <Select value={invoiceId} onValueChange={setInvoiceId}>
-              <SelectTrigger><SelectValue placeholder="Vælg faktura..." /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">Ingen faktura</SelectItem>
-                {unpaidInvoices.map(inv => (
-                  <SelectItem key={inv.id} value={inv.id}>
-                    {inv.invoice_number} — {inv.customer_name} ({fmt(inv.total)} {inv.currency})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+
+          {/* Info callout */}
+          <div className="flex items-start gap-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 px-3 py-2.5 text-sm text-blue-800 dark:text-blue-300">
+            <Info className="h-4 w-4 mt-0.5 shrink-0" />
+            <span>Du kan registrere en betaling <strong>med eller uden</strong> tilknyttet faktura. Kun beløb er påkrævet.</span>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="text-xs text-muted-foreground">Beløb</label><Input type="number" min="0.01" step="0.01" placeholder="0,00" value={amount} onChange={e => setAmount(e.target.value)} /></div>
+
+          {/* Required: amount + currency + date */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Påkrævet</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs text-muted-foreground">Beløb <span className="text-destructive">*</span></label>
+                <Input type="number" min="0.01" step="0.01" placeholder="0,00" value={amount} onChange={e => setAmount(e.target.value)} className={!amount ? 'border-dashed' : ''} />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Valuta</label>
+                <Select value={currency} onValueChange={setCurrency}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{['DKK','EUR','USD','GBP'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div><label className="text-xs text-muted-foreground">Betalingsdato</label><Input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} /></div>
             <div>
-              <label className="text-xs text-muted-foreground">Valuta</label>
-              <Select value={currency} onValueChange={setCurrency}>
+              <label className="text-xs text-muted-foreground">Betalingsmetode</label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{['DKK','EUR','USD','GBP'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
+                <SelectContent>{PAYMENT_METHODS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
               </Select>
             </div>
           </div>
-          <div><label className="text-xs text-muted-foreground">Betalingsdato</label><Input type="date" value={paymentDate} onChange={e => setPaymentDate(e.target.value)} /></div>
-          <div>
-            <label className="text-xs text-muted-foreground">Betalingsmetode</label>
-            <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{PAYMENT_METHODS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+
+          {/* Optional: invoice link */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Valgfri — tilknyt faktura</p>
+            <Select value={invoiceId} onValueChange={setInvoiceId}>
+              <SelectTrigger><SelectValue placeholder="Ingen faktura tilknyttet" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Ingen faktura</SelectItem>
+                {unpaidInvoices.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-muted-foreground italic">
+                    Ingen åbne fakturaer — opret en faktura under Fakturaer
+                  </div>
+                ) : (
+                  unpaidInvoices.map(inv => (
+                    <SelectItem key={inv.id} value={inv.id}>
+                      {inv.invoice_number} — {inv.customer_name} ({fmt(inv.total)} {inv.currency})
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
             </Select>
+            {unpaidInvoices.length === 0 && (
+              <p className="text-xs text-muted-foreground">Ingen åbne fakturaer tilgængelige. Du kan stadig registrere betalingen frit.</p>
+            )}
           </div>
+
           <Input placeholder="Note (valgfri)" value={notes} onChange={e => setNotes(e.target.value)} />
+
           <div className="flex gap-3 justify-end pt-1">
             <Button variant="outline" onClick={onClose} disabled={loading}>Annuller</Button>
-            <Button onClick={handleSubmit} disabled={loading}>{loading ? 'Gemmer...' : 'Registrer betaling'}</Button>
+            <Button onClick={handleSubmit} disabled={loading || !amount}>{loading ? 'Gemmer...' : 'Registrer betaling'}</Button>
           </div>
         </div>
       </DialogContent>

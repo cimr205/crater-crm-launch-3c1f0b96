@@ -73,6 +73,8 @@
     "todos": "To-dos",
     "inbox": "Posteingang",
     "emails": "E-Mails",
+    "emailCampaigns": "E-Mail-Kampagnen",
+    "metaAds": "Meta Ads",
     "adminUsers": "Benutzer",
     "adminCompany": "Unternehmen",
     "adminEmployees": "Mitarbeiter",
@@ -107,13 +109,37 @@
     "pipelineNew": "Neu",
     "pipelineContacted": "Kontaktiert",
     "pipelineProposal": "Angebot",
-    "pipelineNegotiation": "Verhandlung"
+    "pipelineNegotiation": "Verhandlung",
+    "actions": "Aktionen",
+    "addLead": "Lead hinzufügen",
+    "allSources": "Alle Quellen",
+    "allStatuses": "Alle Status",
+    "cancel": "Abbrechen",
+    "company": "Unternehmen",
+    "edit": "Bearbeiten",
+    "email": "E-Mail",
+    "markContacted": "Als kontaktiert markieren",
+    "name": "Name",
+    "namePhoneRequired": "Name und Telefon sind erforderlich",
+    "notes": "Notizen",
+    "phone": "Telefon",
+    "refresh": "Aktualisieren",
+    "save": "Speichern",
+    "saveLead": "Lead speichern",
+    "search": "Suche",
+    "source": "Quelle",
+    "updateLead": "Lead aktualisieren"
   },
   "hr": {
     "employeesTitle": "Mitarbeiter",
     "empty": "Noch keine Mitarbeiter",
     "role": "Rolle",
-    "status": "Status"
+    "status": "Status",
+    "active": "Aktiv",
+    "created": "Erstellt",
+    "email": "E-Mail",
+    "name": "Name",
+    "refresh": "Aktualisieren"
   },
   "aiInbox": {
     "title": "AI Inbox",
@@ -162,7 +188,24 @@
     "aiInputs": "Eingaben",
     "aiOutputs": "Ausgaben",
     "aiSave": "AI-Einstellungen speichern",
-    "aiSaved": "AI-Einstellungen gespeichert"
+    "aiSaved": "AI-Einstellungen gespeichert",
+    "addressLabel": "Adresse",
+    "companyNameLabel": "Unternehmensname",
+    "companyStatusLabel": "Status",
+    "countryLabel": "Land",
+    "createdLabel": "Erstellt",
+    "cvrLabel": "CVR-Nummer",
+    "emailLabel": "E-Mail",
+    "inviteCodeLabel": "Einladungscode",
+    "inviteRegenerated": "Einladungscode erneuert",
+    "loadError": "Einstellungen konnten nicht geladen werden",
+    "paymentStatusLabel": "Zahlungsstatus",
+    "phoneLabel": "Telefon",
+    "planLabel": "Plan",
+    "regenerate": "Erneuern",
+    "statusActive": "Aktiv",
+    "statusInactive": "Inaktiv",
+    "userLimitLabel": "Benutzerlimit"
   },
   "admin": {
     "title": "Admin-Übersicht",
@@ -175,7 +218,9 @@
       "companies": "Unternehmen",
       "users": "Benutzer",
       "verifiedUsers": "Verifizierte Benutzer",
-      "admins": "Admins"
+      "admins": "Admins",
+      "active": "Aktiv",
+      "inactive": "Inaktiv"
     },
     "tables": {
       "companiesTitle": "Unternehmen",
@@ -197,7 +242,16 @@
     "emptyCompanies": "Noch keine Unternehmen",
     "emptyUsers": "Noch keine Benutzer",
     "verifiedYes": "Ja",
-    "verifiedNo": "Nein"
+    "verifiedNo": "Nein",
+    "activate": "Aktivieren",
+    "deactivate": "Deaktivieren",
+    "companyActivated": "Unternehmen aktiviert",
+    "companyDeactivated": "Unternehmen deaktiviert",
+    "noCompanies": "Keine Unternehmen gefunden",
+    "noUsersInCompany": "Keine Benutzer in diesem Unternehmen",
+    "paymentStatus": "Zahlungsstatus",
+    "plan": "Plan",
+    "selectCompany": "Unternehmen auswählen, um Benutzer zu sehen"
   },
   "onboarding": {
     "title": "Workspace vorbereiten",
