@@ -11,6 +11,8 @@ import SignupPage from "@/pages/auth/Signup";
 import RegisterCompanyPage from "@/pages/auth/RegisterCompany";
 import JoinCompanyPage from "@/pages/auth/JoinCompany";
 import OAuthCallbackPage from "@/pages/auth/OAuthCallback";
+import ForgotPasswordPage from "@/pages/auth/ForgotPassword";
+import ResetPasswordPage from "@/pages/auth/ResetPassword";
 import DashboardPage from "@/pages/app/Dashboard";
 import LeadsPage from "@/pages/app/crm/Leads";
 import DealsPage from "@/pages/app/crm/Deals";
@@ -89,6 +91,8 @@ const App = () => (
                 <Route path="auth/register-company" element={<RegisterCompanyPage />} />
                 <Route path="auth/join-company" element={<JoinCompanyPage />} />
                 <Route path="auth/callback" element={<OAuthCallbackPage />} />
+                <Route path="auth/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="auth/reset-password" element={<ResetPasswordPage />} />
                 <Route
                   path="app"
                   element={

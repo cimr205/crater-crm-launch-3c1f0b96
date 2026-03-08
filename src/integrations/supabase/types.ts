@@ -72,6 +72,26 @@ export type Database = {
         };
         Update: Partial<Database['public']['Tables']['leads']['Insert']>;
       };
+      deals: {
+        Row: {
+          id: string;
+          company_id: string;
+          title: string;
+          value: number;
+          stage_id: string;
+          stage_entered_at: string;
+          lead_id: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+          created_by: string | null;
+        };
+        Insert: Omit<Database['public']['Tables']['deals']['Row'], 'id' | 'created_at' | 'updated_at' | 'stage_entered_at'> & {
+          id?: string;
+          stage_entered_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['deals']['Insert']>;
+      };
       invitations: {
         Row: {
           id: string;

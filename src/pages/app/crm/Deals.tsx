@@ -1,24 +1,26 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import KanbanPipeline, { type KanbanColumn } from '@/components/KanbanPipeline';
 import { useI18n } from '@/lib/i18n';
-import { api } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Plus, X } from 'lucide-react';
+import { Card } from '@/components/ui/card';
 
-type Lead = {
+type Deal = {
   id: string;
-  name: string;
-  company?: string;
-  email?: string;
-  status: string;
-  leadScore: number;
-  source?: string;
+  title: string;
+  value: number;
+  stage_id: string;
+  notes: string | null;
+  created_at: string;
 };
 
 const STAGES = [
   {
-    statusKey: 'cold',
+    statusKey: 'new_lead',
+    label: 'Nyt lead',
     color: 'bg-blue-500',
     lightColor: 'bg-blue-50 dark:bg-blue-950/30',
     textColor: 'text-blue-700 dark:text-blue-300',
@@ -27,6 +29,7 @@ const STAGES = [
   },
   {
     statusKey: 'contacted',
+    label: 'Kontaktet',
     color: 'bg-amber-500',
     lightColor: 'bg-amber-50 dark:bg-amber-950/30',
     textColor: 'text-amber-700 dark:text-amber-300',
@@ -34,81 +37,119 @@ const STAGES = [
     borderDash: 'border-amber-400/40',
   },
   {
-    statusKey: 'qualified',
+    statusKey: 'meeting_booked',
+    label: 'Møde booket',
+    color: 'bg-orange-500',
+    lightColor: 'bg-orange-50 dark:bg-orange-950/30',
+    textColor: 'text-orange-700 dark:text-orange-300',
+    ringColor: 'ring-orange-400/50',
+    borderDash: 'border-orange-400/40',
+  },
+  {
+    statusKey: 'proposal_sent',
+    label: 'Tilbud sendt',
+    color: 'bg-violet-500',
+    lightColor: 'bg-violet-50 dark:bg-violet-950/30',
+    textColor: 'text-violet-700 dark:text-violet-300',
+    ringColor: 'ring-violet-400/50',
+    borderDash: 'border-violet-400/40',
+  },
+  {
+    statusKey: 'negotiation',
+    label: 'Forhandling',
     color: 'bg-green-500',
     lightColor: 'bg-green-50 dark:bg-green-950/30',
     textColor: 'text-green-700 dark:text-green-300',
     ringColor: 'ring-green-400/50',
     borderDash: 'border-green-400/40',
   },
-  {
-    statusKey: 'customer',
-    color: 'bg-purple-500',
-    lightColor: 'bg-purple-50 dark:bg-purple-950/30',
-    textColor: 'text-purple-700 dark:text-purple-300',
-    ringColor: 'ring-purple-400/50',
-    borderDash: 'border-purple-400/40',
-  },
 ] as const;
 
 export default function DealsPage() {
   const { t } = useI18n();
   const { toast } = useToast();
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newValue, setNewValue] = useState('');
+  const [newStage, setNewStage] = useState<string>('new_lead');
+  const [saving, setSaving] = useState(false);
 
-  const loadLeads = useCallback(async () => {
+  const loadDeals = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await api.listLeads();
-      setLeads(result.data as Lead[]);
+      const { data, error } = await supabase
+        .from('deals')
+        .select('id, title, value, stage_id, notes, created_at')
+        .not('stage_id', 'in', '(won,lost)')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setDeals(data ?? []);
     } catch (err) {
-      toast({ title: err instanceof Error ? err.message : 'Kunne ikke hente pipeline', variant: 'destructive' });
+      toast({
+        title: err instanceof Error ? err.message : 'Kunne ikke hente deals',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   }, [toast]);
 
-  useEffect(() => { void loadLeads(); }, [loadLeads]);
+  useEffect(() => { void loadDeals(); }, [loadDeals]);
 
-  const handleMove = async (itemId: string, fromStatus: string, toStatus: string) => {
-    // Optimistic: update locally immediately
-    setLeads(prev => prev.map(l => l.id === itemId ? { ...l, status: toStatus } : l));
-    try {
-      await api.updateLead(itemId, { status: toStatus });
-    } catch (err) {
-      // Revert on failure
-      setLeads(prev => prev.map(l => l.id === itemId ? { ...l, status: fromStatus } : l));
-      toast({ title: err instanceof Error ? err.message : 'Kunne ikke flytte lead', variant: 'destructive' });
+  const handleMove = async (itemId: string, fromStage: string, toStage: string) => {
+    setDeals(prev => prev.map(d => d.id === itemId ? { ...d, stage_id: toStage } : d));
+    const { error } = await supabase
+      .from('deals')
+      .update({ stage_id: toStage, stage_entered_at: new Date().toISOString() })
+      .eq('id', itemId);
+
+    if (error) {
+      setDeals(prev => prev.map(d => d.id === itemId ? { ...d, stage_id: fromStage } : d));
+      toast({ title: 'Kunne ikke flytte deal', variant: 'destructive' });
     }
   };
 
-  const stageTitles = [
-    t('crm.pipelineNew'),
-    t('crm.pipelineContacted'),
-    t('crm.pipelineProposal'),
-    t('crm.pipelineNegotiation'),
-  ];
+  const handleCreate = async () => {
+    if (!newTitle.trim()) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('deals').insert({
+        title: newTitle.trim(),
+        value: parseFloat(newValue) || 0,
+        stage_id: newStage,
+      });
+      if (error) throw error;
+      toast({ title: 'Deal oprettet' });
+      setShowCreate(false);
+      setNewTitle('');
+      setNewValue('');
+      setNewStage('new_lead');
+      await loadDeals();
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Kunne ikke oprette deal', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
 
-  const pipelineLeads = leads.filter(l => l.status !== 'lost');
-  const pipelineValue = pipelineLeads.reduce((s, l) => s + l.leadScore * 1000, 0);
+  const totalValue = deals.reduce((s, d) => s + (d.value ?? 0), 0);
 
   const columns: KanbanColumn[] = useMemo(() => {
-    return STAGES.map((stage, i) => ({
+    return STAGES.map(stage => ({
       ...stage,
-      title: stageTitles[i],
-      items: leads
-        .filter(l => l.status === stage.statusKey)
-        .map(l => ({
-          id: l.id,
-          title: l.name,
-          subtitle: l.company || l.email,
-          score: l.leadScore,
-          tag: l.source || undefined,
+      title: stage.label,
+      items: deals
+        .filter(d => d.stage_id === stage.statusKey)
+        .map(d => ({
+          id: d.id,
+          title: d.title,
+          subtitle: d.value > 0 ? `${d.value.toLocaleString('da-DK')} kr` : undefined,
         })),
     }));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leads]);
+  }, [deals]);
 
   return (
     <div className="space-y-6">
@@ -116,21 +157,76 @@ export default function DealsPage() {
         <div>
           <h1 className="text-2xl font-semibold">{t('crm.dealsTitle')}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            {pipelineLeads.length} aktive leads ·{' '}
+            {deals.length} aktive deals ·{' '}
             <span className="font-medium text-foreground">
-              {pipelineValue.toLocaleString('da-DK')} kr
+              {totalValue.toLocaleString('da-DK')} kr
             </span>{' '}
             estimeret pipeline
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => void loadLeads()} disabled={loading} className="gap-2 shrink-0">
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-          {t('crm.refresh')}
-        </Button>
+        <div className="flex gap-2 shrink-0">
+          <Button variant="outline" size="sm" onClick={() => setShowCreate(true)} className="gap-1.5">
+            <Plus className="h-3.5 w-3.5" />
+            Ny deal
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => void loadDeals()} disabled={loading} className="gap-1.5">
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            {t('crm.refresh')}
+          </Button>
+        </div>
       </div>
 
+      {showCreate && (
+        <Card className="p-5 bg-card/70 border-border space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-semibold">Opret ny deal</div>
+            <button onClick={() => setShowCreate(false)} className="text-muted-foreground hover:text-foreground">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="sm:col-span-1">
+              <div className="text-xs text-muted-foreground mb-1">Titel *</div>
+              <Input
+                placeholder="f.eks. Nyt website til Acme"
+                value={newTitle}
+                onChange={e => setNewTitle(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Værdi (kr)</div>
+              <Input
+                type="number"
+                placeholder="0"
+                value={newValue}
+                onChange={e => setNewValue(e.target.value)}
+              />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">Stage</div>
+              <select
+                className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                value={newStage}
+                onChange={e => setNewStage(e.target.value)}
+              >
+                {STAGES.map(s => (
+                  <option key={s.statusKey} value={s.statusKey}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={handleCreate} disabled={saving || !newTitle.trim()}>
+              {saving ? 'Opretter…' : 'Opret deal'}
+            </Button>
+            <Button variant="ghost" onClick={() => setShowCreate(false)}>Annuller</Button>
+          </div>
+        </Card>
+      )}
+
       <div className="text-xs text-muted-foreground flex items-center gap-1.5 -mb-2">
-        <span>Træk et lead til en anden kolonne for at ændre status</span>
+        <span>Træk et deal til en anden kolonne for at ændre stage</span>
       </div>
 
       <KanbanPipeline columns={columns} onMove={handleMove} />
