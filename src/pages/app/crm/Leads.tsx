@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
+import { ToastAction } from '@/components/ui/toast';
 import CvrSearchInput, { type CvrData } from '@/components/CvrSearchInput';
 
 type LeadRow = {
@@ -74,6 +75,8 @@ export default function LeadsPage() {
 
   const saveEdit = async (leadId: string) => {
     setLoading(true);
+    const lead = leads.find((l) => l.id === leadId);
+    const prevStatus = lead?.status;
     try {
       await api.updateLead(leadId, {
         status: editingStatus,
@@ -82,7 +85,31 @@ export default function LeadsPage() {
       });
       await loadLeads();
       setEditingId(null);
-      toast({ title: 'Lead updated' });
+
+      // Cross-module: suggest task when lead becomes 'qualified'
+      if (prevStatus !== editingStatus && editingStatus === 'qualified' && lead) {
+        toast({
+          title: `${lead.name} er nu kvalificeret`,
+          description: 'Klar til tilbud — opret en salgstask?',
+          action: (
+            <ToastAction
+              altText="Opret salgstask"
+              onClick={() => {
+                void api.createTask({
+                  title: `Send tilbud til ${lead.name}`,
+                  priority: 'high',
+                  deadline: new Date(Date.now() + 3 * 86_400_000).toISOString().slice(0, 10),
+                }).then(() => toast({ title: 'Salgstask oprettet' }))
+                  .catch(() => undefined);
+              }}
+            >
+              Opret task
+            </ToastAction>
+          ),
+        });
+      } else {
+        toast({ title: 'Lead opdateret' });
+      }
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : 'Could not update lead', variant: 'destructive' });
     } finally {
@@ -101,6 +128,7 @@ export default function LeadsPage() {
         company: newLeadCompany.trim() || undefined,
         status: newLeadStatus,
       });
+      const createdName = newLeadName.trim();
       setNewLeadName('');
       setNewLeadPhone('');
       setNewLeadEmail('');
@@ -108,7 +136,25 @@ export default function LeadsPage() {
       setNewLeadStatus('cold');
       setCvrSearch('');
       await loadLeads();
-      toast({ title: 'Lead created' });
+      // Cross-module hint: offer quick follow-up task
+      toast({
+        title: `Lead "${createdName}" oprettet`,
+        description: 'Vil du oprette en opfølgningsopgave?',
+        action: (
+          <ToastAction
+            altText="Opret opgave"
+            onClick={() => {
+              void api.createTodo({
+                title: `Følg op på lead: ${createdName}`,
+                dueDate: new Date(Date.now() + 86_400_000).toISOString().slice(0, 10),
+              }).then(() => toast({ title: 'Opfølgningsopgave oprettet' }))
+                .catch(() => undefined);
+            }}
+          >
+            Opret opgave
+          </ToastAction>
+        ),
+      });
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : 'Could not create lead', variant: 'destructive' });
     } finally {

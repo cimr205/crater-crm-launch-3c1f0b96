@@ -765,7 +765,8 @@ class ApiClient {
 
   async createWorkflow(input: {
     name: string;
-    triggerType: 'new_lead_created' | 'integration_connected' | 'manual_trigger';
+    triggerType: WorkflowTrigger;
+    triggerConfig?: Record<string, unknown>;
     steps: Array<{ type: 'condition' | 'action' | 'delay'; config: Record<string, unknown>; stepOrder: number }>;
   }) {
     return this.request<{ data: Record<string, unknown> }>('/workflows', {
@@ -773,6 +774,7 @@ class ApiClient {
       body: {
         name: input.name,
         trigger_type: input.triggerType,
+        trigger_config: input.triggerConfig,
         steps: input.steps.map((step) => ({
           type: step.type,
           config: step.config,
@@ -1209,6 +1211,91 @@ class ApiClient {
     });
   }
 
+  // ── Bulk email outreach ────────────────────────────────────────────────────
+  // Sender personlige outreach-emails i bulk (op til 700+/dag).
+  // Backend throttler afsendelsen (fx 30/time) for at undgå spam-filtre.
+  // Skabelon-variabler: {{first_name}}, {{last_name}}, {{company}},
+  // {{initials}}, {{email}}, og alle andre kolonner fra CSV-filen.
+
+  async submitBulkEmailJob(input: {
+    jobName: string;
+    subjectTemplate: string;
+    bodyTemplate: string;
+    replyTo?: string;
+    fromName?: string;
+    recipients: Array<Record<string, string>>;  // parsed CSV rows
+    dailyLimit: number;                          // max per dag
+    sendIntervalSeconds: number;                 // sekunder mellem emails
+    scheduledAt?: string;                        // ISO — eller straks
+    trackOpens: boolean;
+    trackClicks: boolean;
+  }) {
+    return this.request<{ job_id: string; queued: number; estimated_minutes: number }>(
+      '/v1/bulk-email/jobs',
+      {
+        method: 'POST',
+        body: {
+          job_name: input.jobName,
+          subject_template: input.subjectTemplate,
+          body_template: input.bodyTemplate,
+          reply_to: input.replyTo,
+          from_name: input.fromName,
+          recipients: input.recipients,
+          daily_limit: input.dailyLimit,
+          send_interval_seconds: input.sendIntervalSeconds,
+          scheduled_at: input.scheduledAt,
+          track_opens: input.trackOpens,
+          track_clicks: input.trackClicks,
+        },
+      }
+    );
+  }
+
+  async getBulkEmailJob(jobId: string) {
+    return this.request<{
+      job_id: string;
+      job_name: string;
+      status: 'pending' | 'sending' | 'paused' | 'completed' | 'failed';
+      total: number;
+      sent: number;
+      failed: number;
+      opens: number;
+      clicks: number;
+      started_at?: string;
+      completed_at?: string;
+      error?: string;
+    }>(`/v1/bulk-email/jobs/${jobId}`);
+  }
+
+  async listBulkEmailJobs() {
+    return this.request<{
+      data: Array<{
+        job_id: string;
+        job_name: string;
+        status: 'pending' | 'sending' | 'paused' | 'completed' | 'failed';
+        total: number;
+        sent: number;
+        failed: number;
+        opens: number;
+        clicks: number;
+        created_at: string;
+        completed_at?: string;
+      }>;
+    }>('/v1/bulk-email/jobs');
+  }
+
+  async pauseBulkEmailJob(jobId: string) {
+    return this.request<{ status: string }>(`/v1/bulk-email/jobs/${jobId}/pause`, { method: 'POST' });
+  }
+
+  async resumeBulkEmailJob(jobId: string) {
+    return this.request<{ status: string }>(`/v1/bulk-email/jobs/${jobId}/resume`, { method: 'POST' });
+  }
+
+  async cancelBulkEmailJob(jobId: string) {
+    return this.request<{ status: string }>(`/v1/bulk-email/jobs/${jobId}/cancel`, { method: 'POST' });
+  }
+
   async sendEmailCampaign(campaignId: string) {
     return this.request<{ queued: number }>(`/v1/campaigns/${campaignId}/send`, { method: 'POST' });
   }
@@ -1250,6 +1337,176 @@ class ApiClient {
         headline: input.headline,
         call_to_action: input.callToAction,
       },
+    });
+  }
+
+  // ── Video ad creative job system ────────────────────────────────────────────
+  // The browser CANNOT run GPU inference directly — CUDA, PyTorch and heavy ML
+  // models like InfiniteTalk / MuseTalk require a server-side GPU worker.
+  // These methods submit jobs to the Railway backend which queues them for an
+  // external GPU worker process (RunPod, Modal, or self-hosted). The frontend
+  // polls getVideoJobStatus() until status === 'completed'.
+
+  async submitVideoJob(input: {
+    provider: 'infinitetalk' | 'musetalk' | 'skyreels' | 'realvideo';
+    script: string;
+    avatarUrl?: string;
+    audioUrl?: string;
+    ttsText?: string;
+    durationSeconds: number;
+    language: string;
+    hookVariants?: string[];
+    campaignId?: string;
+    adSetId?: string;
+    variantLabel?: string;
+  }) {
+    return this.request<{ job_id: string; status: string; estimated_seconds: number }>(
+      '/meta/video-jobs',
+      {
+        method: 'POST',
+        body: {
+          provider: input.provider,
+          script: input.script,
+          avatar_url: input.avatarUrl,
+          audio_url: input.audioUrl,
+          tts_text: input.ttsText,
+          duration_seconds: input.durationSeconds,
+          language: input.language,
+          hook_variants: input.hookVariants,
+          campaign_id: input.campaignId,
+          ad_set_id: input.adSetId,
+          variant_label: input.variantLabel,
+        },
+      }
+    );
+  }
+
+  async getVideoJobStatus(jobId: string) {
+    return this.request<{
+      job_id: string;
+      status: 'queued' | 'processing' | 'completed' | 'failed';
+      progress?: number;
+      video_url?: string;
+      thumbnail_url?: string;
+      error?: string;
+      provider: string;
+      created_at: string;
+      completed_at?: string;
+    }>(`/meta/video-jobs/${jobId}`);
+  }
+
+  async listVideoJobs(campaignId?: string) {
+    const q = campaignId ? `?campaign_id=${campaignId}` : '';
+    return this.request<{
+      data: Array<{
+        job_id: string;
+        status: 'queued' | 'processing' | 'completed' | 'failed';
+        video_url?: string;
+        thumbnail_url?: string;
+        provider: string;
+        script: string;
+        variant_label?: string;
+        created_at: string;
+        hook_variants?: string[];
+      }>;
+    }>(`/meta/video-jobs${q}`);
+  }
+
+  async saveVideoAsAdCreative(jobId: string, input: {
+    name: string;
+    campaignId: string;
+    adSetId?: string;
+    variantLabel?: string;
+  }) {
+    return this.request<{ creative_id: string; status: string }>(
+      `/meta/video-jobs/${jobId}/save-creative`,
+      {
+        method: 'POST',
+        body: {
+          name: input.name,
+          campaign_id: input.campaignId,
+          ad_set_id: input.adSetId,
+          variant_label: input.variantLabel,
+        },
+      }
+    );
+  }
+
+  async uploadVideoJobAsset(file: File, type: 'avatar' | 'audio' | 'video') {
+    const token = this.getToken();
+    const form = new FormData();
+    form.append('file', file);
+    form.append('asset_type', type);
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${API_BASE_URL}/meta/video-assets/upload`, { method: 'POST', headers, body: form });
+    if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`);
+    return res.json() as Promise<{ url: string; asset_id: string }>;
+  }
+
+  // ── Meta Ads — Mediebibliotek ─────────────────────────────────────────────────
+  // Upload og administrer billeder + videoer til Meta-annoncer.
+  // Filer sendes direkte til Meta Marketing API via backend proxy.
+
+  async uploadMetaMedia(file: File, campaignId?: string) {
+    const token = this.getToken();
+    const form = new FormData();
+    form.append('file', file);
+    form.append('media_type', file.type.startsWith('video/') ? 'video' : 'image');
+    if (campaignId) form.append('campaign_id', campaignId);
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (this.tenantId) headers['X-Tenant-ID'] = this.tenantId;
+    const res = await fetch(`${API_BASE_URL}/meta/media/upload`, { method: 'POST', headers, body: form });
+    if (!res.ok) throw new Error(`Upload fejlede: ${res.statusText}`);
+    return res.json() as Promise<{
+      media_id: string;
+      url: string;
+      thumbnail_url?: string;
+      media_type: 'image' | 'video';
+      filename: string;
+      size_bytes: number;
+      width?: number;
+      height?: number;
+      duration_seconds?: number;
+      created_at: string;
+      meta_hash?: string;   // Meta image hash til ad creative
+      meta_video_id?: string;
+    }>;
+  }
+
+  async listMetaMedia(filter?: { media_type?: 'image' | 'video'; campaign_id?: string }) {
+    const params = new URLSearchParams();
+    if (filter?.media_type) params.set('media_type', filter.media_type);
+    if (filter?.campaign_id) params.set('campaign_id', filter.campaign_id);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.request<{
+      data: Array<{
+        media_id: string;
+        url: string;
+        thumbnail_url?: string;
+        media_type: 'image' | 'video';
+        filename: string;
+        size_bytes: number;
+        width?: number;
+        height?: number;
+        duration_seconds?: number;
+        created_at: string;
+        campaigns_used: string[];
+        meta_hash?: string;
+        meta_video_id?: string;
+      }>;
+    }>(`/meta/media${qs}`);
+  }
+
+  async deleteMetaMedia(mediaId: string) {
+    return this.request<{ deleted: boolean }>(`/meta/media/${mediaId}`, { method: 'DELETE' });
+  }
+
+  async attachMetaMediaToAdSet(mediaId: string, adSetId: string) {
+    return this.request<{ success: boolean }>(`/meta/media/${mediaId}/attach`, {
+      method: 'POST',
+      body: { ad_set_id: adSetId },
     });
   }
 
@@ -1615,6 +1872,29 @@ export interface Todo {
   assignedTo?: string;
   createdAt: string;
 }
+
+// ── Workflow types ─────────────────────────────────────────────────────────────
+
+export type WorkflowTrigger =
+  | 'new_lead_created'
+  | 'lead_status_changed'
+  | 'lead_score_changed'
+  | 'new_employee_created'
+  | 'invoice_overdue'
+  | 'invoice_paid'
+  | 'task_completed'
+  | 'campaign_sent'
+  | 'integration_connected'
+  | 'manual_trigger';
+
+export type WorkflowAction =
+  | 'create_task'
+  | 'send_email'
+  | 'send_notification'
+  | 'update_lead_status'
+  | 'send_webhook'
+  | 'generate_ai_content'
+  | 'send_invitation_email';
 
 // ── AI Generation types ────────────────────────────────────────────────────────
 
