@@ -1444,6 +1444,72 @@ class ApiClient {
     return res.json() as Promise<{ url: string; asset_id: string }>;
   }
 
+  // ── Meta Ads — Mediebibliotek ─────────────────────────────────────────────────
+  // Upload og administrer billeder + videoer til Meta-annoncer.
+  // Filer sendes direkte til Meta Marketing API via backend proxy.
+
+  async uploadMetaMedia(file: File, campaignId?: string) {
+    const token = this.getToken();
+    const form = new FormData();
+    form.append('file', file);
+    form.append('media_type', file.type.startsWith('video/') ? 'video' : 'image');
+    if (campaignId) form.append('campaign_id', campaignId);
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (this.tenantId) headers['X-Tenant-ID'] = this.tenantId;
+    const res = await fetch(`${API_BASE_URL}/meta/media/upload`, { method: 'POST', headers, body: form });
+    if (!res.ok) throw new Error(`Upload fejlede: ${res.statusText}`);
+    return res.json() as Promise<{
+      media_id: string;
+      url: string;
+      thumbnail_url?: string;
+      media_type: 'image' | 'video';
+      filename: string;
+      size_bytes: number;
+      width?: number;
+      height?: number;
+      duration_seconds?: number;
+      created_at: string;
+      meta_hash?: string;   // Meta image hash til ad creative
+      meta_video_id?: string;
+    }>;
+  }
+
+  async listMetaMedia(filter?: { media_type?: 'image' | 'video'; campaign_id?: string }) {
+    const params = new URLSearchParams();
+    if (filter?.media_type) params.set('media_type', filter.media_type);
+    if (filter?.campaign_id) params.set('campaign_id', filter.campaign_id);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.request<{
+      data: Array<{
+        media_id: string;
+        url: string;
+        thumbnail_url?: string;
+        media_type: 'image' | 'video';
+        filename: string;
+        size_bytes: number;
+        width?: number;
+        height?: number;
+        duration_seconds?: number;
+        created_at: string;
+        campaigns_used: string[];
+        meta_hash?: string;
+        meta_video_id?: string;
+      }>;
+    }>(`/meta/media${qs}`);
+  }
+
+  async deleteMetaMedia(mediaId: string) {
+    return this.request<{ deleted: boolean }>(`/meta/media/${mediaId}`, { method: 'DELETE' });
+  }
+
+  async attachMetaMediaToAdSet(mediaId: string, adSetId: string) {
+    return this.request<{ success: boolean }>(`/meta/media/${mediaId}/attach`, {
+      method: 'POST',
+      body: { ad_set_id: adSetId },
+    });
+  }
+
   async downloadAdminCompaniesHistoryCsv(month?: string) {
     const token = this.getToken();
     const query = month ? `?month=${month}` : '';

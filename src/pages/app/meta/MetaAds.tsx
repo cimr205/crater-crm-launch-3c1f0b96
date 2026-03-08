@@ -14,6 +14,7 @@ import {
   DollarSign, MousePointer, Target, Zap, ArrowUpRight, ArrowDownRight,
   Video, Upload, Mic, Image, Clock, Play, Loader2, CheckCircle2,
   XCircle, Layers, ChevronDown, ChevronUp, Globe, Wand2,
+  Film, Trash2, Copy, Download, FolderOpen, ImageIcon,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1469,6 +1470,378 @@ function VideoAdCreatorTab({ campaigns }: { campaigns: Campaign[] }) {
   );
 }
 
+// ─── Media Library tab ────────────────────────────────────────────────────────
+
+type MetaMedia = {
+  media_id: string;
+  url: string;
+  thumbnail_url?: string;
+  media_type: 'image' | 'video';
+  filename: string;
+  size_bytes: number;
+  width?: number;
+  height?: number;
+  duration_seconds?: number;
+  created_at: string;
+  campaigns_used: string[];
+  meta_hash?: string;
+  meta_video_id?: string;
+};
+
+function fmtBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function MediaCard({
+  media,
+  onCopyId,
+  onDelete,
+  deleting,
+}: {
+  media: MetaMedia;
+  onCopyId: (m: MetaMedia) => void;
+  onDelete: (id: string) => void;
+  deleting: boolean;
+}) {
+  const isVideo = media.media_type === 'video';
+  const thumb = media.thumbnail_url ?? media.url;
+
+  return (
+    <div className="group relative rounded-2xl border bg-card overflow-hidden hover:shadow-md transition-shadow">
+      {/* Thumbnail */}
+      <div className="relative aspect-video bg-muted overflow-hidden">
+        {isVideo ? (
+          <>
+            {thumb ? (
+              <img src={thumb} alt={media.filename} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <Film className="h-10 w-10 text-muted-foreground" />
+              </div>
+            )}
+            <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="h-10 w-10 rounded-full bg-white/90 flex items-center justify-center">
+                <Play className="h-4 w-4 text-black ml-0.5" />
+              </div>
+            </div>
+            <div className="absolute top-2 left-2">
+              <span className="text-xs bg-black/70 text-white rounded px-1.5 py-0.5 font-medium flex items-center gap-1">
+                <Film className="h-3 w-3" />
+                Video
+                {media.duration_seconds && ` · ${Math.round(media.duration_seconds)}s`}
+              </span>
+            </div>
+          </>
+        ) : (
+          <img src={media.url} alt={media.filename} className="w-full h-full object-cover" />
+        )}
+        {/* Hover actions */}
+        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <a
+            href={media.url}
+            download={media.filename}
+            target="_blank"
+            rel="noreferrer"
+            className="h-7 w-7 rounded-lg bg-white/90 flex items-center justify-center hover:bg-white shadow-sm"
+            title="Download"
+          >
+            <Download className="h-3.5 w-3.5 text-foreground" />
+          </a>
+          <button
+            className="h-7 w-7 rounded-lg bg-white/90 flex items-center justify-center hover:bg-red-50 shadow-sm"
+            onClick={() => onDelete(media.media_id)}
+            disabled={deleting}
+            title="Slet"
+          >
+            <Trash2 className="h-3.5 w-3.5 text-red-500" />
+          </button>
+        </div>
+      </div>
+
+      {/* Info */}
+      <div className="px-3 py-2.5 space-y-1.5">
+        <p className="text-xs font-medium truncate" title={media.filename}>{media.filename}</p>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+          <span>{fmtBytes(media.size_bytes)}</span>
+          {media.width && media.height && <span>{media.width}×{media.height}</span>}
+          {media.campaigns_used.length > 0 && (
+            <span className="text-primary">{media.campaigns_used.length} kampagne{media.campaigns_used.length > 1 ? 'r' : ''}</span>
+          )}
+        </div>
+        {/* Copy Meta ID */}
+        {(media.meta_hash || media.meta_video_id) && (
+          <button
+            className="w-full text-xs flex items-center gap-1.5 rounded-lg border border-dashed border-border px-2 py-1 hover:bg-muted transition-colors"
+            onClick={() => onCopyId(media)}
+          >
+            <Copy className="h-3 w-3 shrink-0" />
+            <span className="truncate font-mono">{media.meta_hash ?? media.meta_video_id}</span>
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MediaLibraryTab({ campaigns }: { campaigns: Campaign[] }) {
+  const { toast } = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [media, setMedia] = useState<MetaMedia[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ name: string; pct: number }[]>([]);
+  const [filter, setFilter] = useState<'all' | 'image' | 'video'>('all');
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  const loadMedia = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await api.listMetaMedia(filter !== 'all' ? { media_type: filter } : undefined);
+      setMedia(res.data as MetaMedia[]);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }, [filter]);
+
+  useEffect(() => { void loadMedia(); }, [loadMedia]);
+
+  const uploadFiles = async (files: File[]) => {
+    const allowed = files.filter((f) => f.type.startsWith('image/') || f.type.startsWith('video/'));
+    if (!allowed.length) {
+      toast({ title: 'Kun billeder og videoer understøttes', variant: 'destructive' });
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(allowed.map((f) => ({ name: f.name, pct: 0 })));
+
+    const results = await Promise.allSettled(
+      allowed.map(async (file, idx) => {
+        // Fake progress (real progress kræver XHR — se nedenfor)
+        const tick = setInterval(() => {
+          setUploadProgress((prev) =>
+            prev.map((p, i) => i === idx ? { ...p, pct: Math.min(p.pct + 15, 90) } : p)
+          );
+        }, 300);
+        try {
+          const result = await api.uploadMetaMedia(file);
+          clearInterval(tick);
+          setUploadProgress((prev) => prev.map((p, i) => i === idx ? { ...p, pct: 100 } : p));
+          return result;
+        } catch (err) {
+          clearInterval(tick);
+          throw err;
+        }
+      })
+    );
+
+    const succeeded = results.filter((r) => r.status === 'fulfilled').length;
+    const failed = results.filter((r) => r.status === 'rejected').length;
+
+    if (succeeded > 0) toast({ title: `${succeeded} fil${succeeded > 1 ? 'er' : ''} uploadet til Meta` });
+    if (failed > 0) toast({ title: `${failed} fil${failed > 1 ? 'er' : ''} fejlede`, variant: 'destructive' });
+
+    setUploading(false);
+    setUploadProgress([]);
+    await loadMedia();
+  };
+
+  const handleFiles = (files: FileList | null) => {
+    if (!files?.length) return;
+    void uploadFiles(Array.from(files));
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    void uploadFiles(Array.from(e.dataTransfer.files));
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeleting(id);
+    try {
+      await api.deleteMetaMedia(id);
+      setMedia((m) => m.filter((x) => x.media_id !== id));
+      toast({ title: 'Medie slettet' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Slet fejlede', variant: 'destructive' });
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const handleCopyId = (m: MetaMedia) => {
+    const val = m.meta_hash ?? m.meta_video_id ?? '';
+    void navigator.clipboard.writeText(val);
+    toast({ title: 'Meta ID kopieret', description: val });
+  };
+
+  const filtered = filter === 'all' ? media : media.filter((m) => m.media_type === filter);
+  const images = media.filter((m) => m.media_type === 'image');
+  const videos = media.filter((m) => m.media_type === 'video');
+
+  return (
+    <div className="space-y-5">
+      {/* Stats row */}
+      {media.length > 0 && (
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: 'I alt', value: media.length, icon: FolderOpen },
+            { label: 'Billeder', value: images.length, icon: ImageIcon },
+            { label: 'Videoer', value: videos.length, icon: Film },
+          ].map(({ label, value, icon: Icon }) => (
+            <div key={label} className="rounded-xl border bg-card px-4 py-3 flex items-center gap-3">
+              <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div>
+                <div className="text-lg font-bold">{value}</div>
+                <div className="text-xs text-muted-foreground">{label}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Upload zone */}
+      <div
+        className={`rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition-all ${
+          dragging
+            ? 'border-primary bg-primary/5 scale-[1.01]'
+            : 'border-border hover:border-primary/50 hover:bg-muted/20'
+        }`}
+        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={handleDrop}
+        onClick={() => fileRef.current?.click()}
+      >
+        <input
+          ref={fileRef}
+          type="file"
+          multiple
+          accept="image/*,video/*"
+          className="sr-only"
+          onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }}
+        />
+        {uploading ? (
+          <div className="space-y-3">
+            <Loader2 className="h-8 w-8 mx-auto animate-spin text-primary" />
+            <p className="text-sm font-semibold">Uploader til Meta…</p>
+            <div className="space-y-2 max-w-xs mx-auto">
+              {uploadProgress.map((p) => (
+                <div key={p.name} className="space-y-1">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span className="truncate max-w-[180px]">{p.name}</span>
+                    <span>{p.pct}%</span>
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all duration-300"
+                      style={{ width: `${p.pct}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <div className="flex justify-center gap-3">
+              <ImageIcon className="h-8 w-8 text-muted-foreground" />
+              <Film className="h-8 w-8 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-semibold">
+              {dragging ? 'Slip filerne her' : 'Træk billeder eller videoer hertil'}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Eller klik for at vælge · Understøtter JPG, PNG, GIF, MP4, MOV, m.fl. · Flere filer ad gangen
+            </p>
+            <div className="flex justify-center gap-3 pt-1">
+              <span className="text-xs bg-muted rounded-full px-2.5 py-1">JPG / PNG / WebP</span>
+              <span className="text-xs bg-muted rounded-full px-2.5 py-1">MP4 / MOV / AVI</span>
+              <span className="text-xs bg-muted rounded-full px-2.5 py-1">GIF</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Filter + refresh */}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex gap-1.5">
+          {(['all', 'image', 'video'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                filter === f
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'border-border hover:bg-muted'
+              }`}
+            >
+              {f === 'all' ? 'Alle' : f === 'image' ? `Billeder (${images.length})` : `Videoer (${videos.length})`}
+            </button>
+          ))}
+        </div>
+        <Button variant="outline" size="sm" onClick={() => void loadMedia()} disabled={loading}>
+          <RefreshCw className={`h-3.5 w-3.5 mr-1 ${loading ? 'animate-spin' : ''}`} />
+          Opdater
+        </Button>
+      </div>
+
+      {/* Gallery grid */}
+      {loading ? (
+        <div className="py-12 text-center">
+          <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="py-14 text-center space-y-3">
+          <div className="flex justify-center gap-3">
+            <ImageIcon className="h-8 w-8 text-muted-foreground" />
+            <Film className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {media.length === 0 ? 'Intet mediebibliotek endnu — upload din første fil ovenfor' : 'Ingen filer i dette filter'}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {filtered.map((m) => (
+            <MediaCard
+              key={m.media_id}
+              media={m}
+              onCopyId={handleCopyId}
+              onDelete={(id) => void handleDelete(id)}
+              deleting={deleting === m.media_id}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Meta format info */}
+      <details className="rounded-xl border border-border text-xs">
+        <summary className="px-4 py-2.5 cursor-pointer font-medium text-muted-foreground hover:text-foreground">
+          Meta Ads — anbefalede størrelser og formater
+        </summary>
+        <div className="px-4 pb-4 pt-2 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {[
+            { label: 'Feed-billede', val: '1080×1080 px (1:1) eller 1200×628 (1.91:1)' },
+            { label: 'Stories / Reels', val: '1080×1920 px (9:16)' },
+            { label: 'Feed-video', val: 'MP4/MOV, maks 4 GB, 1–240 sek' },
+            { label: 'Stories-video', val: '9:16, maks 60 sek' },
+            { label: 'Carousel-billede', val: '1080×1080 px (1:1)' },
+            { label: 'Tekst på billede', val: 'Maks 20% tekst for fuld rækkevidde' },
+          ].map(({ label, val }) => (
+            <div key={label} className="space-y-0.5">
+              <p className="font-medium text-foreground">{label}</p>
+              <p className="text-muted-foreground">{val}</p>
+            </div>
+          ))}
+        </div>
+      </details>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function MetaAdsPage() {
@@ -1584,6 +1957,10 @@ export default function MetaAdsPage() {
               Video AI
               <span className="ml-1 rounded-full bg-primary/20 px-1.5 py-0.5 text-xs font-bold leading-none">NY</span>
             </TabsTrigger>
+            <TabsTrigger value="media" className="flex items-center gap-1.5">
+              <ImageIcon className="h-3.5 w-3.5" />
+              Mediebibliotek
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="dashboard" className="mt-6">
@@ -1615,6 +1992,9 @@ export default function MetaAdsPage() {
 
           <TabsContent value="video" className="mt-6">
             <VideoAdCreatorTab campaigns={campaigns} />
+          </TabsContent>
+          <TabsContent value="media" className="mt-6">
+            <MediaLibraryTab campaigns={campaigns} />
           </TabsContent>
         </Tabs>
       )}
