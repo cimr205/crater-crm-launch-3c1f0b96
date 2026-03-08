@@ -1211,6 +1211,91 @@ class ApiClient {
     });
   }
 
+  // ── Bulk email outreach ────────────────────────────────────────────────────
+  // Sender personlige outreach-emails i bulk (op til 700+/dag).
+  // Backend throttler afsendelsen (fx 30/time) for at undgå spam-filtre.
+  // Skabelon-variabler: {{first_name}}, {{last_name}}, {{company}},
+  // {{initials}}, {{email}}, og alle andre kolonner fra CSV-filen.
+
+  async submitBulkEmailJob(input: {
+    jobName: string;
+    subjectTemplate: string;
+    bodyTemplate: string;
+    replyTo?: string;
+    fromName?: string;
+    recipients: Array<Record<string, string>>;  // parsed CSV rows
+    dailyLimit: number;                          // max per dag
+    sendIntervalSeconds: number;                 // sekunder mellem emails
+    scheduledAt?: string;                        // ISO — eller straks
+    trackOpens: boolean;
+    trackClicks: boolean;
+  }) {
+    return this.request<{ job_id: string; queued: number; estimated_minutes: number }>(
+      '/v1/bulk-email/jobs',
+      {
+        method: 'POST',
+        body: {
+          job_name: input.jobName,
+          subject_template: input.subjectTemplate,
+          body_template: input.bodyTemplate,
+          reply_to: input.replyTo,
+          from_name: input.fromName,
+          recipients: input.recipients,
+          daily_limit: input.dailyLimit,
+          send_interval_seconds: input.sendIntervalSeconds,
+          scheduled_at: input.scheduledAt,
+          track_opens: input.trackOpens,
+          track_clicks: input.trackClicks,
+        },
+      }
+    );
+  }
+
+  async getBulkEmailJob(jobId: string) {
+    return this.request<{
+      job_id: string;
+      job_name: string;
+      status: 'pending' | 'sending' | 'paused' | 'completed' | 'failed';
+      total: number;
+      sent: number;
+      failed: number;
+      opens: number;
+      clicks: number;
+      started_at?: string;
+      completed_at?: string;
+      error?: string;
+    }>(`/v1/bulk-email/jobs/${jobId}`);
+  }
+
+  async listBulkEmailJobs() {
+    return this.request<{
+      data: Array<{
+        job_id: string;
+        job_name: string;
+        status: 'pending' | 'sending' | 'paused' | 'completed' | 'failed';
+        total: number;
+        sent: number;
+        failed: number;
+        opens: number;
+        clicks: number;
+        created_at: string;
+        completed_at?: string;
+      }>;
+    }>('/v1/bulk-email/jobs');
+  }
+
+  async pauseBulkEmailJob(jobId: string) {
+    return this.request<{ status: string }>(`/v1/bulk-email/jobs/${jobId}/pause`, { method: 'POST' });
+  }
+
+  async resumeBulkEmailJob(jobId: string) {
+    return this.request<{ status: string }>(`/v1/bulk-email/jobs/${jobId}/resume`, { method: 'POST' });
+  }
+
+  async cancelBulkEmailJob(jobId: string) {
+    return this.request<{ status: string }>(`/v1/bulk-email/jobs/${jobId}/cancel`, { method: 'POST' });
+  }
+
   async sendEmailCampaign(campaignId: string) {
     return this.request<{ queued: number }>(`/v1/campaigns/${campaignId}/send`, { method: 'POST' });
   }

@@ -40,6 +40,7 @@ import IntegrationsPage from "@/pages/app/Integrations";
 import WorkflowsPage from "@/pages/app/Workflows";
 import MetaAdsPage from "@/pages/app/meta/MetaAds";
 import EmailCampaignsPage from "@/pages/app/email/EmailCampaigns";
+import BulkEmailPage from "@/pages/app/email/BulkEmail";
 import AiTasksPage from "@/pages/app/tasks/Tasks";
 import AiMediaPage from "@/pages/app/ai/AiMedia";
 import AdminAiUsagePage from "@/pages/app/admin/AiUsage";
@@ -142,6 +143,7 @@ const App = () => (
                   <Route path="clowdbot" element={<ClowdBotPage />} />
                   <Route path="meta/ads" element={<MetaAdsPage />} />
                   <Route path="email/campaigns" element={<EmailCampaignsPage />} />
+                  <Route path="email/bulk" element={<BulkEmailPage />} />
                   <Route path="settings/company" element={<CompanySettingsPage />} />
 
                   {/* Admin */}
