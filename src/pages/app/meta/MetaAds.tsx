@@ -426,6 +426,42 @@ function AdGeneratorTab({
   const [goal, setGoal] = useState('leads');
   const [audience, setAudience] = useState('');
 
+  const parseAdCopy = (answer: string, suggestions: string[]) => {
+    const defaultCtas = ['Lær mere', 'Kom i gang', 'Book gratis demo'];
+    // 1. Try fenced JSON block
+    try {
+      const fenced = answer.match(/```json\s*([\s\S]*?)\s*```/);
+      if (fenced) {
+        const p = JSON.parse(fenced[1]) as { headlines?: string[]; primaryTexts?: string[]; ctas?: string[] };
+        if (Array.isArray(p.headlines) && p.headlines.length > 0) return p;
+      }
+    } catch { /* fall through */ }
+    // 2. Try bare JSON object
+    try {
+      const bare = answer.match(/\{[\s\S]*"headlines"[\s\S]*\}/);
+      if (bare) {
+        const p = JSON.parse(bare[0]) as { headlines?: string[]; primaryTexts?: string[]; ctas?: string[] };
+        if (Array.isArray(p.headlines) && p.headlines.length > 0) return p;
+      }
+    } catch { /* fall through */ }
+    // 3. Extract via numbered list pattern (1. / **1.** / Variation 1:)
+    const blocks = answer.split(/(?:^|\n)(?:\*\*)?(?:Variation\s*)?\d+[.)]\s*/m).filter(b => b.trim().length > 20);
+    if (blocks.length >= 2) {
+      return {
+        headlines: blocks.slice(0, 3).map(b => b.split('\n')[0].replace(/^\*+/, '').trim().slice(0, 80)),
+        primaryTexts: blocks.slice(0, 3).map(b => b.replace(/\n+/g, ' ').trim().slice(0, 300)),
+        ctas: suggestions.length >= 3 ? suggestions.slice(0, 3) : defaultCtas,
+      };
+    }
+    // 4. Last resort: use suggestions as headlines
+    const headlines = (suggestions.length >= 3 ? suggestions : [answer]).slice(0, 3);
+    return {
+      headlines: headlines.map(h => h.slice(0, 80)),
+      primaryTexts: headlines.map(() => answer.slice(0, 300)),
+      ctas: defaultCtas,
+    };
+  };
+
   const handleGenerate = async () => {
     if (!productDesc.trim()) {
       toast({ title: 'Beskriv dit produkt/ydelse', variant: 'destructive' });
@@ -434,30 +470,16 @@ function AdGeneratorTab({
     setGenerating(true);
     setGeneratedCopy(null);
     try {
-      const prompt = `Generate 3 Facebook ad variations for: "${productDesc}". Goal: ${goal}. Target audience: ${audience || 'general business audience'}.
-      Return JSON: { "headlines": [...3 headlines], "primaryTexts": [...3 primary texts], "ctas": [...3 CTAs] }`;
+      const prompt = `Du er en dansk Meta Ads ekspert. Generer præcis 3 Facebook/Instagram annonce-variationer til dette produkt: "${productDesc}". Mål: ${goal}. Målgruppe: ${audience || 'danske B2B beslutningstagere'}.
+
+Svar KUN med dette JSON-format uden forklaring:
+{
+  "headlines": ["Headline 1 (max 40 tegn)", "Headline 2", "Headline 3"],
+  "primaryTexts": ["Primary text 1 (2-3 sætninger)", "Primary text 2", "Primary text 3"],
+  "ctas": ["Lær mere", "Kom i gang", "Book demo"]
+}`;
       const res = await api.aiAnalyzeMeta({ question: prompt });
-      // Try to parse JSON from answer
-      try {
-        const jsonMatch = res.answer.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          setGeneratedCopy(parsed);
-        } else {
-          // Fallback: show as suggestions
-          setGeneratedCopy({
-            headlines: res.suggestions.slice(0, 3),
-            primaryTexts: [res.answer],
-            ctas: ['Lær mere', 'Kom i gang', 'Book møde'],
-          });
-        }
-      } catch {
-        setGeneratedCopy({
-          headlines: res.suggestions.slice(0, 3),
-          primaryTexts: [res.answer],
-          ctas: ['Lær mere', 'Kom i gang', 'Book møde'],
-        });
-      }
+      setGeneratedCopy(parseAdCopy(res.answer, res.suggestions));
     } catch (err) {
       toast({ title: err instanceof Error ? err.message : 'Generering fejlede', variant: 'destructive' });
     } finally {
@@ -819,7 +841,11 @@ export default function MetaAdsPage() {
     }
   }, []);
 
-  useEffect(() => { void loadData(); }, [loadData]);
+  useEffect(() => {
+    void loadData();
+    const interval = setInterval(() => void loadData(), 5 * 60 * 1000); // 5 min
+    return () => clearInterval(interval);
+  }, [loadData]);
 
   const handleConnect = async () => {
     setLoading(true);

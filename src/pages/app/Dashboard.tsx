@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api, type InvoiceStats } from '@/lib/api';
 import { isLocale } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   TrendingUp, Users, FileText, CreditCard, AlertCircle,
-  Plus, ArrowRight, Flame, RefreshCw, Zap, CheckSquare, Mail
+  Plus, ArrowRight, Flame, RefreshCw, Zap, CheckSquare, Mail,
+  BarChart2, ListTodo, Clock,
 } from 'lucide-react';
 
 function fmt(n: number) { return n.toLocaleString('da-DK', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
@@ -91,23 +93,57 @@ export default function DashboardPage() {
   const [paymentTotal, setPaymentTotal] = useState<number | null>(null);
   const [dailyFocus, setDailyFocus] = useState<Array<Record<string, unknown>>>([]);
   const [focusLoading, setFocusLoading] = useState(false);
+  const [openTasks, setOpenTasks] = useState<Array<Record<string, unknown>>>([]);
+  const [pendingTodos, setPendingTodos] = useState<Array<Record<string, unknown>>>([]);
+  const [metaConnected, setMetaConnected] = useState(false);
+  const [metaCampaigns, setMetaCampaigns] = useState<Array<{ spend: number; leads: number; ctr: number }>>([]);
 
   const go = (path: string) => navigate(`/${locale}${path}`);
 
-  useEffect(() => {
+  const loadAll = useCallback(() => {
     let active = true;
     api.getLeadDashboard().then(d => { if (active) { setTotals(d.totals); setRecent(d.recent || []); } }).catch(() => undefined);
     api.getDailyFocus().then(d => { if (active) setDailyFocus(d.data?.json || []); }).catch(() => undefined);
     api.getInvoiceStats().then(d => { if (active) setInvoiceStats(d); }).catch(() => undefined);
     api.getPaymentStats().then(d => { if (active) setPaymentTotal(d.total); }).catch(() => undefined);
+    api.listTasks({ status: 'open' })
+      .then(d => { if (active) setOpenTasks((d as { data?: unknown[]; tasks?: unknown[] }).data ?? (d as { tasks?: unknown[] }).tasks ?? []); })
+      .catch(() => undefined);
+    api.listTodos({ status: 'pending' })
+      .then(d => { if (active) setPendingTodos((d as { data?: unknown[]; todos?: unknown[] }).data ?? (d as { todos?: unknown[] }).todos ?? []); })
+      .catch(() => undefined);
+    api.getMetaStatus()
+      .then(d => {
+        if (!active) return;
+        setMetaConnected(d.connected);
+        if (d.connected) {
+          api.getMetaCampaigns()
+            .then(c => { if (active) setMetaCampaigns((c as { data?: Array<{ spend: number; leads: number; ctr: number }> }).data ?? []); })
+            .catch(() => undefined);
+        }
+      })
+      .catch(() => undefined);
     return () => { active = false; };
   }, []);
+
+  useEffect(() => {
+    const cleanup = loadAll();
+    // Auto-refresh every 30s
+    const interval = setInterval(() => loadAll(), 30_000);
+    return () => { cleanup?.(); clearInterval(interval); };
+  }, [loadAll]);
 
   const refreshFocus = async () => {
     setFocusLoading(true);
     try { const d = await api.refreshDailyFocus(); setDailyFocus(d.data?.json || []); }
     finally { setFocusLoading(false); }
   };
+
+  const metaTotalSpend = metaCampaigns.reduce((s, c) => s + c.spend, 0);
+  const metaTotalLeads = metaCampaigns.reduce((s, c) => s + c.leads, 0);
+  const metaAvgCtr = metaCampaigns.length
+    ? metaCampaigns.reduce((s, c) => s + c.ctr, 0) / metaCampaigns.length
+    : 0;
 
   const hotLeads = recent.filter(l => l.leadScore >= 50).sort((a, b) => b.leadScore - a.leadScore).slice(0, 4);
   const hasOverdue = (invoiceStats?.overdue ?? 0) > 0;
@@ -201,14 +237,124 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
+          {/* Open tasks widget */}
+          <div className="rounded-2xl border bg-card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <CheckSquare className="h-4 w-4 text-blue-500" />
+                <h3 className="font-semibold text-sm">Åbne opgaver</h3>
+              </div>
+              <button onClick={() => go('/app/tasks')} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+                Se alle <ArrowRight className="h-3 w-3" />
+              </button>
+            </div>
+            {openTasks.length === 0 ? (
+              <div className="text-center py-3 space-y-2">
+                <p className="text-xs text-muted-foreground">Ingen åbne opgaver</p>
+                <Button size="sm" variant="outline" onClick={() => go('/app/tasks')}>
+                  <Plus className="h-3 w-3 mr-1" />Opret opgave
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {openTasks.slice(0, 4).map((task, i) => (
+                  <button
+                    key={i}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted transition-colors text-left"
+                    onClick={() => go('/app/tasks')}
+                  >
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-xs truncate flex-1">{String((task as Record<string, unknown>).title ?? (task as Record<string, unknown>).name ?? 'Opgave')}</span>
+                    {(task as Record<string, unknown>).status && (
+                      <Badge variant="outline" className="text-xs shrink-0">{String((task as Record<string, unknown>).status)}</Badge>
+                    )}
+                  </button>
+                ))}
+                {openTasks.length > 4 && (
+                  <p className="text-xs text-muted-foreground text-center pt-1">+{openTasks.length - 4} flere</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Pending todos */}
+          <div className="rounded-2xl border bg-card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <ListTodo className="h-4 w-4 text-purple-500" />
+                <h3 className="font-semibold text-sm">To-dos</h3>
+                {pendingTodos.length > 0 && (
+                  <Badge variant="secondary" className="text-xs">{pendingTodos.length}</Badge>
+                )}
+              </div>
+              <button onClick={() => go('/app/todos')} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+                Se alle <ArrowRight className="h-3 w-3" />
+              </button>
+            </div>
+            {pendingTodos.length === 0 ? (
+              <div className="text-center py-3 space-y-2">
+                <p className="text-xs text-muted-foreground">Ingen ventende to-dos</p>
+                <Button size="sm" variant="outline" onClick={() => go('/app/todos')}>
+                  <Plus className="h-3 w-3 mr-1" />Tilføj to-do
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {pendingTodos.slice(0, 4).map((todo, i) => (
+                  <button
+                    key={i}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted transition-colors text-left"
+                    onClick={() => go('/app/todos')}
+                  >
+                    <div className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/40 shrink-0" />
+                    <span className="text-xs truncate">{String((todo as Record<string, unknown>).title ?? (todo as Record<string, unknown>).name ?? 'To-do')}</span>
+                  </button>
+                ))}
+                {pendingTodos.length > 4 && (
+                  <p className="text-xs text-muted-foreground text-center pt-1">+{pendingTodos.length - 4} flere</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Meta Ads quick snapshot */}
+          {metaConnected && (
+            <div className="rounded-2xl border bg-card p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <BarChart2 className="h-4 w-4 text-blue-500" />
+                  <h3 className="font-semibold text-sm">Meta Ads</h3>
+                </div>
+                <button onClick={() => go('/app/meta/ads')} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+                  Detaljer <ArrowRight className="h-3 w-3" />
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="rounded-lg bg-muted/50 p-2">
+                  <div className="text-lg font-bold">DKK {metaTotalSpend >= 1000 ? `${(metaTotalSpend/1000).toFixed(0)}k` : metaTotalSpend.toFixed(0)}</div>
+                  <div className="text-xs text-muted-foreground">Spend</div>
+                </div>
+                <div className="rounded-lg bg-muted/50 p-2">
+                  <div className="text-lg font-bold">{metaTotalLeads}</div>
+                  <div className="text-xs text-muted-foreground">Leads</div>
+                </div>
+                <div className="rounded-lg bg-muted/50 p-2">
+                  <div className="text-lg font-bold">{metaAvgCtr.toFixed(1)}%</div>
+                  <div className="text-xs text-muted-foreground">CTR</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Quick links */}
           <div className="rounded-2xl border bg-card p-5">
             <h3 className="font-semibold text-sm mb-3">Genveje</h3>
             <div className="space-y-0.5">
               {[
                 { icon: <Mail className="h-4 w-4" />, label: 'Indbakke', path: '/app/inbox' },
-                { icon: <CheckSquare className="h-4 w-4" />, label: 'To-dos', path: '/app/todos' },
                 { icon: <FileText className="h-4 w-4" />, label: 'Fakturaer', path: '/app/finance/invoices' },
                 { icon: <Zap className="h-4 w-4" />, label: 'Workflows', path: '/app/workflows' },
+                { icon: <BarChart2 className="h-4 w-4" />, label: 'Meta Ads', path: '/app/meta/ads' },
               ].map(link => (
                 <button key={link.path} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted transition-colors text-left text-sm" onClick={() => go(link.path)}>
                   <span className="text-muted-foreground">{link.icon}</span>
