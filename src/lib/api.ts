@@ -1255,6 +1255,110 @@ class ApiClient {
     });
   }
 
+  // ── Video ad creative job system ────────────────────────────────────────────
+  // The browser CANNOT run GPU inference directly — CUDA, PyTorch and heavy ML
+  // models like InfiniteTalk / MuseTalk require a server-side GPU worker.
+  // These methods submit jobs to the Railway backend which queues them for an
+  // external GPU worker process (RunPod, Modal, or self-hosted). The frontend
+  // polls getVideoJobStatus() until status === 'completed'.
+
+  async submitVideoJob(input: {
+    provider: 'infinitetalk' | 'musetalk' | 'skyreels' | 'realvideo';
+    script: string;
+    avatarUrl?: string;
+    audioUrl?: string;
+    ttsText?: string;
+    durationSeconds: number;
+    language: string;
+    hookVariants?: string[];
+    campaignId?: string;
+    adSetId?: string;
+    variantLabel?: string;
+  }) {
+    return this.request<{ job_id: string; status: string; estimated_seconds: number }>(
+      '/meta/video-jobs',
+      {
+        method: 'POST',
+        body: {
+          provider: input.provider,
+          script: input.script,
+          avatar_url: input.avatarUrl,
+          audio_url: input.audioUrl,
+          tts_text: input.ttsText,
+          duration_seconds: input.durationSeconds,
+          language: input.language,
+          hook_variants: input.hookVariants,
+          campaign_id: input.campaignId,
+          ad_set_id: input.adSetId,
+          variant_label: input.variantLabel,
+        },
+      }
+    );
+  }
+
+  async getVideoJobStatus(jobId: string) {
+    return this.request<{
+      job_id: string;
+      status: 'queued' | 'processing' | 'completed' | 'failed';
+      progress?: number;
+      video_url?: string;
+      thumbnail_url?: string;
+      error?: string;
+      provider: string;
+      created_at: string;
+      completed_at?: string;
+    }>(`/meta/video-jobs/${jobId}`);
+  }
+
+  async listVideoJobs(campaignId?: string) {
+    const q = campaignId ? `?campaign_id=${campaignId}` : '';
+    return this.request<{
+      data: Array<{
+        job_id: string;
+        status: 'queued' | 'processing' | 'completed' | 'failed';
+        video_url?: string;
+        thumbnail_url?: string;
+        provider: string;
+        script: string;
+        variant_label?: string;
+        created_at: string;
+        hook_variants?: string[];
+      }>;
+    }>(`/meta/video-jobs${q}`);
+  }
+
+  async saveVideoAsAdCreative(jobId: string, input: {
+    name: string;
+    campaignId: string;
+    adSetId?: string;
+    variantLabel?: string;
+  }) {
+    return this.request<{ creative_id: string; status: string }>(
+      `/meta/video-jobs/${jobId}/save-creative`,
+      {
+        method: 'POST',
+        body: {
+          name: input.name,
+          campaign_id: input.campaignId,
+          ad_set_id: input.adSetId,
+          variant_label: input.variantLabel,
+        },
+      }
+    );
+  }
+
+  async uploadVideoJobAsset(file: File, type: 'avatar' | 'audio' | 'video') {
+    const token = this.getToken();
+    const form = new FormData();
+    form.append('file', file);
+    form.append('asset_type', type);
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${API_BASE_URL}/meta/video-assets/upload`, { method: 'POST', headers, body: form });
+    if (!res.ok) throw new Error(`Upload failed: ${res.statusText}`);
+    return res.json() as Promise<{ url: string; asset_id: string }>;
+  }
+
   async downloadAdminCompaniesHistoryCsv(month?: string) {
     const token = this.getToken();
     const query = month ? `?month=${month}` : '';

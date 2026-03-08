@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,8 @@ import {
   TrendingUp, TrendingDown, Bot, RefreshCw, Plus, ExternalLink,
   BarChart2, Sparkles, FileText, ChevronRight, CheckCircle, AlertTriangle,
   DollarSign, MousePointer, Target, Zap, ArrowUpRight, ArrowDownRight,
+  Video, Upload, Mic, Image, Clock, Play, Loader2, CheckCircle2,
+  XCircle, Layers, ChevronDown, ChevronUp, Globe, Wand2,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -816,6 +818,657 @@ function ReportsTab({ campaigns }: { campaigns: Campaign[] }) {
   );
 }
 
+// ─── Video Ad Creator tab ─────────────────────────────────────────────────────
+//
+// GPU-PROBLEM FORKLARING:
+// Modeller som InfiniteTalk og MuseTalk kræver CUDA + PyTorch og mange GB VRAM.
+// En browser kan aldrig køre tung GPU-inference — den har ingen adgang til NVIDIA
+// CUDA-kerner. Løsningen er at browseren kun sender et job til backend-API'et,
+// som videregivem jobbet til en separat GPU-worker (RunPod / Modal / self-hosted
+// server). Frontend poller status hvert 3. sekund, indtil jobbet er færdigt.
+
+type VideoProvider = 'infinitetalk' | 'musetalk' | 'skyreels' | 'realvideo';
+
+const PROVIDERS: {
+  id: VideoProvider;
+  name: string;
+  badge: string;
+  description: string;
+  bestFor: string[];
+  emoji: string;
+}[] = [
+  {
+    id: 'musetalk',
+    name: 'MuseTalk',
+    badge: 'Hurtig MVP',
+    description: 'Real-time lip-sync model. 30fps+ på RTX. Ideel til korte talking-head ads.',
+    bestFor: ['Korte ads (< 30 sek)', 'Hurtig proof-of-concept', 'Avatar der læser speak'],
+    emoji: '🎙️',
+  },
+  {
+    id: 'infinitetalk',
+    name: 'InfiniteTalk',
+    badge: 'Anbefalet',
+    description: 'Audio-drevet talking video. Understøtter unbegrænset længde, image-to-video og video-to-video.',
+    bestFor: ['Lange talking videos', 'Dubbed video ads', 'UGC-style founder videos'],
+    emoji: '🎬',
+  },
+  {
+    id: 'skyreels',
+    name: 'SkyReels V3',
+    badge: 'Premium',
+    description: 'Multi-subject video, audio-guided og talking avatar. Kræver CUDA 12.8+ og Python 3.12+.',
+    bestFor: ['Filmiske video ads', 'Multi-subject scenes', 'Avanceret retargeting'],
+    emoji: '🎥',
+  },
+  {
+    id: 'realvideo',
+    name: 'RealVideo',
+    badge: 'Conversational',
+    description: 'Transformerer tekst til high-fidelity video response. Upload avatar + stemme + tekst.',
+    bestFor: ['AI spokespersons', 'Landing page videos', 'Chat-baserede video replies'],
+    emoji: '🤖',
+  },
+];
+
+const HOOK_TEMPLATES = [
+  'Træt af at bruge tid på leads?',
+  'Mister du kunder hver uge?',
+  'Få styr på CRM, HR og drift i ét system',
+  'Stop med at bruge 3 systemer — brug ét',
+  'Lad AI klare din administration',
+  'Se hvordan du sparer tid på administration',
+  '80% af din tid spildes her — fix det nu',
+  'Du kiggede på vores løsning, men bookede ikke demo',
+];
+
+type VideoJob = {
+  job_id: string;
+  status: 'queued' | 'processing' | 'completed' | 'failed';
+  progress?: number;
+  video_url?: string;
+  thumbnail_url?: string;
+  provider: string;
+  script: string;
+  variant_label?: string;
+  created_at: string;
+  error?: string;
+};
+
+// ── Drag-drop upload zone ────────────────────────────────────────────────────
+
+function DropZone({
+  label,
+  accept,
+  icon: Icon,
+  value,
+  onFile,
+  onClear,
+}: {
+  label: string;
+  accept: string;
+  icon: React.ElementType;
+  value: File | null;
+  onFile: (f: File) => void;
+  onClear: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  const [dragging, setDragging] = useState(false);
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f) onFile(f);
+  };
+
+  return (
+    <div
+      className={`relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-5 cursor-pointer transition-colors select-none ${
+        dragging
+          ? 'border-primary bg-primary/5'
+          : value
+          ? 'border-green-500/50 bg-green-500/5'
+          : 'border-border hover:border-primary/50 hover:bg-muted/30'
+      }`}
+      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+      onDragLeave={() => setDragging(false)}
+      onDrop={handleDrop}
+      onClick={() => ref.current?.click()}
+    >
+      <input
+        ref={ref}
+        type="file"
+        accept={accept}
+        className="sr-only"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) onFile(f); }}
+      />
+      {value ? (
+        <div className="text-center space-y-1">
+          <CheckCircle2 className="h-6 w-6 text-green-500 mx-auto" />
+          <p className="text-xs font-medium truncate max-w-32">{value.name}</p>
+          <button
+            className="text-xs text-muted-foreground underline"
+            onClick={(e) => { e.stopPropagation(); onClear(); }}
+          >
+            Fjern
+          </button>
+        </div>
+      ) : (
+        <div className="text-center space-y-2">
+          <Icon className="h-6 w-6 mx-auto text-muted-foreground" />
+          <p className="text-xs font-medium">{label}</p>
+          <p className="text-xs text-muted-foreground">Træk fil hertil eller klik</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Job status card ──────────────────────────────────────────────────────────
+
+function JobCard({
+  job,
+  campaigns,
+  onSaved,
+}: {
+  job: VideoJob;
+  campaigns: Campaign[];
+  onSaved: () => void;
+}) {
+  const { toast } = useToast();
+  const [saving, setSaving] = useState(false);
+  const [saveName, setSaveName] = useState('');
+  const [saveCampaignId, setSaveCampaignId] = useState('');
+  const [showSave, setShowSave] = useState(false);
+
+  const provider = PROVIDERS.find((p) => p.id === job.provider);
+  const statusColor = {
+    queued:     'text-yellow-600 bg-yellow-500/10',
+    processing: 'text-blue-600 bg-blue-500/10',
+    completed:  'text-green-600 bg-green-500/10',
+    failed:     'text-red-600 bg-red-500/10',
+  }[job.status];
+
+  const statusLabel = {
+    queued:     'I kø',
+    processing: 'Genererer…',
+    completed:  'Færdig',
+    failed:     'Fejlet',
+  }[job.status];
+
+  const saveCreative = async () => {
+    if (!saveName.trim() || !saveCampaignId) return;
+    setSaving(true);
+    try {
+      await api.saveVideoAsAdCreative(job.job_id, {
+        name: saveName,
+        campaignId: saveCampaignId,
+        variantLabel: job.variant_label,
+      });
+      toast({ title: `"${saveName}" gemt som annonce-kreativ` });
+      setShowSave(false);
+      onSaved();
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Gem fejlede', variant: 'destructive' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border bg-card overflow-hidden">
+      <div className="flex items-center gap-3 px-4 py-3 border-b">
+        <span className="text-lg">{provider?.emoji ?? '🎬'}</span>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate">{job.variant_label || provider?.name || job.provider}</p>
+          <p className="text-xs text-muted-foreground truncate">{job.script.slice(0, 60)}{job.script.length > 60 ? '…' : ''}</p>
+        </div>
+        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${statusColor}`}>
+          {job.status === 'processing' && <Loader2 className="h-3 w-3 animate-spin" />}
+          {job.status === 'completed' && <CheckCircle2 className="h-3 w-3" />}
+          {job.status === 'failed' && <XCircle className="h-3 w-3" />}
+          {statusLabel}
+        </span>
+      </div>
+
+      {/* Progress bar */}
+      {job.status === 'processing' && (
+        <div className="h-1 bg-muted">
+          <div
+            className="h-full bg-primary transition-all duration-500"
+            style={{ width: `${job.progress ?? 10}%` }}
+          />
+        </div>
+      )}
+
+      {/* Video preview */}
+      {job.status === 'completed' && job.video_url && (
+        <div className="p-4 space-y-3">
+          <video
+            src={job.video_url}
+            poster={job.thumbnail_url}
+            controls
+            className="w-full rounded-lg max-h-64 bg-black"
+          />
+          <div className="flex gap-2 flex-wrap">
+            <a href={job.video_url} download className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-colors">
+              Download video
+            </a>
+            <button
+              className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              onClick={() => setShowSave((v) => !v)}
+            >
+              <Layers className="h-3.5 w-3.5" />
+              Gem som annonce-kreativ
+              {showSave ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            </button>
+          </div>
+
+          {showSave && (
+            <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+              <Input
+                className="h-8 text-xs"
+                placeholder="Navn på kreativet"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+              />
+              <Select value={saveCampaignId} onValueChange={setSaveCampaignId}>
+                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Vælg kampagne" /></SelectTrigger>
+                <SelectContent>
+                  {campaigns.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Button size="sm" className="w-full" onClick={() => void saveCreative()} disabled={saving || !saveName.trim() || !saveCampaignId}>
+                {saving ? 'Gemmer…' : 'Gem kreativ'}
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Error */}
+      {job.status === 'failed' && job.error && (
+        <div className="px-4 py-3 text-xs text-destructive">{job.error}</div>
+      )}
+    </div>
+  );
+}
+
+// ── Main video tab ────────────────────────────────────────────────────────────
+
+function VideoAdCreatorTab({ campaigns }: { campaigns: Campaign[] }) {
+  const { toast } = useToast();
+
+  // Provider
+  const [provider, setProvider] = useState<VideoProvider>('musetalk');
+
+  // Script + hooks
+  const [script, setScript] = useState('');
+  const [hooks, setHooks] = useState<string[]>(['']);
+  const [abMode, setAbMode] = useState(false);
+
+  // Files
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [sourceVideoFile, setSourceVideoFile] = useState<File | null>(null);
+
+  // TTS fallback
+  const [audioMode, setAudioMode] = useState<'upload' | 'tts'>('upload');
+  const [ttsText, setTtsText] = useState('');
+
+  // Settings
+  const [duration, setDuration] = useState(15);
+  const [language, setLanguage] = useState('da');
+
+  // Jobs
+  const [jobs, setJobs] = useState<VideoJob[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const loadJobs = useCallback(async () => {
+    try {
+      const res = await api.listVideoJobs();
+      setJobs(res.data as VideoJob[]);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    void loadJobs();
+  }, [loadJobs]);
+
+  // Poll aktive jobs hvert 3. sekund
+  useEffect(() => {
+    const hasActive = jobs.some((j) => j.status === 'queued' || j.status === 'processing');
+    if (hasActive && !pollingRef.current) {
+      pollingRef.current = setInterval(() => void loadJobs(), 3000);
+    } else if (!hasActive && pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+    return () => {
+      if (pollingRef.current) { clearInterval(pollingRef.current); pollingRef.current = null; }
+    };
+  }, [jobs, loadJobs]);
+
+  const uploadAsset = async (file: File, type: 'avatar' | 'audio' | 'video') => {
+    const res = await api.uploadVideoJobAsset(file, type);
+    return res.url;
+  };
+
+  const handleSubmit = async () => {
+    if (!script.trim()) { toast({ title: 'Skriv et manuskript', variant: 'destructive' }); return; }
+    setSubmitting(true);
+    try {
+      let avatarUrl: string | undefined;
+      let audioUrl: string | undefined;
+      let sourceVideoUrl: string | undefined;
+
+      if (avatarFile) avatarUrl = await uploadAsset(avatarFile, 'avatar');
+      if (audioFile && audioMode === 'upload') audioUrl = await uploadAsset(audioFile, 'audio');
+      if (sourceVideoFile) sourceVideoUrl = await uploadAsset(sourceVideoFile, 'video');
+
+      const hookVariants = abMode ? hooks.filter((h) => h.trim()) : undefined;
+
+      const payload = {
+        provider,
+        script,
+        avatarUrl: avatarUrl ?? sourceVideoUrl,
+        audioUrl,
+        ttsText: audioMode === 'tts' ? ttsText : undefined,
+        durationSeconds: duration,
+        language,
+        hookVariants,
+      };
+
+      await api.submitVideoJob(payload);
+      toast({ title: 'Video-job sendt til GPU-worker', description: 'Generering starter straks. Polling hvert 3. sekund.' });
+      await loadJobs();
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Job-indsendelse fejlede', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const selectedProvider = PROVIDERS.find((p) => p.id === provider)!;
+  const activeJobs = jobs.filter((j) => j.status === 'queued' || j.status === 'processing');
+  const completedJobs = jobs.filter((j) => j.status === 'completed');
+  const failedJobs = jobs.filter((j) => j.status === 'failed');
+
+  return (
+    <div className="space-y-6">
+      {/* GPU forklaring banner */}
+      <div className="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 p-4 flex gap-3">
+        <Zap className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+        <div className="text-xs text-blue-700 dark:text-blue-300 space-y-1">
+          <p className="font-semibold">Hvordan video-generering virker</p>
+          <p>
+            Din browser kan <strong>ikke</strong> køre GPU-modeller (CUDA, PyTorch). Systemet sender jobbet
+            til en backend GPU-worker (RunPod / Modal), som kører InfiniteTalk, MuseTalk osv. Frontend
+            poller status hvert 3. sekund og viser videoen, når den er klar.
+          </p>
+        </div>
+      </div>
+
+      {/* Provider valg */}
+      <div className="space-y-2">
+        <p className="text-sm font-semibold">Video-model</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {PROVIDERS.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setProvider(p.id)}
+              className={`rounded-xl border p-4 text-left transition-all ${
+                provider === p.id
+                  ? 'border-primary bg-primary/5 shadow-sm'
+                  : 'border-border hover:border-primary/40 hover:bg-muted/20'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-1 mb-2">
+                <span className="text-xl">{p.emoji}</span>
+                <span className="text-xs rounded-full bg-muted px-2 py-0.5 font-medium">{p.badge}</span>
+              </div>
+              <p className="text-sm font-semibold">{p.name}</p>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed line-clamp-2">{p.description}</p>
+            </button>
+          ))}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {selectedProvider.bestFor.map((item) => (
+            <span key={item} className="text-xs bg-primary/10 text-primary rounded-full px-2.5 py-1">
+              ✓ {item}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Script + A/B hooks */}
+      <div className="rounded-2xl border bg-card p-5 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <p className="text-sm font-semibold flex items-center gap-2">
+            <Wand2 className="h-4 w-4 text-primary" />
+            Manuskript
+          </p>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <span className="text-xs text-muted-foreground">A/B hooks</span>
+            <button
+              onClick={() => setAbMode((v) => !v)}
+              className={`relative h-5 w-9 rounded-full transition-colors ${abMode ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+            >
+              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${abMode ? 'translate-x-4' : 'translate-x-0.5'}`} />
+            </button>
+          </label>
+        </div>
+
+        <Textarea
+          placeholder="Skriv manuskriptet til din video-ad... fx: 'Træt af at miste leads? I Crater CRM samler du alt på ét sted. Book en gratis demo i dag.'"
+          value={script}
+          onChange={(e) => setScript(e.target.value)}
+          rows={4}
+        />
+
+        {/* A/B hook variants */}
+        {abMode && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Hook-varianter (de første 2-3 sek pr. variant)</p>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {HOOK_TEMPLATES.map((h) => (
+                <button
+                  key={h}
+                  className="text-xs rounded-full border border-border px-2.5 py-1 hover:bg-muted transition-colors"
+                  onClick={() => { if (!hooks.includes(h)) setHooks((prev) => [...prev.filter((x) => x), h]); }}
+                >
+                  {h}
+                </button>
+              ))}
+            </div>
+            {hooks.map((h, i) => (
+              <div key={i} className="flex gap-2">
+                <Input
+                  className="h-8 text-xs"
+                  placeholder={`Hook ${i + 1}`}
+                  value={h}
+                  onChange={(e) => setHooks((prev) => prev.map((v, idx) => idx === i ? e.target.value : v))}
+                />
+                {hooks.length > 1 && (
+                  <button
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => setHooks((prev) => prev.filter((_, idx) => idx !== i))}
+                  >
+                    <XCircle className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            ))}
+            <Button size="sm" variant="outline" onClick={() => setHooks((prev) => [...prev, ''])}>
+              <Plus className="h-3.5 w-3.5 mr-1" />Tilføj hook-variant
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Uploads */}
+      <div className="rounded-2xl border bg-card p-5 space-y-4">
+        <p className="text-sm font-semibold flex items-center gap-2">
+          <Upload className="h-4 w-4 text-primary" />
+          Mediafiler
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Avatar / billede</p>
+            <DropZone
+              label="Upload avatar"
+              accept="image/*"
+              icon={Image}
+              value={avatarFile}
+              onFile={setAvatarFile}
+              onClear={() => setAvatarFile(null)}
+            />
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Kilde-video (valgfri)</p>
+            <DropZone
+              label="Upload video"
+              accept="video/*"
+              icon={Video}
+              value={sourceVideoFile}
+              onFile={setSourceVideoFile}
+              onClear={() => setSourceVideoFile(null)}
+            />
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-xs font-medium text-muted-foreground">Lyd</p>
+              <div className="flex gap-1">
+                {(['upload', 'tts'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setAudioMode(mode)}
+                    className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
+                      audioMode === mode ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground'
+                    }`}
+                  >
+                    {mode === 'upload' ? 'Upload' : 'TTS'}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {audioMode === 'upload' ? (
+              <DropZone
+                label="Upload voiceover"
+                accept="audio/*"
+                icon={Mic}
+                value={audioFile}
+                onFile={setAudioFile}
+                onClear={() => setAudioFile(null)}
+              />
+            ) : (
+              <Textarea
+                rows={3}
+                placeholder="Skriv tekst til TTS-stemme — backend konverterer til lyd automatisk..."
+                value={ttsText}
+                onChange={(e) => setTtsText(e.target.value)}
+                className="text-xs"
+              />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Settings */}
+      <div className="rounded-2xl border bg-card p-5 space-y-4">
+        <p className="text-sm font-semibold flex items-center gap-2">
+          <Clock className="h-4 w-4 text-primary" />
+          Indstillinger
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium">Varighed</label>
+            <Select value={String(duration)} onValueChange={(v) => setDuration(Number(v))}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {[7, 10, 15, 20, 30, 45, 60].map((s) => (
+                  <SelectItem key={s} value={String(s)}>{s} sekunder</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+              <Globe className="h-3.5 w-3.5" />Sprog
+            </label>
+            <Select value={language} onValueChange={setLanguage}>
+              <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="da">Dansk</SelectItem>
+                <SelectItem value="en">Engelsk</SelectItem>
+                <SelectItem value="sv">Svensk</SelectItem>
+                <SelectItem value="no">Norsk</SelectItem>
+                <SelectItem value="de">Tysk</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Submit */}
+      <Button
+        size="lg"
+        className="w-full"
+        onClick={() => void handleSubmit()}
+        disabled={submitting || !script.trim()}
+      >
+        {submitting
+          ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Uploader filer og sender job…</>
+          : <><Play className="h-4 w-4 mr-2" />Generer video-ad med {selectedProvider.name}</>}
+      </Button>
+
+      {/* Job liste */}
+      {jobs.length > 0 && (
+        <div className="space-y-4">
+          {activeJobs.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                <p className="text-sm font-semibold">Aktive jobs ({activeJobs.length})</p>
+                <span className="text-xs text-muted-foreground">Opdateres automatisk hvert 3. sek</span>
+              </div>
+              {activeJobs.map((j) => (
+                <JobCard key={j.job_id} job={j} campaigns={campaigns} onSaved={() => void loadJobs()} />
+              ))}
+            </div>
+          )}
+
+          {completedJobs.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-green-600 flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4" />
+                Færdige videoer ({completedJobs.length})
+              </p>
+              {completedJobs.map((j) => (
+                <JobCard key={j.job_id} job={j} campaigns={campaigns} onSaved={() => void loadJobs()} />
+              ))}
+            </div>
+          )}
+
+          {failedJobs.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold text-destructive flex items-center gap-2">
+                <XCircle className="h-4 w-4" />
+                Fejlede jobs ({failedJobs.length})
+              </p>
+              {failedJobs.map((j) => (
+                <JobCard key={j.job_id} job={j} campaigns={campaigns} onSaved={() => void loadJobs()} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function MetaAdsPage() {
@@ -884,7 +1537,7 @@ export default function MetaAdsPage() {
             Meta Ads
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Kampagneoverblik · AI-analyse · Annonce-generator · Rapporter
+            Kampagneoverblik · AI-analyse · Annonce-generator · Video AI · Rapporter
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -909,7 +1562,7 @@ export default function MetaAdsPage() {
         <ConnectScreen onConnect={() => void handleConnect()} loading={loading} />
       ) : (
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList>
+          <TabsList className="flex-wrap h-auto gap-1">
             <TabsTrigger value="dashboard" className="flex items-center gap-1.5">
               <BarChart2 className="h-3.5 w-3.5" />
               Dashboard
@@ -925,6 +1578,11 @@ export default function MetaAdsPage() {
             <TabsTrigger value="reports" className="flex items-center gap-1.5">
               <FileText className="h-3.5 w-3.5" />
               Rapporter
+            </TabsTrigger>
+            <TabsTrigger value="video" className="flex items-center gap-1.5 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              <Video className="h-3.5 w-3.5" />
+              Video AI
+              <span className="ml-1 rounded-full bg-primary/20 px-1.5 py-0.5 text-xs font-bold leading-none">NY</span>
             </TabsTrigger>
           </TabsList>
 
@@ -953,6 +1611,10 @@ export default function MetaAdsPage() {
 
           <TabsContent value="reports" className="mt-6">
             <ReportsTab campaigns={campaigns} />
+          </TabsContent>
+
+          <TabsContent value="video" className="mt-6">
+            <VideoAdCreatorTab campaigns={campaigns} />
           </TabsContent>
         </Tabs>
       )}
