@@ -41,6 +41,8 @@ import WorkflowsPage from "@/pages/app/Workflows";
 import MetaAdsPage from "@/pages/app/meta/MetaAds";
 import EmailCampaignsPage from "@/pages/app/email/EmailCampaigns";
 import AiTasksPage from "@/pages/app/tasks/Tasks";
+import AiMediaPage from "@/pages/app/ai/AiMedia";
+import AdminAiUsagePage from "@/pages/app/admin/AiUsage";
 import AppShell from "@/components/AppShell";
 import { I18nProvider, isLocale } from "@/lib/i18n";
 import { TenantProvider } from "@/contexts/TenantContext";
@@ -130,6 +132,9 @@ const App = () => (
                   <Route path="inbox" element={<InboxPage />} />
                   <Route path="emails" element={<EmailsPage />} />
 
+                  {/* AI */}
+                  <Route path="ai/media" element={<AiMediaPage />} />
+
                   {/* System */}
                   <Route path="history" element={<HistoryPage />} />
                   <Route path="integrations" element={<IntegrationsPage />} />
@@ -169,6 +174,14 @@ const App = () => (
                     element={
                       <RoleGate role="global_admin">
                         <AdminEmployeesPage />
+                      </RoleGate>
+                    }
+                  />
+                  <Route
+                    path="admin/ai"
+                    element={
+                      <RoleGate role="global_admin">
+                        <AdminAiUsagePage />
                       </RoleGate>
                     }
                   />

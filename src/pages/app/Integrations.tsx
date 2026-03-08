@@ -22,6 +22,11 @@ import {
   ChevronDown, ChevronUp, Bot, Mail, CreditCard, CalendarDays,
   BarChart2, Plug, Zap, RefreshCw,
 } from 'lucide-react';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -113,14 +118,27 @@ function IntCard({
       )}
 
       {card.status === 'connected' && onDisconnect && (
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => onDisconnect(card)}
-          className="w-fit text-muted-foreground hover:text-destructive"
-        >
-          Afbryd
-        </Button>
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button size="sm" variant="ghost" className="w-fit text-muted-foreground hover:text-destructive">
+              Afbryd
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Afbryd {card.label}?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Din forbindelse til <strong>{card.label}</strong> afbrydes. Data slettes ikke — du kan forbinde igen når som helst.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuller</AlertDialogCancel>
+              <AlertDialogAction onClick={() => onDisconnect(card)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                Afbryd forbindelsen
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
 
       {card.status === 'coming_soon' && (
@@ -316,9 +334,27 @@ function ServiceCard({ svc }: { svc: ServiceDef }) {
                 : 'Test forbindelse'}
             </Button>
             {configured && (
-              <Button size="sm" variant="ghost" onClick={handleClear} className="text-destructive hover:text-destructive ml-auto">
-                <Trash2 className="h-3.5 w-3.5 mr-1" />Slet
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive ml-auto">
+                    <Trash2 className="h-3.5 w-3.5 mr-1" />Slet
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Slet konfiguration?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Dette fjerner din gemte konfiguration for <strong>{svc.label}</strong> fra browseren. Du kan opsætte det igen når som helst.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuller</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleClear} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                      Slet konfiguration
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             )}
           </div>
         </div>
@@ -412,8 +448,7 @@ export default function IntegrationsPage() {
       description: 'Online betalinger og abonnementer',
       icon: CreditCard,
       iconBg: 'bg-purple-500/10 text-purple-600',
-      status: connectedMap['stripe'] ? 'connected' : 'available',
-      providerId: 'stripe',
+      status: connectedMap['stripe'] ? 'connected' : 'coming_soon',
     },
     {
       id: 'quickpay',
@@ -421,8 +456,7 @@ export default function IntegrationsPage() {
       description: 'Dansk betalingsgateway',
       icon: CreditCard,
       iconBg: 'bg-blue-500/10 text-blue-600',
-      status: connectedMap['quickpay'] ? 'connected' : 'available',
-      providerId: 'quickpay',
+      status: connectedMap['quickpay'] ? 'connected' : 'coming_soon',
     },
   ];
 

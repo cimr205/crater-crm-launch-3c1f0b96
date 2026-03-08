@@ -88,18 +88,12 @@ function ActivityTimeline({ items, emptyLabel }: { items: WorkHistoryItem[]; emp
 
 // ── Per-employee expandable card ──────────────────────────────────────────────
 
-function EmployeeCard({
-  user,
-  items,
-}: {
-  user: WorkHistoryUser;
-  items: WorkHistoryItem[];
-}) {
+function EmployeeCard({ user }: { user: WorkHistoryUser }) {
   const [open, setOpen] = useState(false);
 
-  const topEntries = Object.entries(user.totals)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 3);
+  const allEntries = Object.entries(user.totals).sort((a, b) => b[1] - a[1]);
+  const topEntries = allEntries.slice(0, 3);
+  const maxVal = allEntries[0]?.[1] ?? 1;
 
   return (
     <Card className="bg-card/70 border-border overflow-hidden">
@@ -108,7 +102,7 @@ function EmployeeCard({
         onClick={() => setOpen((v) => !v)}
       >
         <div className="flex items-center gap-3 flex-1 min-w-0">
-          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10`}>
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10">
             <Users className="h-4 w-4 text-primary" />
           </div>
           <div className="min-w-0">
@@ -124,18 +118,30 @@ function EmployeeCard({
               </Badge>
             ))}
           </div>
-          <Badge variant="secondary" className="text-xs font-semibold">
-            {user.total}
-          </Badge>
-          {open
-            ? <ChevronUp className="h-4 w-4 text-muted-foreground" />
-            : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+          <Badge variant="secondary" className="text-xs font-semibold">{user.total}</Badge>
+          {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
         </div>
       </button>
 
       {open && (
-        <div className="border-t border-border px-4 pb-4">
-          <ActivityTimeline items={items} emptyLabel="Ingen aktivitet fundet for denne medarbejder" />
+        <div className="border-t border-border px-4 pb-4 pt-3 space-y-2">
+          <div className="text-xs text-muted-foreground font-medium mb-3">Fordeling per kategori</div>
+          {allEntries.length === 0 ? (
+            <p className="text-xs text-muted-foreground">Ingen aktivitet i perioden</p>
+          ) : (
+            allEntries.map(([key, val]) => (
+              <div key={key} className="flex items-center gap-3">
+                <div className="text-xs text-muted-foreground w-28 truncate shrink-0">{key}</div>
+                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary/60 transition-all duration-500"
+                    style={{ width: `${(val / maxVal) * 100}%` }}
+                  />
+                </div>
+                <div className="text-xs font-semibold w-6 text-right shrink-0">{val}</div>
+              </div>
+            ))
+          )}
         </div>
       )}
     </Card>
@@ -186,6 +192,17 @@ export default function HistoryPage() {
     return () => { active = false; };
   }, [month, year, t]);
 
+  // Auto-refresh every 60s when on activitylog tab
+  useEffect(() => {
+    if (tab !== 'activitylog') return;
+    const interval = setInterval(() => {
+      api.getCompanyHistory(month)
+        .then((h) => setData(h))
+        .catch(() => undefined);
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [tab, month]);
+
   // Sorted activity items (newest first)
   const sortedItems = useMemo(() => {
     return [...(data?.data ?? [])].sort((a, b) => {
@@ -205,17 +222,6 @@ export default function HistoryPage() {
     if (activityFilter === 'all') return sortedItems;
     return sortedItems.filter((i) => i.type === activityFilter);
   }, [sortedItems, activityFilter]);
-
-  // Per-employee items: group company items by source (employee identifier)
-  const itemsByEmployee = useMemo(() => {
-    const map: Record<string, WorkHistoryItem[]> = {};
-    sortedItems.forEach((item) => {
-      const key = item.source || 'unknown';
-      if (!map[key]) map[key] = [];
-      map[key].push(item);
-    });
-    return map;
-  }, [sortedItems]);
 
   const stats = useMemo(() => {
     const totals = summary || {};
@@ -384,21 +390,9 @@ export default function HistoryPage() {
               <p className="text-sm text-muted-foreground text-center py-8">{t('work.emptyUsers')}</p>
             ) : (
               <div className="space-y-3">
-                {(users ?? []).map((u) => {
-                  // Match items to this employee by source or name
-                  const empItems = itemsByEmployee[u.name] ??
-                    itemsByEmployee[u.email] ??
-                    sortedItems.filter((i) =>
-                      (i.source && (i.source === u.name || i.source === u.email))
-                    );
-                  return (
-                    <EmployeeCard
-                      key={u.email}
-                      user={u}
-                      items={empItems}
-                    />
-                  );
-                })}
+                {(users ?? []).map((u) => (
+                  <EmployeeCard key={u.email} user={u} />
+                ))}
               </div>
             )}
           </TabsContent>

@@ -79,12 +79,15 @@
     "adminCompany": "Companies",
     "adminEmployees": "Employees",
     "adminSettings": "System settings",
+    "adminAi": "AI usage",
+    "aiMedia": "AI Media",
     "section": {
       "crm": "CRM",
       "finance": "Finance",
       "hr": "HR",
       "productivity": "Productivity",
       "communication": "Communication",
+      "ai": "AI & Automation",
       "system": "System",
       "admin": "Admin"
     }

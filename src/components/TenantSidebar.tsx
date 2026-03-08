@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Briefcase, Settings, UserSquare2, ShieldCheck,
   History, Bot, Megaphone, FileText, CreditCard, Clock, Palmtree, Banknote,
   UserPlus, CheckSquare, CalendarDays, ListTodo, Inbox, Mail, Building2,
-  BarChart2, Send,
+  BarChart2, Send, X, Sparkles, Video,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/contexts/AuthContext';
@@ -58,12 +58,18 @@ const navSections: NavSection[] = [
     ],
   },
   {
+    titleKey: 'nav.section.ai',
+    items: [
+      { href: 'ai/media',  labelKey: 'nav.aiMedia',  icon: Sparkles },
+      { href: 'clowdbot',  labelKey: 'nav.clowdbot', icon: Bot },
+      { href: 'workflows', labelKey: 'nav.workflows', icon: Video },
+    ],
+  },
+  {
     titleKey: 'nav.section.system',
     items: [
       { href: 'history',          labelKey: 'nav.history',      icon: History },
       { href: 'integrations',     labelKey: 'nav.integrations', icon: Settings },
-      { href: 'workflows',        labelKey: 'nav.workflows',    icon: Settings },
-      { href: 'clowdbot',         labelKey: 'nav.clowdbot',     icon: Bot },
       { href: 'settings/company', labelKey: 'nav.settings',     icon: Settings },
     ],
   },
@@ -76,22 +82,37 @@ const adminSection: NavSection = {
     { href: 'admin/users',      labelKey: 'nav.adminUsers',      icon: Users },
     { href: 'admin/company',    labelKey: 'nav.adminCompany',    icon: Building2 },
     { href: 'admin/employees',  labelKey: 'nav.adminEmployees',  icon: UserSquare2 },
+    { href: 'admin/ai',         labelKey: 'nav.adminAi',         icon: Sparkles },
     { href: 'admin/settings',   labelKey: 'nav.adminSettings',   icon: Settings },
   ],
 };
 
-export default function TenantSidebar({ basePath }: { basePath: string }) {
+interface Props {
+  basePath: string;
+  mobileOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function TenantSidebar({ basePath, mobileOpen, onClose }: Props) {
   const location = useLocation();
   const { t } = useI18n();
   const { user } = useAuth();
 
   const sections = user?.is_global_admin ? [...navSections, adminSection] : navSections;
 
-  return (
-    <aside className="hidden lg:flex lg:flex-col w-64 border-r border-border bg-card/80 backdrop-blur overflow-y-auto">
-      <div className="p-6 border-b border-border shrink-0">
-        <div className="text-lg font-semibold">{t('appName')}</div>
-        <div className="text-xs text-muted-foreground mt-1">{user?.company_name || '—'}</div>
+  const sidebar = (
+    <aside className="flex flex-col w-64 border-r border-border bg-card/95 backdrop-blur overflow-y-auto h-full">
+      <div className="p-6 border-b border-border shrink-0 flex items-center justify-between">
+        <div>
+          <div className="text-lg font-semibold">{t('appName')}</div>
+          <div className="text-xs text-muted-foreground mt-1">{user?.company_name || '—'}</div>
+        </div>
+        {/* Close button — only visible on mobile */}
+        {onClose && (
+          <button onClick={onClose} className="lg:hidden p-1 rounded hover:bg-muted transition-colors">
+            <X className="h-4 w-4 text-muted-foreground" />
+          </button>
+        )}
       </div>
       <nav className="flex-1 p-3 space-y-4 pb-6">
         {sections.map((section) => (
@@ -107,6 +128,7 @@ export default function TenantSidebar({ basePath }: { basePath: string }) {
                   <Link
                     key={item.href}
                     to={path}
+                    onClick={onClose}
                     className={cn(
                       'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
                       isActive
@@ -124,5 +146,24 @@ export default function TenantSidebar({ basePath }: { basePath: string }) {
         ))}
       </nav>
     </aside>
+  );
+
+  return (
+    <>
+      {/* Desktop: always visible */}
+      <div className="hidden lg:flex lg:flex-col w-64 shrink-0 min-h-screen">
+        {sidebar}
+      </div>
+
+      {/* Mobile: slide-in drawer */}
+      <div
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 flex flex-col w-64 transition-transform duration-300 lg:hidden',
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        )}
+      >
+        {sidebar}
+      </div>
+    </>
   );
 }

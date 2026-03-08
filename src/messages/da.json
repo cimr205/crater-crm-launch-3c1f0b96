@@ -79,12 +79,15 @@
     "adminCompany": "Virksomheder",
     "adminEmployees": "Medarbejdere",
     "adminSettings": "Systemindstillinger",
+    "adminAi": "AI-brug",
+    "aiMedia": "AI Medie",
     "section": {
       "crm": "CRM",
       "finance": "Finans",
       "hr": "HR",
       "productivity": "Produktivitet",
       "communication": "Kommunikation",
+      "ai": "AI & Automatisering",
       "system": "System",
       "admin": "Admin"
     }
