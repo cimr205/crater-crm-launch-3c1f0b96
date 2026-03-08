@@ -133,7 +133,7 @@ export default function DashboardPage() {
         <div className="flex gap-2 shrink-0">
           <Button size="sm" variant="outline" onClick={() => go('/app/crm/leads')}><Plus className="h-3.5 w-3.5 mr-1" />Lead</Button>
           <Button size="sm" variant="outline" onClick={() => go('/app/finance/invoices')}><Plus className="h-3.5 w-3.5 mr-1" />Faktura</Button>
-          <Button size="sm" onClick={() => go('/app/productivity/todos')}><Plus className="h-3.5 w-3.5 mr-1" />To-do</Button>
+          <Button size="sm" onClick={() => go('/app/todos')}><Plus className="h-3.5 w-3.5 mr-1" />To-do</Button>
         </div>
       </div>
 
@@ -205,8 +205,8 @@ export default function DashboardPage() {
             <h3 className="font-semibold text-sm mb-3">Genveje</h3>
             <div className="space-y-0.5">
               {[
-                { icon: <Mail className="h-4 w-4" />, label: 'Indbakke', path: '/app/communication/inbox' },
-                { icon: <CheckSquare className="h-4 w-4" />, label: 'To-dos', path: '/app/productivity/todos' },
+                { icon: <Mail className="h-4 w-4" />, label: 'Indbakke', path: '/app/inbox' },
+                { icon: <CheckSquare className="h-4 w-4" />, label: 'To-dos', path: '/app/todos' },
                 { icon: <FileText className="h-4 w-4" />, label: 'Fakturaer', path: '/app/finance/invoices' },
                 { icon: <Zap className="h-4 w-4" />, label: 'Workflows', path: '/app/workflows' },
               ].map(link => (

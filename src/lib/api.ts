@@ -1153,6 +1153,106 @@ class ApiClient {
     return this.request<{ ok: true }>(`/v1/todos/${id}`, { method: 'DELETE' });
   }
 
+  // ── AI Tasks ────────────────────────────────────────────────────────────────
+  async listTasks(params?: { status?: string }) {
+    const q = params?.status ? `?status=${encodeURIComponent(params.status)}` : '';
+    return this.request<{ data: unknown[] }>(`/v1/tasks${q}`);
+  }
+
+  async createTask(input: { title: string; description?: string; priority?: string; deadline?: string }) {
+    return this.request<{ data: unknown }>('/v1/tasks', { method: 'POST', body: input });
+  }
+
+  async approveTask(id: string) {
+    return this.request<{ status: string }>(`/v1/tasks/${id}/approve`, { method: 'POST' });
+  }
+
+  async rejectTask(id: string) {
+    return this.request<{ status: string }>(`/v1/tasks/${id}/reject`, { method: 'POST' });
+  }
+
+  async updateTask(id: string, input: { status?: string }) {
+    return this.request<{ data: unknown }>(`/v1/tasks/${id}`, { method: 'PATCH', body: input });
+  }
+
+  async deleteTask(id: string) {
+    return this.request<{ status: string }>(`/v1/tasks/${id}`, { method: 'DELETE' });
+  }
+
+  async generateAiTasks() {
+    return this.request<{ created: number }>('/v1/tasks/ai-generate', { method: 'POST' });
+  }
+
+  // ── Email Campaigns ──────────────────────────────────────────────────────────
+  async listEmailCampaigns() {
+    return this.listCampaigns();
+  }
+
+  async createEmailCampaign(input: {
+    name: string;
+    subject: string;
+    body: string;
+    recipients: Array<{ email: string; name?: string }>;
+    trackOpens?: boolean;
+    trackReplies?: boolean;
+  }) {
+    return this.request<{ data: Campaign }>('/v1/campaigns', {
+      method: 'POST',
+      body: {
+        name: input.name,
+        subject: input.subject,
+        body: input.body,
+        recipients: input.recipients,
+        track_opens: input.trackOpens,
+        track_replies: input.trackReplies,
+      },
+    });
+  }
+
+  async sendEmailCampaign(campaignId: string) {
+    return this.request<{ queued: number }>(`/v1/campaigns/${campaignId}/send`, { method: 'POST' });
+  }
+
+  async pauseEmailCampaign(campaignId: string) {
+    return this.request<{ status: string }>(`/v1/campaigns/${campaignId}/pause`, { method: 'POST' });
+  }
+
+  async syncGmailInbox() {
+    return this.request<{ synced: number }>('/v1/gmail/sync', { method: 'POST' });
+  }
+
+  // ── Meta Ads ─────────────────────────────────────────────────────────────────
+  async getMetaCampaigns() {
+    return this.request<{ data: unknown[] }>('/meta/campaigns');
+  }
+
+  async aiAnalyzeMeta(input: { campaignId?: string; question: string }) {
+    return this.request<{ answer: string; suggestions: string[] }>('/meta/ai-analyze', {
+      method: 'POST',
+      body: input,
+    });
+  }
+
+  async createMetaAd(input: {
+    campaignId: string;
+    adSetId: string;
+    name: string;
+    primaryText: string;
+    headline: string;
+    callToAction: string;
+  }) {
+    return this.request<{ data: unknown }>(`/meta/campaigns/${input.campaignId}/ads`, {
+      method: 'POST',
+      body: {
+        ad_set_id: input.adSetId,
+        name: input.name,
+        primary_text: input.primaryText,
+        headline: input.headline,
+        call_to_action: input.callToAction,
+      },
+    });
+  }
+
   async downloadAdminCompaniesHistoryCsv(month?: string) {
     const token = this.getToken();
     const query = month ? `?month=${month}` : '';

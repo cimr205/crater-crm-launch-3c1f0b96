@@ -23,7 +23,6 @@ import AttendancePage from "@/pages/app/hr/Attendance";
 import VacationPage from "@/pages/app/hr/Vacation";
 import SalaryPage from "@/pages/app/hr/Salary";
 import RecruitmentPage from "@/pages/app/hr/Recruitment";
-import TasksPage from "@/pages/app/productivity/Tasks";
 import CalendarPage from "@/pages/app/productivity/Calendar";
 import TodosPage from "@/pages/app/productivity/Todos";
 import InboxPage from "@/pages/app/communication/Inbox";
@@ -41,7 +40,7 @@ import IntegrationsPage from "@/pages/app/Integrations";
 import WorkflowsPage from "@/pages/app/Workflows";
 import MetaAdsPage from "@/pages/app/meta/MetaAds";
 import EmailCampaignsPage from "@/pages/app/email/EmailCampaigns";
-import TasksPage from "@/pages/app/tasks/Tasks";
+import AiTasksPage from "@/pages/app/tasks/Tasks";
 import AppShell from "@/components/AppShell";
 import { I18nProvider, isLocale } from "@/lib/i18n";
 import { TenantProvider } from "@/contexts/TenantContext";
@@ -123,7 +122,7 @@ const App = () => (
                   <Route path="hr/recruitment" element={<RecruitmentPage />} />
 
                   {/* Productivity */}
-                  <Route path="tasks" element={<TasksPage />} />
+                  <Route path="tasks" element={<AiTasksPage />} />
                   <Route path="calendar" element={<CalendarPage />} />
                   <Route path="todos" element={<TodosPage />} />
 
@@ -138,7 +137,6 @@ const App = () => (
                   <Route path="clowdbot" element={<ClowdBotPage />} />
                   <Route path="meta/ads" element={<MetaAdsPage />} />
                   <Route path="email/campaigns" element={<EmailCampaignsPage />} />
-                  <Route path="tasks" element={<TasksPage />} />
                   <Route path="settings/company" element={<CompanySettingsPage />} />
 
                   {/* Admin */}

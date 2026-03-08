@@ -62,7 +62,7 @@ export default function EmailCampaignsPage() {
         api.listEmailCampaigns().catch(() => ({ data: [] })),
       ]);
       setGmailConnected(gmailRes.connected);
-      setGmailEmail(gmailRes.email);
+      setGmailEmail(gmailRes.gmail_email ?? null);
       setCampaigns((campaignsRes as { data: Campaign[] }).data || []);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : 'Could not load email data');
@@ -73,22 +73,26 @@ export default function EmailCampaignsPage() {
     loadData();
   }, [loadData]);
 
-  const handleConnectGmail = () => {
-    const url = api.connectGmail();
-    if (!url) {
-      toast({ title: 'Ikke logget ind', variant: 'destructive' });
-      return;
-    }
-    const width = 520, height = 700;
-    const left = window.screenX + (window.outerWidth - width) / 2;
-    const top = window.screenY + (window.outerHeight - height) / 2;
-    const popup = window.open(url, 'Connect Gmail', `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`);
-    const timer = setInterval(() => {
-      if (popup?.closed) {
-        clearInterval(timer);
-        loadData();
+  const handleConnectGmail = async () => {
+    try {
+      const { auth_url } = await api.getGmailAuthUrl();
+      if (!auth_url) {
+        toast({ title: 'Kunne ikke hente Gmail-URL', variant: 'destructive' });
+        return;
       }
-    }, 1000);
+      const width = 520, height = 700;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      const popup = window.open(auth_url, 'Connect Gmail', `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`);
+      const timer = setInterval(() => {
+        if (popup?.closed) {
+          clearInterval(timer);
+          loadData();
+        }
+      }, 1000);
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Gmail-tilslutning fejlede', variant: 'destructive' });
+    }
   };
 
   const handleDisconnectGmail = async () => {
