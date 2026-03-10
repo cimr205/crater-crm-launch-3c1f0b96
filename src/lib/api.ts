@@ -9,6 +9,40 @@ interface ApiOptions {
   headers?: Record<string, string>;
 }
 
+// Prospect Engine internal types (used in ApiClient method signatures)
+interface ProspectJobResponse {
+  id: string;
+  query: string;
+  source: string;
+  status: string;
+  progress: number;
+  results_count: number;
+  imported_count: number;
+  created_at: string;
+  completed_at?: string;
+  error?: string;
+}
+
+interface ProspectResultResponse {
+  id: string;
+  job_id: string;
+  company_name: string;
+  website?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  industry?: string;
+  employees?: string;
+  rating?: number;
+  reviews?: number;
+  source_url?: string;
+  source: string;
+  imported: boolean;
+  created_at: string;
+}
+
 class ApiClient {
   private token: string | null = null;
   private refreshToken: string | null = null;
@@ -1578,6 +1612,45 @@ class ApiClient {
       failedToday: number;
     }>('/admin/ai/usage');
   }
+
+  // ── Prospect Engine ──────────────────────────────────────────────────────────
+
+  /** Create a new background scraping job */
+  async createProspectJob(input: {
+    query: string;
+    source: string;
+    country?: string;
+    city?: string;
+    industry?: string;
+  }) {
+    return this.request<{ data: { job: ProspectJobResponse } }>('/v1/prospect/jobs', {
+      method: 'POST',
+      body: input,
+    });
+  }
+
+  /** List all prospect jobs for this tenant */
+  async listProspectJobs() {
+    return this.request<{ data: { jobs: ProspectJobResponse[] } }>('/v1/prospect/jobs');
+  }
+
+  /** Get a single job + its results */
+  async getProspectJob(id: string) {
+    return this.request<{ data: { job: ProspectJobResponse; results: ProspectResultResponse[] } }>(`/v1/prospect/jobs/${id}`);
+  }
+
+  /** Delete / cancel a job */
+  async deleteProspectJob(id: string) {
+    return this.request<{ ok: boolean }>(`/v1/prospect/jobs/${id}`, { method: 'DELETE' });
+  }
+
+  /** Import selected results as CRM leads */
+  async importProspectResults(jobId: string, resultIds: string[]) {
+    return this.request<{ data: { imported: number; failed: string[] } }>(
+      `/v1/prospect/jobs/${jobId}/import`,
+      { method: 'POST', body: { result_ids: resultIds } }
+    );
+  }
 }
 
 // Types
@@ -1938,6 +2011,44 @@ export interface AdminAiCompanyUsage {
   totalVideos: number;
   failedCount: number;
   lastActivityAt?: string;
+}
+
+// ── Prospect Engine types ──────────────────────────────────────────────────────
+
+export type ProspectSource = 'google_maps' | 'companies_house' | 'combined';
+export type ProspectJobStatus = 'queued' | 'running' | 'done' | 'failed';
+
+export interface ProspectJob {
+  id: string;
+  query: string;
+  source: ProspectSource;
+  status: ProspectJobStatus;
+  progress: number; // 0–100
+  results_count: number;
+  imported_count: number;
+  created_at: string;
+  completed_at?: string;
+  error?: string;
+}
+
+export interface ProspectResult {
+  id: string;
+  job_id: string;
+  company_name: string;
+  website?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  industry?: string;
+  employees?: string;
+  rating?: number;
+  reviews?: number;
+  source_url?: string;
+  source: string;
+  imported: boolean;
+  created_at: string;
 }
 
 export const api = new ApiClient();

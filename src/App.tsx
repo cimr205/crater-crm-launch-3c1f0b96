@@ -47,6 +47,7 @@ import BulkEmailPage from "@/pages/app/email/BulkEmail";
 import AiTasksPage from "@/pages/app/tasks/Tasks";
 import AiMediaPage from "@/pages/app/ai/AiMedia";
 import CvrProspectorPage from "@/pages/app/crm/CvrProspector";
+import ProspectEnginePage from "@/pages/app/crm/ProspectEngine";
 import AdminAiUsagePage from "@/pages/app/admin/AiUsage";
 import AppShell from "@/components/AppShell";
 import { I18nProvider, isLocale } from "@/lib/i18n";
@@ -118,6 +119,7 @@ const App = () => (
                   <Route path="crm/leads" element={<LeadsPage />} />
                   <Route path="crm/deals" element={<DealsPage />} />
                   <Route path="crm/prospector" element={<CvrProspectorPage />} />
+                  <Route path="crm/prospect-engine" element={<ProspectEnginePage />} />
                   <Route path="customers" element={<CustomersPage />} />
                   <Route path="campaigns" element={<CampaignsPage />} />
 
