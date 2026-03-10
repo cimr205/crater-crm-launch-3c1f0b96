@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Briefcase, Settings, UserSquare2, ShieldCheck,
   History, Bot, Megaphone, FileText, CreditCard, Clock, Palmtree, Banknote,
   UserPlus, CheckSquare, CalendarDays, ListTodo, Inbox, Mail, Building2,
-  BarChart2, Send, X, Sparkles, Video, Crosshair, Zap,
+  BarChart2, Send, X, Sparkles, Video, Crosshair, Zap, Phone,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/contexts/AuthContext';
@@ -55,6 +55,7 @@ const navSections: NavSection[] = [
     items: [
       { href: 'inbox',            labelKey: 'nav.inbox',          icon: Inbox },
       { href: 'emails',           labelKey: 'nav.emails',         icon: Mail },
+      { href: 'phone/calls',      labelKey: 'nav.phoneCalls',     icon: Phone },
       { href: 'email/campaigns',  labelKey: 'nav.emailCampaigns', icon: Send },
       { href: 'email/bulk',       labelKey: 'nav.bulkEmail',      icon: Users },
       { href: 'email/tracking',   labelKey: 'nav.emailTracking',  icon: BarChart2 },

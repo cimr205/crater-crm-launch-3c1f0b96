@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
-import { api } from '@/lib/api';
+import { api, type CallOutcome } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useToast } from '@/components/ui/use-toast';
 import { ToastAction } from '@/components/ui/toast';
 import CvrSearchInput, { type CvrData } from '@/components/CvrSearchInput';
+import { Phone, MessageCircle, MessageSquare } from 'lucide-react';
 
 type LeadRow = {
   id: string;
@@ -41,6 +42,34 @@ export default function LeadsPage() {
   const [newLeadCompany, setNewLeadCompany] = useState('');
   const [newLeadStatus, setNewLeadStatus] = useState('cold');
   const [cvrSearch, setCvrSearch] = useState('');
+  const [loggingLead, setLoggingLead] = useState<LeadRow | null>(null);
+  const [logOutcome, setLogOutcome] = useState<CallOutcome>('answered');
+  const [logDuration, setLogDuration] = useState('');
+  const [logNotes, setLogNotes] = useState('');
+  const [savingLog, setSavingLog] = useState(false);
+
+  const saveCallLog = async () => {
+    if (!loggingLead) return;
+    setSavingLog(true);
+    try {
+      await api.logCall({
+        lead_id: loggingLead.id,
+        to_number: loggingLead.phone,
+        outcome: logOutcome,
+        duration_seconds: logDuration ? Number(logDuration) : undefined,
+        notes: logNotes || undefined,
+      });
+      toast({ title: `Opkald til ${loggingLead.name} logget` });
+      setLoggingLead(null);
+      setLogOutcome('answered');
+      setLogDuration('');
+      setLogNotes('');
+    } catch {
+      toast({ title: 'Kunne ikke logge opkald', variant: 'destructive' });
+    } finally {
+      setSavingLog(false);
+    }
+  };
 
   const loadLeads = useCallback(async () => {
     setLoading(true);
@@ -291,9 +320,43 @@ export default function LeadsPage() {
                   <TableCell className="text-sm">{lead.leadScore}</TableCell>
                   <TableCell className="text-xs text-muted-foreground">{lead.source || '—'}</TableCell>
                   <TableCell>
-                    <Button size="sm" variant="outline" onClick={() => startEdit(lead)}>
-                      {t('crm.edit')}
-                    </Button>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      <Button size="sm" variant="outline" onClick={() => startEdit(lead)}>
+                        {t('crm.edit')}
+                      </Button>
+                      {lead.phone && (
+                        <>
+                          <a href={`tel:${lead.phone}`}>
+                            <Button size="sm" variant="ghost" className="text-green-600 hover:text-green-700" title={t('phone.callNow')}>
+                              <Phone className="h-4 w-4" />
+                            </Button>
+                          </a>
+                          <a
+                            href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button size="sm" variant="ghost" className="text-emerald-600 hover:text-emerald-700" title={t('phone.whatsapp')}>
+                              <MessageCircle className="h-4 w-4" />
+                            </Button>
+                          </a>
+                          <a href={`sms:${lead.phone}`}>
+                            <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700" title={t('phone.sms')}>
+                              <MessageSquare className="h-4 w-4" />
+                            </Button>
+                          </a>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-muted-foreground text-xs"
+                            onClick={() => setLoggingLead(lead)}
+                            title={t('phone.logCall')}
+                          >
+                            + log
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -301,6 +364,53 @@ export default function LeadsPage() {
           </TableBody>
         </Table>
       </div>
+
+      {loggingLead && (
+        <div className="rounded-xl border border-border bg-card/70 backdrop-blur p-4 space-y-3">
+          <div className="text-sm font-semibold">{t('phone.logCallFor')}: {loggingLead.name} ({loggingLead.phone})</div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">{t('phone.outcome')}</div>
+              <select
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                value={logOutcome}
+                onChange={(e) => setLogOutcome(e.target.value as CallOutcome)}
+              >
+                <option value="answered">{t('phone.answered')}</option>
+                <option value="no_answer">{t('phone.no_answer')}</option>
+                <option value="voicemail">{t('phone.voicemail')}</option>
+                <option value="busy">{t('phone.busy')}</option>
+                <option value="failed">{t('phone.failed')}</option>
+              </select>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">{t('phone.duration')}</div>
+              <Input
+                type="number"
+                placeholder="0"
+                value={logDuration}
+                onChange={(e) => setLogDuration(e.target.value)}
+              />
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground mb-1">{t('phone.notes')}</div>
+              <Input
+                placeholder={t('phone.notes')}
+                value={logNotes}
+                onChange={(e) => setLogNotes(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={saveCallLog} disabled={savingLog}>
+              {savingLog ? t('common.loading') : t('phone.saveLog')}
+            </Button>
+            <Button variant="ghost" onClick={() => setLoggingLead(null)}>
+              {t('crm.cancel')}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {editingId && (
         <div className="rounded-xl border border-border bg-card/70 backdrop-blur p-4 space-y-3">

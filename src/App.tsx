@@ -47,6 +47,7 @@ import BulkEmailPage from "@/pages/app/email/BulkEmail";
 import EmailTrackingPage from "@/pages/app/email/EmailTracking";
 import AiTasksPage from "@/pages/app/tasks/Tasks";
 import AiMediaPage from "@/pages/app/ai/AiMedia";
+import PhonePage from "@/pages/app/phone/PhonePage";
 import CvrProspectorPage from "@/pages/app/crm/CvrProspector";
 import ProspectEnginePage from "@/pages/app/crm/ProspectEngine";
 import AdminAiUsagePage from "@/pages/app/admin/AiUsage";
@@ -143,6 +144,7 @@ const App = () => (
                   {/* Communication */}
                   <Route path="inbox" element={<InboxPage />} />
                   <Route path="emails" element={<EmailsPage />} />
+                  <Route path="phone/calls" element={<PhonePage />} />
 
                   {/* AI */}
                   <Route path="ai/media" element={<AiMediaPage />} />

@@ -1651,6 +1651,42 @@ class ApiClient {
       { method: 'POST', body: { result_ids: resultIds } }
     );
   }
+
+  // ── Call Logging (free — no telephony provider needed) ─────────────────────
+
+  async listCallLogs(params?: { lead_id?: string; limit?: number }) {
+    const qs = new URLSearchParams();
+    if (params?.lead_id) qs.set('lead_id', params.lead_id);
+    if (params?.limit) qs.set('limit', String(params.limit));
+    const query = qs.toString();
+    return this.request<{ data: { calls: CallLog[] } }>(
+      `/v1/calls${query ? `?${query}` : ''}`
+    );
+  }
+
+  async logCall(data: {
+    lead_id?: string;
+    to_number: string;
+    outcome: CallOutcome;
+    duration_seconds?: number;
+    notes?: string;
+  }) {
+    return this.request<{ data: { call: CallLog } }>(
+      '/v1/calls',
+      { method: 'POST', body: data }
+    );
+  }
+
+  async updateCallLog(id: string, data: { outcome?: CallOutcome; duration_seconds?: number; notes?: string }) {
+    return this.request<{ data: { call: CallLog } }>(
+      `/v1/calls/${id}`,
+      { method: 'PATCH', body: data }
+    );
+  }
+
+  async deleteCallLog(id: string) {
+    return this.request<{ success: boolean }>(`/v1/calls/${id}`, { method: 'DELETE' });
+  }
 }
 
 // Types
@@ -2049,6 +2085,22 @@ export interface ProspectResult {
   source: string;
   imported: boolean;
   created_at: string;
+}
+
+// ── Phone / Calling types ──────────────────────────────────────────────────────
+
+export type CallOutcome = 'answered' | 'no_answer' | 'voicemail' | 'busy' | 'failed';
+
+export interface CallLog {
+  id: string;
+  lead_id?: string;
+  lead_name?: string;
+  to_number: string;
+  outcome: CallOutcome;
+  duration_seconds?: number;
+  notes?: string;
+  created_at: string;
+  created_by_name?: string;
 }
 
 export const api = new ApiClient();
