@@ -4,6 +4,8 @@
  * Lande & kilder (ingen API-nøgler, 100% gratis for alle brugere):
  *  🇩🇰 Danmark  — cvrapi.dk       (Erhvervsstyrelsen CVR)
  *  🇳🇴 Norge    — brreg.no        (Brønnøysundregistrene)
+ *  🇸🇪 Sverige  — opencorporates  (Bolagsverket-data, gratis tier)
+ *  🇩🇪 Tyskland — opencorporates  (Handelsregister-data, gratis tier)
  *  🇬🇧 UK       — companies house (Companies House API, proxy via backend)
  *
  * Multi-sweep: industri × byer = op til 150+ unikke resultater pr. session
@@ -30,7 +32,7 @@ interface RegistryCompany {
   address?: string;
   zipcode?: string;
   city?: string;
-  country: 'dk' | 'no' | 'uk';
+  country: 'dk' | 'no' | 'se' | 'de' | 'uk';
   phone?: string;
   email?: string;
   industry?: string;
@@ -47,6 +49,8 @@ type ImportStatus = 'idle' | 'importing' | 'done';
 const COUNTRIES = {
   dk: { flag: '🇩🇰', label: 'Danmark', color: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' },
   no: { flag: '🇳🇴', label: 'Norge',   color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
+  se: { flag: '🇸🇪', label: 'Sverige', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300' },
+  de: { flag: '🇩🇪', label: 'Tyskland', color: 'bg-zinc-100 text-zinc-700 dark:bg-zinc-900/30 dark:text-zinc-300' },
   uk: { flag: '🇬🇧', label: 'UK',      color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' },
 } as const;
 
@@ -54,23 +58,121 @@ const COUNTRIES = {
 
 const CITIES_DK = ['København', 'Aarhus', 'Odense', 'Aalborg', 'Esbjerg', 'Kolding', 'Horsens', 'Randers'];
 const CITIES_NO = ['Oslo', 'Bergen', 'Trondheim', 'Stavanger', 'Kristiansand', 'Tromsø', 'Drammen', 'Fredrikstad'];
+const CITIES_SE = ['Stockholm', 'Göteborg', 'Malmö', 'Uppsala', 'Linköping', 'Örebro', 'Västerås', 'Helsingborg'];
+const CITIES_DE = ['Berlin', 'München', 'Hamburg', 'Frankfurt', 'Köln', 'Stuttgart', 'Düsseldorf', 'Leipzig'];
 const CITIES_UK = ['London', 'Manchester', 'Birmingham', 'Edinburgh', 'Bristol', 'Leeds', 'Glasgow', 'Liverpool'];
 
 // ─── Industry presets ───────────────────────────────────────────────────────────
 
 const PRESETS = [
-  { label: 'Reklamebureauer',   emoji: '📢', dk: ['reklamebureau', 'kreativt bureau'], no: ['reklamebyrå', 'kreativt byrå'], uk: ['advertising agency', 'creative agency'], color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' },
-  { label: 'Digitale bureauer', emoji: '💻', dk: ['digital bureau', 'digital markedsføring'], no: ['digital markedsføring', 'digitalbyrå'], uk: ['digital marketing agency', 'performance marketing'], color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' },
-  { label: 'Webbureauer',       emoji: '🌐', dk: ['webbureau', 'webdesign'], no: ['webdesign', 'webbyrå'], uk: ['web design agency', 'web development'], color: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300' },
-  { label: 'Marketing',         emoji: '📈', dk: ['marketingbureau', 'marketing konsulent'], no: ['markedsføringsbyrå', 'marketing'], uk: ['marketing agency', 'growth marketing'], color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' },
-  { label: 'PR & kommunikation',emoji: '📣', dk: ['kommunikationsrådgivning', 'pr bureau'], no: ['kommunikasjonsbyrå', 'pr byrå'], uk: ['pr agency', 'public relations'], color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300' },
-  { label: 'Designbureauer',    emoji: '🎨', dk: ['designbureau', 'grafisk design'], no: ['designbyrå', 'grafisk design'], uk: ['design agency', 'brand design'], color: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300' },
-  { label: 'IT-konsulenter',    emoji: '🛠️', dk: ['it konsulent', 'teknologirådgivning'], no: ['it konsulent', 'teknologirådgivning'], uk: ['it consulting', 'technology consulting'], color: 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-300' },
-  { label: 'Softwareudvikling', emoji: '⚙️', dk: ['softwareudvikling', 'app udvikling'], no: ['programvareutvikling', 'apputvikling'], uk: ['software development', 'app development'], color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300' },
-  { label: 'SEO & SEM',         emoji: '🔍', dk: ['seo bureau', 'søgemaskineoptimering'], no: ['seo byrå', 'søkemotoroptimalisering'], uk: ['seo agency', 'search marketing'], color: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300' },
-  { label: 'Social media',      emoji: '📱', dk: ['social media bureau', 'sociale medier'], no: ['sosiale medier', 'instagram markedsføring'], uk: ['social media agency', 'influencer marketing'], color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300' },
-  { label: 'E-commerce',        emoji: '🛒', dk: ['e-handel', 'webshop'], no: ['netthandel', 'nettbutikk'], uk: ['ecommerce agency', 'shopify agency'], color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' },
-  { label: 'Medieproduktion',   emoji: '🎬', dk: ['videoproduktion', 'medieproduktion'], no: ['videoproduksjon', 'medieproduksjon'], uk: ['video production', 'content production'], color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' },
+  {
+    label: 'Reklamebureauer', emoji: '📢',
+    dk: ['reklamebureau', 'kreativt bureau'],
+    no: ['reklamebyrå', 'kreativt byrå'],
+    se: ['reklambyrå', 'kreativ byrå'],
+    de: ['Werbeagentur', 'kreative Agentur'],
+    uk: ['advertising agency', 'creative agency'],
+    color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  },
+  {
+    label: 'Digitale bureauer', emoji: '💻',
+    dk: ['digital bureau', 'digital markedsføring'],
+    no: ['digital markedsføring', 'digitalbyrå'],
+    se: ['digital marknadsföring', 'digitalbyrå'],
+    de: ['Digitalagentur', 'digitales Marketing'],
+    uk: ['digital marketing agency', 'performance marketing'],
+    color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  },
+  {
+    label: 'Webbureauer', emoji: '🌐',
+    dk: ['webbureau', 'webdesign'],
+    no: ['webdesign', 'webbyrå'],
+    se: ['webbyrå', 'webbdesign'],
+    de: ['Webdesign Agentur', 'Webentwicklung'],
+    uk: ['web design agency', 'web development'],
+    color: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
+  },
+  {
+    label: 'Marketing', emoji: '📈',
+    dk: ['marketingbureau', 'marketing konsulent'],
+    no: ['markedsføringsbyrå', 'marketing'],
+    se: ['marknadsföringsbyrå', 'marknadskonsult'],
+    de: ['Marketingagentur', 'Marketing Beratung'],
+    uk: ['marketing agency', 'growth marketing'],
+    color: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+  },
+  {
+    label: 'PR & kommunikation', emoji: '📣',
+    dk: ['kommunikationsrådgivning', 'pr bureau'],
+    no: ['kommunikasjonsbyrå', 'pr byrå'],
+    se: ['kommunikationsbyrå', 'pr-byrå'],
+    de: ['PR Agentur', 'Kommunikationsagentur'],
+    uk: ['pr agency', 'public relations'],
+    color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  },
+  {
+    label: 'Designbureauer', emoji: '🎨',
+    dk: ['designbureau', 'grafisk design'],
+    no: ['designbyrå', 'grafisk design'],
+    se: ['designbyrå', 'grafisk design'],
+    de: ['Designagentur', 'grafisches Design'],
+    uk: ['design agency', 'brand design'],
+    color: 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300',
+  },
+  {
+    label: 'IT-konsulenter', emoji: '🛠️',
+    dk: ['it konsulent', 'teknologirådgivning'],
+    no: ['it konsulent', 'teknologirådgivning'],
+    se: ['it-konsult', 'teknikrådgivning'],
+    de: ['IT Beratung', 'Technologieberatung'],
+    uk: ['it consulting', 'technology consulting'],
+    color: 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-300',
+  },
+  {
+    label: 'Softwareudvikling', emoji: '⚙️',
+    dk: ['softwareudvikling', 'app udvikling'],
+    no: ['programvareutvikling', 'apputvikling'],
+    se: ['programvaruutveckling', 'apputveckling'],
+    de: ['Softwareentwicklung', 'App Entwicklung'],
+    uk: ['software development', 'app development'],
+    color: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+  },
+  {
+    label: 'SEO & SEM', emoji: '🔍',
+    dk: ['seo bureau', 'søgemaskineoptimering'],
+    no: ['seo byrå', 'søkemotoroptimalisering'],
+    se: ['seo-byrå', 'sökmotoroptimering'],
+    de: ['SEO Agentur', 'Suchmaschinenoptimierung'],
+    uk: ['seo agency', 'search marketing'],
+    color: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
+  },
+  {
+    label: 'Social media', emoji: '📱',
+    dk: ['social media bureau', 'sociale medier'],
+    no: ['sosiale medier', 'instagram markedsføring'],
+    se: ['sociala medier byrå', 'influencer marketing'],
+    de: ['Social Media Agentur', 'Influencer Marketing'],
+    uk: ['social media agency', 'influencer marketing'],
+    color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
+  },
+  {
+    label: 'E-commerce', emoji: '🛒',
+    dk: ['e-handel', 'webshop'],
+    no: ['netthandel', 'nettbutikk'],
+    se: ['e-handel', 'näthandel'],
+    de: ['E-Commerce Agentur', 'Online Shop'],
+    uk: ['ecommerce agency', 'shopify agency'],
+    color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+  },
+  {
+    label: 'Medieproduktion', emoji: '🎬',
+    dk: ['videoproduktion', 'medieproduktion'],
+    no: ['videoproduksjon', 'medieproduksjon'],
+    se: ['videoproduktion', 'medieproduktion'],
+    de: ['Videoproduktion', 'Medienproduktion'],
+    uk: ['video production', 'content production'],
+    color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+  },
 ] as const;
 
 // ─── API adapters ───────────────────────────────────────────────────────────────
@@ -94,13 +196,16 @@ async function searchCvr(q: string): Promise<RegistryCompany[]> {
     const add = (c: typeof data) => {
       if (!c.vat || !c.name || seen.has(String(c.vat))) return;
       seen.add(String(c.vat));
+      // owners fra CVR er juridiske ejere (typisk holdingselskaber) — vises i kortet men bruges ikke som kontaktnavn
+      const ownerName = c.owners?.[0]?.name;
+      const isPersonOwner = ownerName && !/\b(aps|a\/s|holding|invest|group|gruppe)\b/i.test(ownerName);
       out.push({
         id: `dk:${c.vat}`, vat: String(c.vat), name: c.name, country: 'dk',
         address: c.address, zipcode: c.zipcode, city: c.city,
         phone: c.phone, email: c.email,
         industry: c.industrydesc, employees: c.employees,
         companyType: c.companydesc,
-        owner: c.owners?.[0]?.name,
+        owner: isPersonOwner ? ownerName : undefined,
       });
     };
     add(data);
@@ -147,10 +252,42 @@ async function searchBrreg(q: string): Promise<RegistryCompany[]> {
   } catch { return []; }
 }
 
+// OpenCorporates gratis tier — ingen API-nøgle, dækker SE (Bolagsverket) og DE (Handelsregister)
+async function searchOpenCorporates(q: string, jurisdiction: 'se' | 'de'): Promise<RegistryCompany[]> {
+  try {
+    const url = `https://api.opencorporates.com/v0.4/companies/search?q=${encodeURIComponent(q)}&jurisdiction_code=${jurisdiction}&inactive=false&per_page=20`;
+    const res = await fetch(url, { headers: { Accept: 'application/json' } });
+    if (!res.ok) return [];
+    const data = await res.json() as {
+      results?: {
+        companies?: Array<{
+          company?: {
+            company_number?: string;
+            name?: string;
+            registered_address_in_full?: string;
+            company_type?: string;
+            current_status?: string;
+            inactive?: boolean;
+          }
+        }>
+      }
+    };
+    return (data.results?.companies ?? [])
+      .map(c => c.company)
+      .filter((c): c is NonNullable<typeof c> => !!c?.company_number && !!c?.name && !c?.inactive)
+      .map(c => ({
+        id: `${jurisdiction}:${c.company_number}`,
+        vat: c.company_number!,
+        name: c.name!,
+        country: jurisdiction,
+        address: c.registered_address_in_full,
+        companyType: c.company_type,
+        status: c.current_status ?? undefined,
+      }));
+  } catch { return []; }
+}
+
 async function searchCompaniesHouse(q: string): Promise<RegistryCompany[]> {
-  // Companies House requires a free API key — route via backend to keep key server-side.
-  // The backend should proxy GET /v1/companies-house/search?q=... with the key in headers.
-  // Falls back silently if backend endpoint not yet implemented.
   try {
     const res = await api.request<{
       items?: Array<{
@@ -180,7 +317,7 @@ async function searchCompaniesHouse(q: string): Promise<RegistryCompany[]> {
 
 async function sweep(
   preset: typeof PRESETS[number],
-  countries: Set<'dk' | 'no' | 'uk'>,
+  countries: Set<'dk' | 'no' | 'se' | 'de' | 'uk'>,
   onProgress: (done: number, total: number) => void,
   signal: AbortSignal,
 ): Promise<RegistryCompany[]> {
@@ -199,6 +336,22 @@ async function sweep(
       queries.push({ fn: searchBrreg, q: term });
       for (const city of CITIES_NO.slice(0, 5)) {
         queries.push({ fn: searchBrreg, q: `${term} ${city}` });
+      }
+    }
+  }
+  if (countries.has('se')) {
+    for (const term of preset.se) {
+      queries.push({ fn: q => searchOpenCorporates(q, 'se'), q: term });
+      for (const city of CITIES_SE.slice(0, 3)) {
+        queries.push({ fn: q => searchOpenCorporates(q, 'se'), q: `${term} ${city}` });
+      }
+    }
+  }
+  if (countries.has('de')) {
+    for (const term of preset.de) {
+      queries.push({ fn: q => searchOpenCorporates(q, 'de'), q: term });
+      for (const city of CITIES_DE.slice(0, 3)) {
+        queries.push({ fn: q => searchOpenCorporates(q, 'de'), q: `${term} ${city}` });
       }
     }
   }
@@ -225,7 +378,7 @@ async function sweep(
     } catch { /* skip */ }
     done++;
     onProgress(done, queries.length);
-    // Rate-limit: max 1 req/s for cvrapi.dk
+    // Rate-limit: max 1 req/s for cvrapi.dk; OpenCorporates kræver også lidt mellemrum
     if (!signal.aborted) await new Promise(r => setTimeout(r, 1100));
   }
   return results;
@@ -381,15 +534,15 @@ export default function CvrProspectorPage() {
   const [sortByScore, setSortByScore] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
 
-  // Country toggles — all on by default
-  const [activeCountries, setActiveCountries] = useState<Set<'dk' | 'no' | 'uk'>>(
-    new Set(['dk', 'no', 'uk'])
+  // Country toggles — DK + NO on by default; SE/DE/UK optional
+  const [activeCountries, setActiveCountries] = useState<Set<'dk' | 'no' | 'se' | 'de' | 'uk'>>(
+    new Set(['dk', 'no'])
   );
 
   const abortRef = useRef<AbortController | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const toggleCountry = (c: 'dk' | 'no' | 'uk') => {
+  const toggleCountry = (c: 'dk' | 'no' | 'se' | 'de' | 'uk') => {
     setActiveCountries(prev => {
       if (prev.size === 1 && prev.has(c)) return prev; // keep at least one
       const n = new Set(prev);
@@ -457,7 +610,7 @@ export default function CvrProspectorPage() {
   const selectedNotImported = [...selected].filter(id => !imported.has(id));
   const withEmail = results.filter(c => c.email).length;
   const withPhone = results.filter(c => c.phone).length;
-  const byCountry = (['dk', 'no', 'uk'] as const).map(cc => ({
+  const byCountry = (['dk', 'no', 'se', 'de', 'uk'] as const).map(cc => ({
     cc, count: results.filter(c => c.country === cc).length,
   }));
 
@@ -489,7 +642,8 @@ export default function CvrProspectorPage() {
     for (const company of toImport) {
       try {
         await api.createLead({
-          name: company.owner || company.name,
+          // Brug altid firmanavnet som lead-navn — ejere fra CVR er juridiske enheder, ikke kontaktpersoner
+          name: company.name,
           phone: company.phone || '—',
           email: company.email,
           company: company.name,
@@ -521,7 +675,7 @@ export default function CvrProspectorPage() {
             <Badge className="bg-emerald-500 hover:bg-emerald-500 text-white">100% gratis · ingen nøgler</Badge>
           </div>
           <p className="text-sm text-muted-foreground mt-1">
-            Officielle statsregistre: 🇩🇰 CVR · 🇳🇴 Brønnøysund · 🇬🇧 Companies House
+            Officielle statsregistre: 🇩🇰 CVR · 🇳🇴 Brønnøysund · 🇸🇪 Bolagsverket · 🇩🇪 Handelsregister · 🇬🇧 Companies House
           </p>
         </div>
         {imported.size > 0 && (
@@ -538,7 +692,7 @@ export default function CvrProspectorPage() {
         <div className="flex items-center gap-2 flex-wrap">
           <Flag className="h-4 w-4 text-muted-foreground" />
           <span className="text-sm font-medium">Lande:</span>
-          {(['dk', 'no', 'uk'] as const).map(cc => (
+          {(['dk', 'no', 'se', 'de', 'uk'] as const).map(cc => (
             <button
               key={cc}
               onClick={() => toggleCountry(cc)}
@@ -609,7 +763,7 @@ export default function CvrProspectorPage() {
         <div className="rounded-xl bg-muted/50 px-4 py-2.5 flex items-center gap-2">
           <AlertCircle className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
           <p className="text-xs text-muted-foreground">
-            Data fra officielle statsregistre — <strong>gratis for alle brugere</strong>. DK + NO: ingen nøgle. UK: proxy via backend (implementér <code className="bg-muted px-1 rounded">/v1/companies-house/search</code> med én gratis nøgle).
+            DK + NO: direkte fra statsregister. SE + DE: via OpenCorporates gratis tier (kun navn + adresse). UK: proxy via backend (kræver <code className="bg-muted px-1 rounded">COMPANIES_HOUSE_API_KEY</code>).
           </p>
         </div>
       </div>
@@ -766,13 +920,13 @@ export default function CvrProspectorPage() {
             <Building2 className="h-8 w-8 text-primary/60" />
           </div>
           <div className="max-w-sm">
-            <p className="font-semibold text-lg">Find virksomheder i Norden og UK</p>
+            <p className="font-semibold text-lg">Find virksomheder i Norden, DACH og UK</p>
             <p className="text-sm text-muted-foreground mt-1">
               Officielle registre — gratis for alle. Vælg lande og klik en branche ovenfor.
             </p>
           </div>
           <div className="flex flex-wrap gap-2 justify-center">
-            {(['dk', 'no', 'uk'] as const).map(cc => (
+            {(['dk', 'no', 'se', 'de', 'uk'] as const).map(cc => (
               <span key={cc} className={`px-3 py-1.5 rounded-xl text-sm font-medium ${COUNTRIES[cc].color}`}>
                 {COUNTRIES[cc].flag} {COUNTRIES[cc].label}
               </span>
