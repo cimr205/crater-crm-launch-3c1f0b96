@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api, type InvoiceStats } from '@/lib/api';
@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import {
   TrendingUp, Users, FileText, CreditCard, AlertCircle,
   Plus, ArrowRight, Flame, RefreshCw, Zap, CheckSquare, Mail,
-  BarChart2, ListTodo, Clock,
+  BarChart2, ListTodo, Clock, Target, AlertTriangle, ChevronRight,
+  Bell, Edit2, Check, X,
 } from 'lucide-react';
 
 function fmt(n: number) { return n.toLocaleString('da-DK', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
@@ -26,7 +27,7 @@ function useCountUp(target: number, duration = 950): number {
     const tick = (ts: number) => {
       if (!startTs) startTs = ts;
       const p = Math.min((ts - startTs) / duration, 1);
-      const ease = 1 - (1 - p) ** 3; // cubic ease-out
+      const ease = 1 - (1 - p) ** 3;
       setVal(Math.round(ease * target));
       if (p < 1) requestAnimationFrame(tick);
     };
@@ -34,11 +35,13 @@ function useCountUp(target: number, duration = 950): number {
   }, [target, duration]);
   return val;
 }
+
 function greet(name?: string | null) {
   const h = new Date().getHours();
   const g = h < 12 ? 'God morgen' : h < 18 ? 'God eftermiddag' : 'God aften';
   return name ? `${g}, ${name.split(' ')[0]}` : g;
 }
+
 const S_COLOR: Record<string, string> = { cold: 'bg-blue-500', contacted: 'bg-yellow-400', qualified: 'bg-green-500', customer: 'bg-purple-500', lost: 'bg-red-400' };
 const S_LABEL: Record<string, string> = { cold: 'Kold', contacted: 'Kontaktet', qualified: 'Kvalificeret', customer: 'Kunde', lost: 'Tabt' };
 
@@ -81,6 +84,131 @@ function StatCard({ icon, label, value, sub, color, onClick, rawValue, suffix }:
   );
 }
 
+// ─── Månedsmål widget ────────────────────────────────────────────────────────
+function MonthlyGoalCard({ paymentTotal, onClick }: { paymentTotal: number | null; onClick: () => void }) {
+  const [goal, setGoal] = useState<number>(() => {
+    const s = localStorage.getItem('monthly_goal');
+    return s ? parseInt(s, 10) : 0;
+  });
+  const [editing, setEditing] = useState(false);
+  const [input, setInput] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEdit = () => {
+    setInput(goal > 0 ? String(goal) : '');
+    setEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  const save = () => {
+    const val = parseInt(input.replace(/\D/g, ''), 10);
+    if (!isNaN(val) && val > 0) {
+      localStorage.setItem('monthly_goal', String(val));
+      setGoal(val);
+    }
+    setEditing(false);
+  };
+
+  const current = paymentTotal ?? 0;
+  const progress = goal > 0 ? Math.min((current / goal) * 100, 100) : 0;
+  const progressColor = progress >= 100 ? 'bg-green-500' : progress >= 70 ? 'bg-blue-500' : progress >= 40 ? 'bg-yellow-500' : 'bg-orange-500';
+
+  return (
+    <button
+      className="rounded-2xl border bg-card p-5 text-left w-full transition-all hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 cursor-pointer relative group"
+      onClick={goal === 0 ? startEdit : onClick}
+    >
+      <div className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500 mb-3">
+        <Target className="h-5 w-5 text-white" />
+      </div>
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Månedsmål</p>
+        <button
+          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted"
+          onClick={e => { e.stopPropagation(); startEdit(); }}
+        >
+          <Edit2 className="h-3 w-3 text-muted-foreground" />
+        </button>
+      </div>
+      {editing ? (
+        <div className="flex items-center gap-2 mt-1" onClick={e => e.stopPropagation()}>
+          <input
+            ref={inputRef}
+            type="text"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') save(); if (e.key === 'Escape') setEditing(false); }}
+            placeholder="50000"
+            className="flex-1 text-xl font-bold bg-transparent border-b border-primary outline-none tabular-nums w-24"
+          />
+          <span className="text-sm text-muted-foreground">kr</span>
+          <button onClick={save} className="p-1 rounded-full bg-primary text-primary-foreground"><Check className="h-3 w-3" /></button>
+          <button onClick={() => setEditing(false)} className="p-1 rounded-full bg-muted"><X className="h-3 w-3" /></button>
+        </div>
+      ) : (
+        <p className="text-3xl font-bold mt-0.5 tabular-nums">
+          {goal > 0 ? `${fmtAmount(current)} kr` : <span className="text-lg text-muted-foreground">Sæt mål</span>}
+        </p>
+      )}
+      {goal > 0 && !editing && (
+        <>
+          <p className="text-xs text-muted-foreground mt-1">af {fmtAmount(goal)} kr mål</p>
+          <div className="mt-3 h-1.5 rounded-full bg-muted overflow-hidden">
+            <div className={`h-full rounded-full transition-all duration-700 ${progressColor}`} style={{ width: `${progress}%` }} />
+          </div>
+          <p className="text-xs font-semibold mt-1.5" style={{ color: progress >= 100 ? 'rgb(34 197 94)' : undefined }}>
+            {progress >= 100 ? 'Mål nået!' : `${Math.round(progress)}% nået`}
+          </p>
+        </>
+      )}
+    </button>
+  );
+}
+
+// ─── Dagens Overblik ─────────────────────────────────────────────────────────
+interface OverblikItem {
+  key: string;
+  icon: React.ReactNode;
+  label: string;
+  sub: string;
+  color: string;
+  bg: string;
+  border: string;
+  action: () => void;
+}
+
+function DagensOverblik({ items }: { items: OverblikItem[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="flex items-center gap-2 mb-4">
+        <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
+          <Bell className="h-4 w-4 text-primary-foreground" />
+        </div>
+        <h3 className="font-semibold text-sm">Dagens overblik</h3>
+        <Badge variant="secondary" className="ml-auto">{items.length} handling{items.length !== 1 ? 'er' : ''}</Badge>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map(item => (
+          <button
+            key={item.key}
+            onClick={item.action}
+            className={`flex items-center gap-3 rounded-xl ${item.bg} border ${item.border} px-4 py-3 text-left hover:opacity-90 transition-opacity`}
+          >
+            <div className={`shrink-0 ${item.color}`}>{item.icon}</div>
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm font-semibold ${item.color}`}>{item.label}</p>
+              <p className={`text-xs opacity-70 ${item.color}`}>{item.sub}</p>
+            </div>
+            <ChevronRight className={`h-4 w-4 shrink-0 ${item.color} opacity-60`} />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main Dashboard ──────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const navigate = useNavigate();
   const params = useParams();
@@ -97,6 +225,7 @@ export default function DashboardPage() {
   const [pendingTodos, setPendingTodos] = useState<Array<Record<string, unknown>>>([]);
   const [metaConnected, setMetaConnected] = useState(false);
   const [metaCampaigns, setMetaCampaigns] = useState<Array<{ spend: number; leads: number; ctr: number }>>([]);
+  const [staleLeads, setStaleLeads] = useState<LeadRow[]>([]);
 
   const go = (path: string) => navigate(`/${locale}${path}`);
 
@@ -112,6 +241,17 @@ export default function DashboardPage() {
     api.listTodos({ status: 'pending' })
       .then(d => { if (active) setPendingTodos((d as { data?: unknown[]; todos?: unknown[] }).data ?? (d as { todos?: unknown[] }).todos ?? []); })
       .catch(() => undefined);
+    // Opfølgnings-alarm: leads der ikke er fulgt op på i 5+ dage
+    api.listLeads().then(d => {
+      if (!active) return;
+      const now = Date.now();
+      const stale = (d.data as LeadRow[]).filter(l => {
+        if (!['cold', 'contacted'].includes(l.status)) return false;
+        const daysSince = (now - new Date(l.createdAt).getTime()) / 86400000;
+        return daysSince >= 5;
+      });
+      setStaleLeads(stale);
+    }).catch(() => undefined);
     api.getMetaStatus()
       .then(d => {
         if (!active) return;
@@ -128,7 +268,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const cleanup = loadAll();
-    // Auto-refresh every 30s
     const interval = setInterval(() => loadAll(), 30_000);
     return () => { cleanup?.(); clearInterval(interval); };
   }, [loadAll]);
@@ -151,16 +290,56 @@ export default function DashboardPage() {
   const pipelineValue = pipelineLeads.reduce((s, l) => s + l.leadScore * 1000, 0);
   const today = new Date().toLocaleDateString('da-DK', { weekday: 'long', day: 'numeric', month: 'long' });
 
+  // Dagens Overblik items
+  const overblikItems: OverblikItem[] = [
+    ...(hasOverdue ? [{
+      key: 'overdue',
+      icon: <AlertCircle className="h-5 w-5" />,
+      label: `${invoiceStats!.overdue} forfaldne fakturaer`,
+      sub: 'Kræver øjeblikkelig handling',
+      color: 'text-red-700 dark:text-red-300',
+      bg: 'bg-red-50 dark:bg-red-900/20',
+      border: 'border-red-200 dark:border-red-800',
+      action: () => go('/app/finance/invoices'),
+    }] : []),
+    ...(staleLeads.length > 0 ? [{
+      key: 'stale',
+      icon: <AlertTriangle className="h-5 w-5" />,
+      label: `${staleLeads.length} lead${staleLeads.length !== 1 ? 's' : ''} mangler opfølgning`,
+      sub: 'Ikke kontaktet i 5+ dage',
+      color: 'text-orange-700 dark:text-orange-300',
+      bg: 'bg-orange-50 dark:bg-orange-900/20',
+      border: 'border-orange-200 dark:border-orange-800',
+      action: () => go('/app/crm/leads'),
+    }] : []),
+    ...(openTasks.length > 0 ? [{
+      key: 'tasks',
+      icon: <CheckSquare className="h-5 w-5" />,
+      label: `${openTasks.length} åbne opgaver`,
+      sub: 'Afventer færdiggørelse',
+      color: 'text-blue-700 dark:text-blue-300',
+      bg: 'bg-blue-50 dark:bg-blue-900/20',
+      border: 'border-blue-200 dark:border-blue-800',
+      action: () => go('/app/tasks'),
+    }] : []),
+    ...(pendingTodos.length > 0 ? [{
+      key: 'todos',
+      icon: <ListTodo className="h-5 w-5" />,
+      label: `${pendingTodos.length} ventende to-dos`,
+      sub: 'På din liste',
+      color: 'text-violet-700 dark:text-violet-300',
+      bg: 'bg-violet-50 dark:bg-violet-900/20',
+      border: 'border-violet-200 dark:border-violet-800',
+      action: () => go('/app/todos'),
+    }] : []),
+  ];
+
   return (
     <div className="space-y-6">
-      {hasOverdue && (
-        <button onClick={() => go('/app/finance/invoices')} className="w-full flex items-center gap-3 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-4 py-3 text-sm text-left hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors">
-          <AlertCircle className="h-5 w-5 text-red-500 shrink-0" />
-          <span className="flex-1 font-semibold text-red-700 dark:text-red-300">{invoiceStats!.overdue} forfaldne {invoiceStats!.overdue === 1 ? 'faktura' : 'fakturaer'}</span>
-          <ArrowRight className="h-4 w-4 text-red-400 shrink-0" />
-        </button>
-      )}
+      {/* Dagens Overblik */}
+      <DagensOverblik items={overblikItems} />
 
+      {/* Greeting */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{greet(user?.full_name)}</h1>
@@ -173,36 +352,56 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stat cards + Månedsmål */}
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard icon={<Users className="h-5 w-5 text-white" />} color="bg-blue-500" label="Leads i alt" value={totals ? fmt(totals.leads) : '—'} rawValue={totals?.leads} sub={totals ? `+${totals.leads_today} i dag` : undefined} onClick={() => go('/app/crm/leads')} />
         <StatCard icon={<TrendingUp className="h-5 w-5 text-white" />} color="bg-violet-500" label="Pipeline" value={`${fmtAmount(pipelineValue)} kr`} rawValue={pipelineValue} suffix=" kr" sub={`${pipelineLeads.length} aktive leads`} onClick={() => go('/app/crm/deals')} />
         <StatCard icon={<FileText className="h-5 w-5 text-white" />} color="bg-amber-500" label="Sendte fakturaer" value={invoiceStats ? fmt(invoiceStats.sent) : '—'} rawValue={invoiceStats?.sent} sub={invoiceStats ? `${fmtAmount(invoiceStats.total_sent_amount)} kr udestående` : undefined} onClick={() => go('/app/finance/invoices')} />
         <StatCard icon={<CreditCard className="h-5 w-5 text-white" />} color="bg-green-500" label="Betaling modtaget" value={paymentTotal !== null ? `${fmtAmount(paymentTotal)} kr` : '—'} rawValue={paymentTotal ?? undefined} suffix=" kr" sub={invoiceStats ? `${invoiceStats.paid} betalte fakturaer` : undefined} onClick={() => go('/app/finance/payments')} />
+        <div className="col-span-2 lg:col-span-1">
+          <MonthlyGoalCard paymentTotal={paymentTotal} onClick={() => go('/app/finance/payments')} />
+        </div>
       </div>
 
+      {/* Main grid */}
       <div className="grid gap-5 lg:grid-cols-3">
+        {/* Hot leads + stale alarm */}
         <div className="lg:col-span-2 rounded-2xl border bg-card p-5">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2"><Flame className="h-4 w-4 text-orange-500" /><h3 className="font-semibold text-sm">Varme leads</h3></div>
+            <div className="flex items-center gap-2">
+              <Flame className="h-4 w-4 text-orange-500" />
+              <h3 className="font-semibold text-sm">Varme leads</h3>
+              {staleLeads.length > 0 && (
+                <Badge variant="destructive" className="text-xs ml-1">
+                  {staleLeads.length} mangler opfølgning
+                </Badge>
+              )}
+            </div>
             <button onClick={() => go('/app/crm/leads')} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">Se alle <ArrowRight className="h-3 w-3" /></button>
           </div>
           {hotLeads.length > 0 ? (
             <div className="space-y-1">
-              {hotLeads.map(lead => (
-                <div key={lead.id} className="flex items-center gap-3 rounded-lg hover:bg-muted/50 px-3 py-2.5 -mx-3 transition-colors cursor-pointer" onClick={() => go('/app/crm/leads')}>
-                  <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${S_COLOR[lead.status] || 'bg-muted'}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{lead.name}</p>
-                    <p className="text-xs text-muted-foreground truncate">{lead.company || lead.email || '—'}</p>
+              {hotLeads.map(lead => {
+                const isStale = staleLeads.some(s => s.id === lead.id);
+                return (
+                  <div key={lead.id} className={`flex items-center gap-3 rounded-lg hover:bg-muted/50 px-3 py-2.5 -mx-3 transition-colors cursor-pointer ${isStale ? 'border-l-2 border-orange-400 pl-2' : ''}`} onClick={() => go('/app/crm/leads')}>
+                    <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${S_COLOR[lead.status] || 'bg-muted'}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium truncate">{lead.name}</p>
+                        {isStale && <AlertTriangle className="h-3 w-3 text-orange-500 shrink-0" />}
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate">{lead.company || lead.email || '—'}</p>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      {[1,2,3,4,5].map(i => (
+                        <div key={i} className={`h-1.5 w-3.5 rounded-full ${i <= Math.ceil(lead.leadScore / 20) ? 'bg-orange-400' : 'bg-muted'}`} />
+                      ))}
+                      <span className="text-xs font-bold tabular-nums w-5 text-right">{lead.leadScore}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {[1,2,3,4,5].map(i => (
-                      <div key={i} className={`h-1.5 w-3.5 rounded-full ${i <= Math.ceil(lead.leadScore / 20) ? 'bg-orange-400' : 'bg-muted'}`} />
-                    ))}
-                    <span className="text-xs font-bold tabular-nums w-5 text-right">{lead.leadScore}</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-20 gap-2 text-muted-foreground">
@@ -218,7 +417,9 @@ export default function DashboardPage() {
           )}
         </div>
 
+        {/* Right column */}
         <div className="space-y-4">
+          {/* AI Fokus */}
           <div className="rounded-2xl border bg-card p-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2"><Zap className="h-4 w-4 text-yellow-500" /><h3 className="font-semibold text-sm">AI Fokus i dag</h3></div>
@@ -237,7 +438,8 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-          {/* Open tasks widget */}
+
+          {/* Open tasks */}
           <div className="rounded-2xl border bg-card p-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -367,6 +569,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Recent leads table */}
       {recent.length > 0 && (
         <div className="rounded-2xl border bg-card overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b">
@@ -374,22 +577,22 @@ export default function DashboardPage() {
             <button onClick={() => go('/app/crm/leads')} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">Alle leads <ArrowRight className="h-3 w-3" /></button>
           </div>
           <div className="divide-y">
-            {recent.slice(0, 5).map(lead => (
-              <div key={lead.id} className="flex items-center gap-4 px-5 py-3 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => go('/app/crm/leads')}>
-                <div className={`h-2 w-2 rounded-full shrink-0 ${S_COLOR[lead.status] || 'bg-muted'}`} />
-                <span className="flex-1 text-sm font-medium truncate">{lead.name}</span>
-                <span className="text-sm text-muted-foreground hidden md:block truncate max-w-[150px]">{lead.company || lead.email || '—'}</span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">{S_LABEL[lead.status] || lead.status}</span>
-                <span className="text-xs font-bold tabular-nums w-6 text-right shrink-0">{lead.leadScore}</span>
-              </div>
-            ))}
+            {recent.slice(0, 5).map(lead => {
+              const isStale = staleLeads.some(s => s.id === lead.id);
+              return (
+                <div key={lead.id} className="flex items-center gap-4 px-5 py-3 hover:bg-muted/30 transition-colors cursor-pointer" onClick={() => go('/app/crm/leads')}>
+                  <div className={`h-2 w-2 rounded-full shrink-0 ${S_COLOR[lead.status] || 'bg-muted'}`} />
+                  <span className="flex-1 text-sm font-medium truncate">{lead.name}</span>
+                  <span className="text-sm text-muted-foreground hidden md:block truncate max-w-[150px]">{lead.company || lead.email || '—'}</span>
+                  {isStale && <AlertTriangle className="h-3.5 w-3.5 text-orange-500 shrink-0" title="Mangler opfølgning" />}
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">{S_LABEL[lead.status] || lead.status}</span>
+                  <span className="text-xs font-bold tabular-nums w-6 text-right shrink-0">{lead.leadScore}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
     </div>
   );
 }
-
-
-
-
