@@ -77,6 +77,7 @@
     "emails": "Emails",
     "emailCampaigns": "Email Campaigns",
     "bulkEmail": "Bulk Email",
+    "emailTracking": "Email Tracking",
     "metaAds": "Meta Ads",
     "adminUsers": "Users",
     "adminCompany": "Companies",
@@ -330,6 +331,38 @@
       "total": "Total",
       "topCategory": "Top category",
       "month": "Month"
+    }
+  },
+  "emailTracking": {
+    "title": "Email Tracking",
+    "subtitle": "Opens, clicks and bounces across all campaigns",
+    "totalSent": "Emails sent",
+    "openRate": "Open rate",
+    "clickRate": "Click rate",
+    "bounces": "Bounces",
+    "opens": "opens",
+    "clicks": "clicks",
+    "bounceRate": "bounce rate",
+    "campaigns": "campaigns",
+    "noCampaigns": "No sent campaigns yet — create one under Email Campaigns",
+    "noListmonk": "Listmonk not connected",
+    "noListmonkSub": "Connect Listmonk under Integrations to enable email tracking",
+    "benchmarks": "Industry benchmarks",
+    "legendGood": "Good",
+    "legendOk": "OK",
+    "legendLow": "Low",
+    "col": {
+      "campaign": "Campaign",
+      "sent": "Sent",
+      "opens": "Opens",
+      "clicks": "Clicks",
+      "bounces": "Bounces",
+      "sent_at": "Sent"
+    },
+    "tip": {
+      "openRate": "Open rate",
+      "clickRate": "Click rate",
+      "bounceRate": "Bounce rate"
     }
   },
   "notFound": {

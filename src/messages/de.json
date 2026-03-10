@@ -77,6 +77,7 @@
     "emails": "E-Mails",
     "emailCampaigns": "E-Mail-Kampagnen",
     "bulkEmail": "Massen-E-Mail",
+    "emailTracking": "E-Mail-Tracking",
     "metaAds": "Meta Ads",
     "adminUsers": "Benutzer",
     "adminCompany": "Unternehmen",
@@ -330,6 +331,38 @@
       "total": "Total",
       "topCategory": "Top-Kategorie",
       "month": "Monat"
+    }
+  },
+  "emailTracking": {
+    "title": "E-Mail-Tracking",
+    "subtitle": "Öffnungen, Klicks und Bounces über alle Kampagnen",
+    "totalSent": "E-Mails gesendet",
+    "openRate": "Öffnungsrate",
+    "clickRate": "Klickrate",
+    "bounces": "Bounces",
+    "opens": "Öffnungen",
+    "clicks": "Klicks",
+    "bounceRate": "Bounce-Rate",
+    "campaigns": "Kampagnen",
+    "noCampaigns": "Noch keine gesendeten Kampagnen — erstelle eine unter E-Mail-Kampagnen",
+    "noListmonk": "Listmonk nicht verbunden",
+    "noListmonkSub": "Verbinde Listmonk unter Integrationen, um E-Mail-Tracking zu aktivieren",
+    "benchmarks": "Branchen-Benchmarks",
+    "legendGood": "Gut",
+    "legendOk": "OK",
+    "legendLow": "Niedrig",
+    "col": {
+      "campaign": "Kampagne",
+      "sent": "Gesendet",
+      "opens": "Öffnungen",
+      "clicks": "Klicks",
+      "bounces": "Bounces",
+      "sent_at": "Gesendet am"
+    },
+    "tip": {
+      "openRate": "Öffnungsrate",
+      "clickRate": "Klickrate",
+      "bounceRate": "Bounce-Rate"
     }
   },
   "notFound": {

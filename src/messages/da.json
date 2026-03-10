@@ -73,6 +73,7 @@
     "emails": "Emails",
     "emailCampaigns": "E-mail kampagner",
     "bulkEmail": "Bulk Email",
+    "emailTracking": "Email Tracking",
     "metaAds": "Meta Ads",
     "history": "Historik",
     "settings": "Indstillinger",
@@ -330,6 +331,38 @@
       "total": "Total",
       "topCategory": "Top kategori",
       "month": "Måned"
+    }
+  },
+  "emailTracking": {
+    "title": "Email Tracking",
+    "subtitle": "Åbninger, klik og afvisninger på tværs af alle kampagner",
+    "totalSent": "Emails sendt",
+    "openRate": "Åbningsrate",
+    "clickRate": "Klikrate",
+    "bounces": "Afvisninger",
+    "opens": "åbninger",
+    "clicks": "klik",
+    "bounceRate": "afvisningsrate",
+    "campaigns": "kampagner",
+    "noCampaigns": "Ingen sendte kampagner endnu — opret en under E-mail kampagner",
+    "noListmonk": "Listmonk ikke tilsluttet",
+    "noListmonkSub": "Tilslut Listmonk under Integrationer for at aktivere email tracking",
+    "benchmarks": "Branchemæssige benchmarks",
+    "legendGood": "God",
+    "legendOk": "OK",
+    "legendLow": "Lav",
+    "col": {
+      "campaign": "Kampagne",
+      "sent": "Sendt",
+      "opens": "Åbninger",
+      "clicks": "Klik",
+      "bounces": "Afvisninger",
+      "sent_at": "Sendt"
+    },
+    "tip": {
+      "openRate": "Åbningsrate",
+      "clickRate": "Klikrate",
+      "bounceRate": "Afvisningsrate"
     }
   },
   "notFound": {
