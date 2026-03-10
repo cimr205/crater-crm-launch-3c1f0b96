@@ -3,10 +3,10 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useI18n } from '@/lib/i18n';
-import { api, TenantSettings } from '@/lib/api';
+import { api, TenantSettings, type PhoneProvision } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { ImagePlus, X } from 'lucide-react';
+import { ImagePlus, X, Phone, Loader2 } from 'lucide-react';
 
 const LOGO_KEY = 'crater_invoice_logo';
 
@@ -23,6 +23,11 @@ export default function CompanySettingsPage() {
   const [regeneratingCode, setRegeneratingCode] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string>(() => localStorage.getItem(LOGO_KEY) || '');
   const logoInputRef = useRef<HTMLInputElement>(null);
+
+  const [phoneProvision, setPhoneProvision] = useState<PhoneProvision | null>(null);
+  const [phoneLoading, setPhoneLoading] = useState(true);
+  const [phoneProvisioning, setPhoneProvisioning] = useState(false);
+  const [phoneReleasing, setPhoneReleasing] = useState(false);
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -59,10 +64,46 @@ export default function CompanySettingsPage() {
         setLoading(false);
       });
 
+    api
+      .getPhoneProvision()
+      .then((res) => {
+        if (!active) return;
+        setPhoneProvision(res.data);
+      })
+      .catch(() => setPhoneProvision(null))
+      .finally(() => { if (active) setPhoneLoading(false); });
+
     return () => {
       active = false;
     };
   }, []);
+
+  const handleProvision = async () => {
+    setPhoneProvisioning(true);
+    try {
+      const res = await api.provisionPhoneNumber();
+      setPhoneProvision(res.data);
+      toast({ title: `Telefonnummer aktiveret: ${res.data.phone_number}` });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Kunne ikke aktivere nummer', variant: 'destructive' });
+    } finally {
+      setPhoneProvisioning(false);
+    }
+  };
+
+  const handleRelease = async () => {
+    if (!confirm('Er du sikker? Dette frigiver nummeret permanent.')) return;
+    setPhoneReleasing(true);
+    try {
+      await api.releasePhoneNumber();
+      setPhoneProvision(prev => prev ? { ...prev, phone_number: null, active: false, minutes_used: 0 } : null);
+      toast({ title: 'Telefonnummer frigivet' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Kunne ikke frigive nummer', variant: 'destructive' });
+    } finally {
+      setPhoneReleasing(false);
+    }
+  };
 
   const isOwner = !!user && (user.role === 'owner' || user.is_global_admin);
 
@@ -222,6 +263,75 @@ export default function CompanySettingsPage() {
         <Button onClick={handleSave} disabled={saving}>
           {saving ? t('common.loading') : t('settings.updateCta')}
         </Button>
+      </Card>
+
+      {/* Phone provisioning card */}
+      <Card className="p-6 space-y-4 bg-card/70 backdrop-blur border-border">
+        <div className="flex items-center gap-2">
+          <Phone className="h-5 w-5 text-primary" />
+          <div>
+            <h2 className="text-base font-semibold">{t('phone.provisionTitle')}</h2>
+            <p className="text-sm text-muted-foreground">{t('phone.provisionSubtitle')}</p>
+          </div>
+        </div>
+
+        {phoneLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            {t('common.loading')}
+          </div>
+        ) : phoneProvision?.active && phoneProvision.phone_number ? (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <div>
+                <div className="text-xs text-muted-foreground mb-0.5">{t('phone.yourNumber')}</div>
+                <div className="text-lg font-semibold tracking-wide">{phoneProvision.phone_number}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-xs text-muted-foreground mb-0.5">{t('phone.planLabel')}: {phoneProvision.plan}</div>
+                <div className="text-xs text-muted-foreground">{t('phone.minuteLimit')}: {phoneProvision.minutes_limit} min/md</div>
+              </div>
+            </div>
+
+            {/* Usage bar */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">{t('phone.usageThisMonth')}</span>
+                <span className={phoneProvision.minutes_used / phoneProvision.minutes_limit > 0.8 ? 'text-destructive font-medium' : 'text-foreground'}>
+                  {phoneProvision.minutes_used} / {phoneProvision.minutes_limit} min
+                </span>
+              </div>
+              <div className="h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    phoneProvision.minutes_used / phoneProvision.minutes_limit > 0.8
+                      ? 'bg-destructive'
+                      : phoneProvision.minutes_used / phoneProvision.minutes_limit > 0.6
+                      ? 'bg-yellow-500'
+                      : 'bg-primary'
+                  }`}
+                  style={{ width: `${Math.min(100, (phoneProvision.minutes_used / phoneProvision.minutes_limit) * 100)}%` }}
+                />
+              </div>
+              {phoneProvision.minutes_used / phoneProvision.minutes_limit > 0.8 && (
+                <div className="text-xs text-destructive">{t('phone.usageWarning')}</div>
+              )}
+            </div>
+
+            <Button variant="outline" size="sm" className="text-destructive border-destructive/30 hover:bg-destructive/10" onClick={handleRelease} disabled={phoneReleasing}>
+              {phoneReleasing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              {t('phone.releaseNumber')}
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">{t('phone.noNumberYet')}</p>
+            <Button onClick={handleProvision} disabled={phoneProvisioning} className="gap-2">
+              {phoneProvisioning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Phone className="h-4 w-4" />}
+              {phoneProvisioning ? t('common.loading') : t('phone.activateNumber')}
+            </Button>
+          </div>
+        )}
       </Card>
 
       {/* Logo card */}

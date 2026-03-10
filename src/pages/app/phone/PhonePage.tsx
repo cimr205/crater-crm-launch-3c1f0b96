@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useI18n } from '@/lib/i18n';
-import { api, type CallLog, type CallOutcome } from '@/lib/api';
+import { api, type CallLog, type CallOutcome, type PhoneProvision } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/components/ui/use-toast';
-import { Phone, MessageCircle, MessageSquare, Info, Trash2 } from 'lucide-react';
+import { Phone, MessageCircle, MessageSquare, Info, Trash2, AlertTriangle } from 'lucide-react';
 
 type LeadRow = {
   id: string;
@@ -28,6 +28,7 @@ export default function PhonePage() {
   const { t } = useI18n();
   const { toast } = useToast();
 
+  const [provision, setProvision] = useState<PhoneProvision | null>(null);
   const [leads, setLeads] = useState<LeadRow[]>([]);
   const [callLogs, setCallLogs] = useState<CallLog[]>([]);
   const [loadingLeads, setLoadingLeads] = useState(true);
@@ -71,6 +72,7 @@ export default function PhonePage() {
   useEffect(() => {
     void loadLeads();
     void loadLogs();
+    api.getPhoneProvision().then(r => setProvision(r.data)).catch(() => null);
   }, [loadLeads, loadLogs]);
 
   const openLogForm = (lead: LeadRow) => {
@@ -124,16 +126,48 @@ export default function PhonePage() {
         <p className="text-sm text-muted-foreground">{t('phone.subtitle')}</p>
       </div>
 
-      {/* How it works banner */}
-      <Card className="p-4 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
-        <div className="flex gap-3">
-          <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
-          <div>
-            <div className="text-sm font-medium text-blue-800 dark:text-blue-200">{t('phone.howItWorks')}</div>
-            <div className="text-sm text-blue-700 dark:text-blue-300 mt-0.5">{t('phone.howItWorksBody')}</div>
+      {/* Usage banner — shown when phone is provisioned */}
+      {provision?.active && provision.phone_number ? (
+        <Card className={`p-4 border ${
+          provision.minutes_used / provision.minutes_limit > 0.8
+            ? 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800'
+            : 'bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800'
+        }`}>
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              {provision.minutes_used / provision.minutes_limit > 0.8
+                ? <AlertTriangle className="h-5 w-5 text-red-500 shrink-0" />
+                : <Phone className="h-5 w-5 text-green-600 shrink-0" />
+              }
+              <div>
+                <div className="text-sm font-medium">{t('phone.yourNumber')}: <span className="font-bold">{provision.phone_number}</span></div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {provision.minutes_used} / {provision.minutes_limit} min {t('phone.usedThisMonth')}
+                  {provision.minutes_used / provision.minutes_limit > 0.8 && (
+                    <span className="text-red-600 ml-2 font-medium">{t('phone.usageWarning')}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="w-48 h-2 rounded-full bg-muted overflow-hidden">
+              <div
+                className={`h-full rounded-full ${provision.minutes_used / provision.minutes_limit > 0.8 ? 'bg-red-500' : 'bg-green-500'}`}
+                style={{ width: `${Math.min(100, (provision.minutes_used / provision.minutes_limit) * 100)}%` }}
+              />
+            </div>
           </div>
-        </div>
-      </Card>
+        </Card>
+      ) : (
+        <Card className="p-4 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
+          <div className="flex gap-3">
+            <Info className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+            <div>
+              <div className="text-sm font-medium text-blue-800 dark:text-blue-200">{t('phone.howItWorks')}</div>
+              <div className="text-sm text-blue-700 dark:text-blue-300 mt-0.5">{t('phone.howItWorksBody')}</div>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Cold call queue */}
       <Card className="p-6 space-y-4 bg-card/70 backdrop-blur border-border">
@@ -141,6 +175,12 @@ export default function PhonePage() {
           <h2 className="text-base font-semibold">{t('phone.callQueue')}</h2>
           <p className="text-sm text-muted-foreground">{t('phone.callQueueSubtitle')}</p>
         </div>
+
+        {provision && provision.active && provision.minutes_used >= provision.minutes_limit && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive font-medium">
+            {t('phone.limitReached')}
+          </div>
+        )}
 
         {loadingLeads ? (
           <div className="text-sm text-muted-foreground">{t('common.loading')}</div>

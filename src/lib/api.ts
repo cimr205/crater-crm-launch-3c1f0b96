@@ -1687,6 +1687,28 @@ class ApiClient {
   async deleteCallLog(id: string) {
     return this.request<{ success: boolean }>(`/v1/calls/${id}`, { method: 'DELETE' });
   }
+
+  // ── Phone provisioning + usage ─────────────────────────────────────────────
+
+  async getPhoneProvision() {
+    return this.request<{ data: PhoneProvision }>('/v1/phone/provision');
+  }
+
+  async provisionPhoneNumber() {
+    return this.request<{ data: PhoneProvision }>('/v1/phone/provision', { method: 'POST' });
+  }
+
+  async releasePhoneNumber() {
+    return this.request<{ success: boolean }>('/v1/phone/provision', { method: 'DELETE' });
+  }
+
+  async adminListPhoneUsage() {
+    return this.request<{ data: { tenants: AdminPhoneUsage[] } }>('/v1/admin/phone/usage');
+  }
+
+  async adminUpdatePhonePlan(tenantId: string, data: { minutes_limit: number; plan: string }) {
+    return this.request<{ success: boolean }>(`/v1/admin/phone/${tenantId}`, { method: 'PATCH', body: data });
+  }
 }
 
 // Types
@@ -2090,6 +2112,24 @@ export interface ProspectResult {
 // ── Phone / Calling types ──────────────────────────────────────────────────────
 
 export type CallOutcome = 'answered' | 'no_answer' | 'voicemail' | 'busy' | 'failed';
+
+export interface PhoneProvision {
+  phone_number: string | null;
+  plan: string;
+  minutes_used: number;
+  minutes_limit: number;
+  active: boolean;
+}
+
+export interface AdminPhoneUsage {
+  company_id: string;
+  company_name: string;
+  phone_number: string | null;
+  plan: string;
+  minutes_used: number;
+  minutes_limit: number;
+  active: boolean;
+}
 
 export interface CallLog {
   id: string;

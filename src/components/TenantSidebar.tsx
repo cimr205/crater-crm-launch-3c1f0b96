@@ -88,6 +88,7 @@ const adminSection: NavSection = {
     { href: 'admin/company',    labelKey: 'nav.adminCompany',    icon: Building2 },
     { href: 'admin/employees',  labelKey: 'nav.adminEmployees',  icon: UserSquare2 },
     { href: 'admin/ai',         labelKey: 'nav.adminAi',         icon: Sparkles },
+    { href: 'admin/phone',      labelKey: 'nav.adminPhone',      icon: Phone },
     { href: 'admin/settings',   labelKey: 'nav.adminSettings',   icon: Settings },
   ],
 };

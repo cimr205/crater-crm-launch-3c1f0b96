@@ -51,6 +51,7 @@ import PhonePage from "@/pages/app/phone/PhonePage";
 import CvrProspectorPage from "@/pages/app/crm/CvrProspector";
 import ProspectEnginePage from "@/pages/app/crm/ProspectEngine";
 import AdminAiUsagePage from "@/pages/app/admin/AiUsage";
+import AdminPhoneUsagePage from "@/pages/app/admin/PhoneUsage";
 import AppShell from "@/components/AppShell";
 import { I18nProvider, isLocale } from "@/lib/i18n";
 import { TenantProvider } from "@/contexts/TenantContext";
@@ -198,6 +199,14 @@ const App = () => (
                     element={
                       <RoleGate role="global_admin">
                         <AdminAiUsagePage />
+                      </RoleGate>
+                    }
+                  />
+                  <Route
+                    path="admin/phone"
+                    element={
+                      <RoleGate role="global_admin">
+                        <AdminPhoneUsagePage />
                       </RoleGate>
                     }
                   />
