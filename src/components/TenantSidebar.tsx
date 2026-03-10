@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Briefcase, Settings, UserSquare2, ShieldCheck,
   History, Bot, Megaphone, FileText, CreditCard, Clock, Palmtree, Banknote,
   UserPlus, CheckSquare, CalendarDays, ListTodo, Inbox, Mail, Building2,
-  BarChart2, Send, X, Sparkles, Video,
+  BarChart2, Send, X, Sparkles, Video, Crosshair,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,9 +17,10 @@ const navSections: NavSection[] = [
     titleKey: 'nav.section.crm',
     items: [
       { href: 'dashboard',    labelKey: 'nav.dashboard',   icon: LayoutDashboard },
-      { href: 'crm/leads',    labelKey: 'nav.leads',       icon: Users },
-      { href: 'crm/deals',    labelKey: 'nav.deals',       icon: Briefcase },
-      { href: 'customers',    labelKey: 'nav.customers',   icon: Users },
+      { href: 'crm/leads',       labelKey: 'nav.leads',       icon: Users },
+      { href: 'crm/deals',       labelKey: 'nav.deals',       icon: Briefcase },
+      { href: 'crm/prospector',  labelKey: 'nav.prospector',  icon: Crosshair },
+      { href: 'customers',       labelKey: 'nav.customers',   icon: Users },
       { href: 'campaigns',    labelKey: 'nav.campaigns',   icon: Megaphone },
     ],
   },
