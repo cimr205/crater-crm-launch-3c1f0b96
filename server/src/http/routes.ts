@@ -1472,6 +1472,30 @@ export function registerRoutes(app: Application) {
     ok(res, { ok: true });
   });
 
+  // ─── Companies House proxy (UK registry search — gratis, én nøgle i backend) ──
+  app.get('/api/v1/companies-house/search', authMiddleware, async (req: Request, res: Response) => {
+    const q = String(req.query.q ?? '').trim();
+    if (!q) { fail(res, 400, 'missing_query', 'Query parameter q is required'); return; }
+    if (!env.companiesHouseApiKey) { fail(res, 503, 'not_configured', 'Companies House API key not configured'); return; }
+
+    const url = `https://api.company-information.service.gov.uk/search/companies?q=${encodeURIComponent(q)}&items_per_page=20`;
+    const basicAuth = Buffer.from(`${env.companiesHouseApiKey}:`).toString('base64');
+    const upstream = await fetch(url, {
+      headers: { Authorization: `Basic ${basicAuth}`, Accept: 'application/json' },
+    });
+    if (!upstream.ok) { fail(res, 502, 'upstream_error', `Companies House returned ${upstream.status}`); return; }
+    const data = await upstream.json() as {
+      items?: Array<{
+        company_number?: string;
+        title?: string;
+        address_snippet?: string;
+        company_type?: string;
+        company_status?: string;
+      }>
+    };
+    ok(res, { items: data.items ?? [] });
+  });
+
   app.use('/api', (_req: Request, res: Response) => {
     fail(res, 404, 'not_found', 'Endpoint not found');
   });
