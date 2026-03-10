@@ -530,7 +530,7 @@ export default function CvrProspectorPage() {
   const [importStatus, setImportStatus] = useState<ImportStatus>('idle');
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
   const [activePreset, setActivePreset] = useState<string | null>(null);
-  const [withEmailOnly, setWithEmailOnly] = useState(false);
+  const [withEmailOnly, setWithEmailOnly] = useState(true);
   const [sortByScore, setSortByScore] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -624,7 +624,7 @@ export default function CvrProspectorPage() {
         c.phone ?? '', c.email ?? '', c.owner ?? '', c.companyType ?? '',
       ]),
     ];
-    const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n');
+    const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(';')).join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
