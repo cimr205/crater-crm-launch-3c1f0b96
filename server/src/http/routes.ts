@@ -1496,6 +1496,158 @@ export function registerRoutes(app: Application) {
     ok(res, { items: data.items ?? [] });
   });
 
+  // ── Phone provisioning ────────────────────────────────────────────────────
+
+  // GET /api/v1/phone/provision — return tenant's current provision (or empty)
+  app.get('/api/v1/phone/provision', authMiddleware, async (req: Request, res: Response) => {
+    const { companyId } = req.authUser!;
+    const rows = await query<{
+      phone_number: string | null;
+      plan: string;
+      minutes_used: number;
+      minutes_limit: number;
+      active: boolean;
+    }>(
+      `select phone_number, plan, minutes_used, minutes_limit, active
+       from phone_provisions
+       where company_id = $1`,
+      [companyId]
+    );
+    if (rows.length === 0) {
+      ok(res, { phone_number: null, plan: 'standard', minutes_used: 0, minutes_limit: 500, active: false });
+      return;
+    }
+    ok(res, rows[0]);
+  });
+
+  // POST /api/v1/phone/provision — provision a number for the tenant
+  app.post('/api/v1/phone/provision', authMiddleware, requirePermission('company.update'), async (req: Request, res: Response) => {
+    const { companyId } = req.authUser!;
+
+    // Check if already provisioned
+    const existing = await query<{ active: boolean; phone_number: string | null }>(
+      `select active, phone_number from phone_provisions where company_id = $1`,
+      [companyId]
+    );
+    if (existing.length > 0 && existing[0].active) {
+      fail(res, 409, 'already_provisioned', 'A phone number is already active for this company');
+      return;
+    }
+
+    // --- Twilio integration point ---
+    // Replace the stub below with:
+    //   const twilioClient = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
+    //   const number = await twilioClient.incomingPhoneNumbers.create({ areaCode: '45', voiceUrl: ... });
+    //   const phoneNumber = number.phoneNumber;
+    //   const twilioSid  = number.sid;
+    const phoneNumber = `+4570${Math.floor(100000 + Math.random() * 900000)}`;
+    const twilioSid   = `PNstub_${Date.now()}`;
+    // --------------------------------
+
+    const rows = await query<{
+      phone_number: string;
+      plan: string;
+      minutes_used: number;
+      minutes_limit: number;
+      active: boolean;
+    }>(
+      `insert into phone_provisions (company_id, phone_number, twilio_sid, active)
+       values ($1, $2, $3, true)
+       on conflict (company_id) do update
+         set phone_number = excluded.phone_number,
+             twilio_sid   = excluded.twilio_sid,
+             active       = true,
+             updated_at   = now()
+       returning phone_number, plan, minutes_used, minutes_limit, active`,
+      [companyId, phoneNumber, twilioSid]
+    );
+    ok(res, rows[0], 201);
+  });
+
+  // DELETE /api/v1/phone/provision — release / deactivate the number
+  app.delete('/api/v1/phone/provision', authMiddleware, requirePermission('company.update'), async (req: Request, res: Response) => {
+    const { companyId } = req.authUser!;
+
+    const existing = await query<{ twilio_sid: string | null; active: boolean }>(
+      `select twilio_sid, active from phone_provisions where company_id = $1`,
+      [companyId]
+    );
+    if (existing.length === 0 || !existing[0].active) {
+      fail(res, 404, 'not_found', 'No active phone number to release');
+      return;
+    }
+
+    // --- Twilio integration point ---
+    // const twilioClient = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
+    // if (existing[0].twilio_sid) await twilioClient.incomingPhoneNumbers(existing[0].twilio_sid).remove();
+    // --------------------------------
+
+    await query(
+      `update phone_provisions
+       set active = false, phone_number = null, twilio_sid = null, minutes_used = 0, updated_at = now()
+       where company_id = $1`,
+      [companyId]
+    );
+    ok(res, { success: true });
+  });
+
+  // ── Admin: phone usage across all tenants ─────────────────────────────────
+
+  // GET /api/v1/admin/phone/usage
+  app.get('/api/v1/admin/phone/usage', authMiddleware, requireGlobalAdmin, async (_req: Request, res: Response) => {
+    const rows = await query<{
+      company_id: string;
+      company_name: string;
+      phone_number: string | null;
+      plan: string;
+      minutes_used: number;
+      minutes_limit: number;
+      active: boolean;
+    }>(
+      `select
+         pp.company_id,
+         c.name as company_name,
+         pp.phone_number,
+         pp.plan,
+         pp.minutes_used,
+         pp.minutes_limit,
+         pp.active
+       from phone_provisions pp
+       join companies c on c.id = pp.company_id
+       order by c.name`
+    );
+    ok(res, { tenants: rows });
+  });
+
+  // PATCH /api/v1/admin/phone/:tenantId — update plan or minute limit
+  app.patch('/api/v1/admin/phone/:tenantId', authMiddleware, requireGlobalAdmin, async (req: Request, res: Response) => {
+    const { tenantId } = req.params;
+    const schema = z.object({
+      minutes_limit: z.number().int().min(0).optional(),
+      plan: z.string().min(1).max(64).optional(),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) {
+      fail(res, 400, 'invalid_payload', 'Invalid payload', parsed.error.flatten());
+      return;
+    }
+
+    const fields: string[] = [];
+    const values: unknown[] = [];
+    const addField = (col: string, val: unknown) => { values.push(val); fields.push(`${col} = $${values.length}`); };
+
+    if (parsed.data.minutes_limit !== undefined) addField('minutes_limit', parsed.data.minutes_limit);
+    if (parsed.data.plan          !== undefined) addField('plan',          parsed.data.plan);
+    if (fields.length === 0) { ok(res, { success: true }); return; }
+
+    values.push(tenantId);
+    await query(
+      `update phone_provisions set ${fields.join(', ')}, updated_at = now() where company_id = $${values.length}`,
+      values
+    );
+    ok(res, { success: true });
+  });
+
   app.use('/api', (_req: Request, res: Response) => {
     fail(res, 404, 'not_found', 'Endpoint not found');
   });
