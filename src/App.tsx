@@ -50,6 +50,7 @@ import AiMediaPage from "@/pages/app/ai/AiMedia";
 import PhonePage from "@/pages/app/phone/PhonePage";
 import CvrProspectorPage from "@/pages/app/crm/CvrProspector";
 import ProspectEnginePage from "@/pages/app/crm/ProspectEngine";
+import LeadGenerationPage from "@/pages/app/crm/LeadGeneration";
 import AdminAiUsagePage from "@/pages/app/admin/AiUsage";
 import AdminPhoneUsagePage from "@/pages/app/admin/PhoneUsage";
 import AppShell from "@/components/AppShell";
@@ -57,7 +58,17 @@ import { I18nProvider, isLocale } from "@/lib/i18n";
 import { TenantProvider } from "@/contexts/TenantContext";
 import RoleGate from "@/components/RoleGate";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 10,
+      retry: 1,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+    },
+  },
+});
 
 const LocaleLayout = () => {
   const params = useParams();
@@ -123,6 +134,7 @@ const App = () => (
                   <Route path="crm/deals" element={<DealsPage />} />
                   <Route path="crm/prospector" element={<CvrProspectorPage />} />
                   <Route path="crm/prospect-engine" element={<ProspectEnginePage />} />
+                  <Route path="crm/lead-generation" element={<LeadGenerationPage />} />
                   <Route path="customers" element={<CustomersPage />} />
                   <Route path="campaigns" element={<CampaignsPage />} />
 

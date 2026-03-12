@@ -220,7 +220,8 @@ class ApiClient {
       if (response.status === 401) {
         this.setSession(null);
         localStorage.removeItem('tenant_defaults');
-        window.location.href = '/en/auth/login';
+        const locale = window.location.pathname.split('/')[1] || 'en';
+        window.location.href = `/${locale}/auth/login`;
       }
       const error = await response.json().catch(() => ({ message: 'An error occurred' })) as {
         message?: string;
@@ -1189,6 +1190,28 @@ class ApiClient {
     return this.request<{ ok: true }>(`/v1/todos/${id}`, { method: 'DELETE' });
   }
 
+  // ── Deals ───────────────────────────────────────────────────────────────────
+
+  async listDeals(params?: { stage?: string; q?: string }) {
+    const qs = new URLSearchParams();
+    if (params?.stage) qs.set('stage', params.stage);
+    if (params?.q) qs.set('q', params.q);
+    const query = qs.toString();
+    return this.request<{ data: unknown[] }>(`/v1/deals${query ? `?${query}` : ''}`);
+  }
+
+  async createDeal(input: { title: string; value?: number; stage_id?: string; customer_id?: string; lead_id?: string }) {
+    return this.request<{ data: unknown }>('/v1/deals', { method: 'POST', body: input });
+  }
+
+  async updateDeal(id: string, input: { stage_id?: string; value?: number; title?: string }) {
+    return this.request<{ data: unknown }>(`/v1/deals/${id}`, { method: 'PATCH', body: input });
+  }
+
+  async deleteDeal(id: string) {
+    return this.request<{ ok: true }>(`/v1/deals/${id}`, { method: 'DELETE' });
+  }
+
   // ── AI Tasks ────────────────────────────────────────────────────────────────
   async listTasks(params?: { status?: string }) {
     const q = params?.status ? `?status=${encodeURIComponent(params.status)}` : '';
@@ -1650,6 +1673,83 @@ class ApiClient {
       `/v1/prospect/jobs/${jobId}/import`,
       { method: 'POST', body: { result_ids: resultIds } }
     );
+  }
+
+  // ── Lead Generation Engine ──────────────────────────────────────────────────
+
+  /** Start a new lead gen search session */
+  async createLeadGenSession(input: {
+    query: string;
+    filters: {
+      country?: string;
+      city?: string;
+      industry?: string;
+      industry_keywords?: string[];
+      employee_size?: string;
+      must_have_email?: boolean;
+      must_have_phone?: boolean;
+      must_have_website?: boolean;
+      must_be_active?: boolean;
+      keywords?: string;
+      exclude_keywords?: string;
+      score_threshold?: number;
+    };
+  }) {
+    return this.request<{ data: { session: LeadGenSession } }>('/v1/lead-gen/sessions', {
+      method: 'POST',
+      body: input,
+    });
+  }
+
+  /** List lead gen sessions for current tenant */
+  async listLeadGenSessions(params?: { page?: number; limit?: number }) {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    const query = qs.toString();
+    return this.request<{ data: { sessions: LeadGenSession[]; total: number } }>(
+      `/v1/lead-gen/sessions${query ? `?${query}` : ''}`
+    );
+  }
+
+  /** Get a single session + its results */
+  async getLeadGenSession(id: string) {
+    return this.request<{ data: { session: LeadGenSession; results: LeadGenResult[] } }>(
+      `/v1/lead-gen/sessions/${id}`
+    );
+  }
+
+  /** Cancel a running session */
+  async cancelLeadGenSession(id: string) {
+    return this.request<{ ok: boolean }>(`/v1/lead-gen/sessions/${id}/cancel`, {
+      method: 'POST',
+    });
+  }
+
+  /** Import selected lead gen results as CRM leads */
+  async importLeadGenResults(sessionId: string, resultIds: string[]) {
+    return this.request<{ data: { imported: number; failed: string[] } }>(
+      `/v1/lead-gen/sessions/${sessionId}/import`,
+      { method: 'POST', body: { result_ids: resultIds } }
+    );
+  }
+
+  /** Get saved searches for current tenant */
+  async listLeadGenSavedSearches() {
+    return this.request<{ data: { saved: LeadGenSavedSearch[] } }>('/v1/lead-gen/saved');
+  }
+
+  /** Save a search for reuse */
+  async saveLeadGenSearch(input: { name: string; query: string; filters: Record<string, unknown> }) {
+    return this.request<{ data: { saved: LeadGenSavedSearch } }>('/v1/lead-gen/saved', {
+      method: 'POST',
+      body: input,
+    });
+  }
+
+  /** Delete a saved search */
+  async deleteLeadGenSavedSearch(id: string) {
+    return this.request<{ ok: boolean }>(`/v1/lead-gen/saved/${id}`, { method: 'DELETE' });
   }
 
   // ── Call Logging (free — no telephony provider needed) ─────────────────────
@@ -2151,3 +2251,62 @@ export const adminApi = api;
 
 // Lead and Task types re-exported from crm types
 export type { Lead, Task } from '@/lib/crm/types';
+
+// ── Lead Generation types ───────────────────────────────────────────────────
+
+export interface LeadGenSession {
+  id: string;
+  company_id: string;
+  user_id?: string;
+  query: string;
+  filters: Record<string, unknown>;
+  status: 'pending' | 'running' | 'done' | 'failed' | 'cancelled';
+  progress: number;
+  progress_label?: string;
+  results_count: number;
+  error_message?: string;
+  started_at?: string;
+  completed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeadGenResult {
+  id: string;
+  search_session_id: string;
+  company_name: string;
+  website?: string;
+  domain?: string;
+  business_email?: string;
+  email_status: 'verified' | 'likely_valid' | 'unverified' | 'missing';
+  phone?: string;
+  country?: string;
+  city?: string;
+  region?: string;
+  industry?: string;
+  sub_industry?: string;
+  description?: string;
+  employee_estimate?: string;
+  active_status: 'active_likely' | 'uncertain' | 'inactive_likely';
+  lead_score: number;
+  source_url?: string;
+  contact_page_url?: string;
+  linkedin_url?: string;
+  facebook_url?: string;
+  instagram_url?: string;
+  owner_name?: string;
+  decision_maker_name?: string;
+  decision_maker_role?: string;
+  notes?: string;
+  imported: boolean;
+  imported_lead_id?: string;
+  created_at: string;
+}
+
+export interface LeadGenSavedSearch {
+  id: string;
+  name: string;
+  query: string;
+  filters: Record<string, unknown>;
+  created_at: string;
+}

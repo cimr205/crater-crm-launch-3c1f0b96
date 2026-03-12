@@ -75,7 +75,12 @@ export default function EmployeesPage() {
       {loading ? (
         <div className="text-sm text-muted-foreground">{t('common.loading')}</div>
       ) : users.length === 0 ? (
-        <div className="text-sm text-muted-foreground">{t('hr.empty')}</div>
+        <div className="flex flex-col items-center gap-4 py-16 text-center">
+          <div className="text-sm text-muted-foreground">{t('hr.empty')}</div>
+          <Button onClick={() => window.location.href = window.location.origin + window.location.pathname.replace('hr/employees', 'settings/company')}>
+            {t('hr.addEmployee')}
+          </Button>
+        </div>
       ) : (
         <div className="rounded-xl border border-border bg-card/70 backdrop-blur">
           <Table>

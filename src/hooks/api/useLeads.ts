@@ -1,10 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
-export function useLeads(params?: { status?: string; source?: string; q?: string }) {
+export function useLeads(params?: { status?: string; source?: string; q?: string; page?: number; limit?: number }) {
   return useQuery({
     queryKey: ['leads', params],
-    queryFn: () => api.listLeads(params),
+    queryFn: () => api.listLeads({ page: params?.page ?? 1, limit: params?.limit ?? 25, ...params }),
+    staleTime: 1000 * 60 * 3,
+    gcTime: 1000 * 60 * 8,
+    placeholderData: keepPreviousData,
   });
 }
 

@@ -5,6 +5,8 @@ export function useTodos(params?: { status?: string; assignedTo?: string }) {
   return useQuery({
     queryKey: ['todos', params],
     queryFn: () => api.listTodos(params),
+    staleTime: 1000 * 60 * 3,
+    gcTime: 1000 * 60 * 8,
   });
 }
 
