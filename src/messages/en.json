@@ -44,7 +44,18 @@
     "signIn": "Sign in",
     "createCompany": "Create company",
     "haveJoinCode": "Have a join code?",
-    "useJoinCode": "Join with code"
+    "useJoinCode": "Join with code",
+    "forgotPassword": "Forgot password?",
+    "signupTitle": "Create account",
+    "signupSubtitle": "Get started – set up your company in the next step",
+    "signupCta": "Create account",
+    "signupLoading": "Creating...",
+    "confirmPassword": "Confirm password",
+    "fieldsMissingAll": "Please fill in all fields",
+    "passwordMismatch": "Passwords do not match",
+    "passwordTooShort": "Password must be at least 8 characters",
+    "signupError": "Registration failed",
+    "loginError": "Login failed"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -297,7 +308,25 @@
         "title": "You are ready",
         "subtitle": "Your workspace is configured"
       }
-    }
+    },
+    "welcome": "Welcome – set up your company",
+    "stepProgress": "Step {{step}} of 2",
+    "step1Title": "About the company",
+    "step1Subtitle": "Tell us a bit about your company",
+    "companyNameLabel": "Company name",
+    "companyNamePlaceholder": "e.g. Acme Inc.",
+    "industryLabel": "Industry",
+    "industryPlaceholder": "Select industry…",
+    "step2Title": "Size & goals",
+    "step2Subtitle": "Helps us tailor the experience",
+    "sizeLabel": "Number of employees",
+    "goalLabel": "Primary goal",
+    "goalPlaceholder": "Select your primary goal…",
+    "saving": "Saving…",
+    "done": "Done",
+    "nextArrow": "Next →",
+    "backArrow": "← Back",
+    "errorGeneric": "Something went wrong. Please try again."
   },
   "work": {
     "historyTitle": "Work history",

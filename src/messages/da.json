@@ -44,7 +44,18 @@
     "signIn": "Log ind",
     "createCompany": "Opret virksomhed",
     "haveJoinCode": "Har du en join-kode?",
-    "useJoinCode": "Tilslut med kode"
+    "useJoinCode": "Tilslut med kode",
+    "forgotPassword": "Glemt adgangskode?",
+    "signupTitle": "Opret konto",
+    "signupSubtitle": "Kom i gang – opsæt din virksomhed i næste trin",
+    "signupCta": "Opret konto",
+    "signupLoading": "Opretter...",
+    "confirmPassword": "Bekræft adgangskode",
+    "fieldsMissingAll": "Udfyld alle felter",
+    "passwordMismatch": "Adgangskoderne stemmer ikke overens",
+    "passwordTooShort": "Adgangskoden skal være mindst 8 tegn",
+    "signupError": "Oprettelse fejlede",
+    "loginError": "Login fejlede"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -297,7 +308,25 @@
         "title": "Du er klar",
         "subtitle": "Dit workspace er konfigureret"
       }
-    }
+    },
+    "welcome": "Velkommen – opsæt din virksomhed",
+    "stepProgress": "Trin {{step}} af 2",
+    "step1Title": "Om virksomheden",
+    "step1Subtitle": "Fortæl os lidt om dit firma",
+    "companyNameLabel": "Virksomhedens navn",
+    "companyNamePlaceholder": "f.eks. Acme ApS",
+    "industryLabel": "Branche",
+    "industryPlaceholder": "Vælg branche…",
+    "step2Title": "Størrelse & mål",
+    "step2Subtitle": "Hjælper os med at skræddersy oplevelsen",
+    "sizeLabel": "Antal ansatte",
+    "goalLabel": "Primært mål",
+    "goalPlaceholder": "Vælg dit primære mål…",
+    "saving": "Gemmer…",
+    "done": "Færdig",
+    "nextArrow": "Næste →",
+    "backArrow": "← Tilbage",
+    "errorGeneric": "Noget gik galt. Prøv igen."
   },
   "work": {
     "historyTitle": "Arbejdshistorik",

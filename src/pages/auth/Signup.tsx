@@ -3,10 +3,11 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
-import { isLocale } from '@/lib/i18n';
+import { isLocale, useI18n } from '@/lib/i18n';
 
 export default function SignupPage() {
   const { signup } = useAuth();
+  const { t } = useI18n();
   const params = useParams();
   const locale = isLocale(params.locale) ? params.locale : 'en';
   const navigate = useNavigate();
@@ -29,15 +30,15 @@ export default function SignupPage() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!name || !email || !password || !confirmPassword) {
-      showError('Udfyld alle felter');
+      showError(t('auth.fieldsMissingAll'));
       return;
     }
     if (password !== confirmPassword) {
-      showError('Adgangskoderne stemmer ikke overens');
+      showError(t('auth.passwordMismatch'));
       return;
     }
     if (password.length < 8) {
-      showError('Adgangskoden skal være mindst 8 tegn');
+      showError(t('auth.passwordTooShort'));
       return;
     }
 
@@ -47,7 +48,7 @@ export default function SignupPage() {
       await signup(name, email, password);
       navigate(`/${locale}/app/onboarding`);
     } catch (e) {
-      showError(e instanceof Error ? e.message : 'Oprettelse fejlede');
+      showError(e instanceof Error ? e.message : t('auth.signupError'));
     } finally {
       setLoading(false);
     }
@@ -56,16 +57,16 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen grid place-items-center bg-gradient-to-br from-background to-muted/40 px-4">
       <div className="w-full max-w-md rounded-2xl border border-border bg-card/80 backdrop-blur p-8">
-        <h1 className="text-2xl font-semibold">Opret konto</h1>
+        <h1 className="text-2xl font-semibold">{t('auth.signupTitle')}</h1>
         <p className="text-sm text-muted-foreground mt-2">
-          Kom i gang – opsæt din virksomhed i næste trin
+          {t('auth.signupSubtitle')}
         </p>
         <form
           className={`mt-6 space-y-4 ${shaking ? 'form-shake' : ''}`}
           onSubmit={handleSubmit}
         >
           <Input
-            placeholder="Navn"
+            placeholder={t('auth.name')}
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -73,21 +74,21 @@ export default function SignupPage() {
             autoFocus
           />
           <Input
-            placeholder="Email"
+            placeholder={t('auth.email')}
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={loading}
           />
           <Input
-            placeholder="Adgangskode"
+            placeholder={t('auth.password')}
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             disabled={loading}
           />
           <Input
-            placeholder="Bekræft adgangskode"
+            placeholder={t('auth.confirmPassword')}
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
@@ -97,16 +98,16 @@ export default function SignupPage() {
             <p className="text-sm text-destructive font-medium">{error}</p>
           )}
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? 'Opretter...' : 'Opret konto'}
+            {loading ? t('auth.signupLoading') : t('auth.signupCta')}
           </Button>
         </form>
         <p className="mt-6 text-sm text-center text-muted-foreground">
-          Har du allerede en konto?{' '}
+          {t('auth.alreadyHaveAccount')}{' '}
           <Link
             to={`/${locale}/auth/login`}
             className="text-primary underline underline-offset-4"
           >
-            Log ind
+            {t('auth.signIn')}
           </Link>
         </p>
       </div>

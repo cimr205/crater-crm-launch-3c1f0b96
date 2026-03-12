@@ -44,7 +44,18 @@
     "signIn": "Anmelden",
     "createCompany": "Unternehmen erstellen",
     "haveJoinCode": "Join-Code vorhanden?",
-    "useJoinCode": "Mit Code beitreten"
+    "useJoinCode": "Mit Code beitreten",
+    "forgotPassword": "Passwort vergessen?",
+    "signupTitle": "Konto erstellen",
+    "signupSubtitle": "Loslegen – Unternehmen im nächsten Schritt einrichten",
+    "signupCta": "Konto erstellen",
+    "signupLoading": "Erstelle...",
+    "confirmPassword": "Passwort bestätigen",
+    "fieldsMissingAll": "Bitte alle Felder ausfüllen",
+    "passwordMismatch": "Passwörter stimmen nicht überein",
+    "passwordTooShort": "Passwort muss mindestens 8 Zeichen lang sein",
+    "signupError": "Registrierung fehlgeschlagen",
+    "loginError": "Anmeldung fehlgeschlagen"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -297,7 +308,25 @@
         "title": "Alles bereit",
         "subtitle": "Dein Workspace ist konfiguriert"
       }
-    }
+    },
+    "welcome": "Willkommen – Unternehmen einrichten",
+    "stepProgress": "Schritt {{step}} von 2",
+    "step1Title": "Über das Unternehmen",
+    "step1Subtitle": "Erzähl uns ein bisschen über deine Firma",
+    "companyNameLabel": "Unternehmensname",
+    "companyNamePlaceholder": "z.B. Acme GmbH",
+    "industryLabel": "Branche",
+    "industryPlaceholder": "Branche auswählen…",
+    "step2Title": "Größe & Ziele",
+    "step2Subtitle": "Hilft uns, die Erfahrung anzupassen",
+    "sizeLabel": "Anzahl der Mitarbeiter",
+    "goalLabel": "Primäres Ziel",
+    "goalPlaceholder": "Primäres Ziel auswählen…",
+    "saving": "Speichert…",
+    "done": "Fertig",
+    "nextArrow": "Weiter →",
+    "backArrow": "← Zurück",
+    "errorGeneric": "Etwas ist schiefgelaufen. Bitte versuche es erneut."
   },
   "work": {
     "historyTitle": "Arbeitshistorie",
