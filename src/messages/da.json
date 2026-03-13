@@ -98,6 +98,7 @@
     "adminAi": "AI-brug",
     "adminPhone": "Telefonforbrug",
     "aiMedia": "AI Medie",
+    "leadGeneration": "Lead Generation",
     "section": {
       "crm": "CRM",
       "finance": "Finans",
@@ -117,7 +118,61 @@
     "statTasks": "Åbne opgaver",
     "statRevenue": "Omsætningsprognose",
     "statLeadsToday": "Leads i dag",
-    "statActiveJobs": "Aktive søgninger"
+    "statActiveJobs": "Aktive søgninger",
+    "greetMorning": "God morgen",
+    "greetAfternoon": "God eftermiddag",
+    "greetEvening": "God aften",
+    "statusCold": "Kold",
+    "statusContacted": "Kontaktet",
+    "statusQualified": "Kvalificeret",
+    "statusQualifiedShort": "Kvalif.",
+    "statusCustomer": "Kunde",
+    "statusLost": "Tabt",
+    "monthlyGoal": "Månedsmål",
+    "setGoal": "Sæt mål",
+    "goalOf": "af",
+    "goalKrTarget": "kr mål",
+    "goalReached": "Mål nået!",
+    "goalPercent": "% nået",
+    "todayOverview": "Dagens overblik",
+    "actions": "handlinger",
+    "overdueInvoicesSuffix": "forfaldne fakturaer",
+    "requiresAction": "Kræver øjeblikkelig handling",
+    "leadFollowupSuffix": "leads mangler opfølgning",
+    "notContactedDays": "Ikke kontaktet i 5+ dage",
+    "openTasksSuffix": "åbne opgaver",
+    "awaitingCompletion": "Afventer færdiggørelse",
+    "pendingTodosSuffix": "ventende to-dos",
+    "onYourList": "På din liste",
+    "statLeadsTotal": "Leads i alt",
+    "statLeadsTodaySuffix": "i dag",
+    "statPipelineActiveSuffix": "aktive leads",
+    "statInvoicesSent": "Sendte fakturaer",
+    "statInvoicesOutstandingSuffix": "kr udestående",
+    "statPaymentReceived": "Betaling modtaget",
+    "statInvoicesPaidSuffix": "betalte fakturaer",
+    "btnAddInvoice": "Faktura",
+    "btnAddTodo": "To-do",
+    "hotLeads": "Varme leads",
+    "hotLeadsNeedFollowup": "mangler opfølgning",
+    "noHotLeads": "Ingen varme leads endnu",
+    "pipelineDistribution": "Pipeline fordeling",
+    "aiFocusTitle": "AI Fokus i dag",
+    "aiFocusEmpty": "Klik på opdater for AI-fokus",
+    "openTasksTitle": "Åbne opgaver",
+    "noOpenTasks": "Ingen åbne opgaver",
+    "createTaskBtn": "Opret opgave",
+    "taskFallback": "Opgave",
+    "moreItems": "flere",
+    "todosTitle": "To-dos",
+    "noPendingTodos": "Ingen ventende to-dos",
+    "addTodoBtn": "Tilføj to-do",
+    "metaAdsTitle": "Meta Ads",
+    "metaAdsDetails": "Detaljer",
+    "shortcuts": "Genveje",
+    "recentLeads": "Seneste leads",
+    "allLeads": "Alle leads",
+    "seeAll": "Se alle"
   },
   "crm": {
     "leadsTitle": "Leads",
@@ -159,7 +214,8 @@
     "created": "Oprettet",
     "email": "Email",
     "name": "Navn",
-    "refresh": "Opdater"
+    "refresh": "Opdater",
+    "addEmployee": "Tilføj medarbejder"
   },
   "aiInbox": {
     "title": "AI Inbox",
@@ -460,17 +516,6 @@
       "cancelled": "Annulleret"
     }
   },
-  "dashboard": {
-    "greetMorning": "God morgen",
-    "greetAfternoon": "God eftermiddag",
-    "greetEvening": "God aften",
-    "statusCold": "Kold",
-    "statusContacted": "Kontaktet",
-    "statusQualified": "Kvalificeret",
-    "statusQualifiedShort": "Kvalif.",
-    "statusCustomer": "Kunde",
-    "statusLost": "Tabt"
-  },
   "leadGen": {
     "title": "Lead Generation",
     "subtitle": "Søg efter virksomheds-leads fra offentlige registre og nettet",
@@ -519,9 +564,6 @@
     "emptyState": "Angiv dine søgekriterier ovenfor og klik Søg for at finde leads.",
     "bulkSaved": "{{count}} leads gemt",
     "bulkSaveError": "Kunne ikke gemme leads"
-  },
-  "hr": {
-    "addEmployee": "Tilføj medarbejder"
   },
   "notFound": {
     "title": "404",

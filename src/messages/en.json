@@ -98,6 +98,7 @@
     "adminAi": "AI usage",
     "adminPhone": "Phone usage",
     "aiMedia": "AI Media",
+    "leadGeneration": "Lead Generation",
     "section": {
       "crm": "CRM",
       "finance": "Finance",
@@ -117,7 +118,61 @@
     "statTasks": "Open tasks",
     "statRevenue": "Revenue forecast",
     "statLeadsToday": "Leads today",
-    "statActiveJobs": "Active searches"
+    "statActiveJobs": "Active searches",
+    "greetMorning": "Good morning",
+    "greetAfternoon": "Good afternoon",
+    "greetEvening": "Good evening",
+    "statusCold": "Cold",
+    "statusContacted": "Contacted",
+    "statusQualified": "Qualified",
+    "statusQualifiedShort": "Qualif.",
+    "statusCustomer": "Customer",
+    "statusLost": "Lost",
+    "monthlyGoal": "Monthly Goal",
+    "setGoal": "Set goal",
+    "goalOf": "of",
+    "goalKrTarget": "kr target",
+    "goalReached": "Goal reached!",
+    "goalPercent": "% reached",
+    "todayOverview": "Today's overview",
+    "actions": "actions",
+    "overdueInvoicesSuffix": "overdue invoices",
+    "requiresAction": "Requires immediate action",
+    "leadFollowupSuffix": "leads need follow-up",
+    "notContactedDays": "Not contacted in 5+ days",
+    "openTasksSuffix": "open tasks",
+    "awaitingCompletion": "Awaiting completion",
+    "pendingTodosSuffix": "pending to-dos",
+    "onYourList": "On your list",
+    "statLeadsTotal": "Total leads",
+    "statLeadsTodaySuffix": "today",
+    "statPipelineActiveSuffix": "active leads",
+    "statInvoicesSent": "Sent invoices",
+    "statInvoicesOutstandingSuffix": "kr outstanding",
+    "statPaymentReceived": "Payment received",
+    "statInvoicesPaidSuffix": "paid invoices",
+    "btnAddInvoice": "Invoice",
+    "btnAddTodo": "To-do",
+    "hotLeads": "Hot leads",
+    "hotLeadsNeedFollowup": "needs follow-up",
+    "noHotLeads": "No hot leads yet",
+    "pipelineDistribution": "Pipeline distribution",
+    "aiFocusTitle": "AI Focus today",
+    "aiFocusEmpty": "Click refresh for AI focus",
+    "openTasksTitle": "Open tasks",
+    "noOpenTasks": "No open tasks",
+    "createTaskBtn": "Create task",
+    "taskFallback": "Task",
+    "moreItems": "more",
+    "todosTitle": "To-dos",
+    "noPendingTodos": "No pending to-dos",
+    "addTodoBtn": "Add to-do",
+    "metaAdsTitle": "Meta Ads",
+    "metaAdsDetails": "Details",
+    "shortcuts": "Shortcuts",
+    "recentLeads": "Recent leads",
+    "allLeads": "All leads",
+    "seeAll": "See all"
   },
   "crm": {
     "leadsTitle": "Leads",
@@ -159,7 +214,8 @@
     "created": "Created",
     "email": "Email",
     "name": "Name",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "addEmployee": "Add employee"
   },
   "aiInbox": {
     "title": "AI Inbox",
@@ -460,17 +516,6 @@
       "cancelled": "Cancelled"
     }
   },
-  "dashboard": {
-    "greetMorning": "Good morning",
-    "greetAfternoon": "Good afternoon",
-    "greetEvening": "Good evening",
-    "statusCold": "Cold",
-    "statusContacted": "Contacted",
-    "statusQualified": "Qualified",
-    "statusQualifiedShort": "Qualif.",
-    "statusCustomer": "Customer",
-    "statusLost": "Lost"
-  },
   "leadGen": {
     "title": "Lead Generation",
     "subtitle": "Search for business leads from public registries and the web",
@@ -519,9 +564,6 @@
     "emptyState": "Enter your search criteria above and click Search to find leads.",
     "bulkSaved": "{{count}} leads saved",
     "bulkSaveError": "Could not save leads"
-  },
-  "hr": {
-    "addEmployee": "Add employee"
   },
   "notFound": {
     "title": "404",

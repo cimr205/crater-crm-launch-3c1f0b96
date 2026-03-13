@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api, type InvoiceStats } from '@/lib/api';
-import { isLocale } from '@/lib/i18n';
+import { isLocale, useI18n } from '@/lib/i18n';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -12,7 +12,7 @@ import {
   Bell, Edit2, Check, X,
 } from 'lucide-react';
 
-function fmt(n: number) { return n.toLocaleString('da-DK', { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
+function fmt(n: number) { return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 function fmtAmount(n: number) {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
@@ -36,23 +36,25 @@ function useCountUp(target: number, duration = 950): number {
   return val;
 }
 
-function greet(name?: string | null) {
-  const h = new Date().getHours();
-  const g = h < 12 ? 'God morgen' : h < 18 ? 'God eftermiddag' : 'God aften';
-  return name ? `${g}, ${name.split(' ')[0]}` : g;
-}
-
-const S_COLOR: Record<string, string> = { cold: 'bg-blue-500', contacted: 'bg-yellow-400', qualified: 'bg-green-500', customer: 'bg-purple-500', lost: 'bg-red-400' };
-const S_LABEL: Record<string, string> = { cold: 'Kold', contacted: 'Kontaktet', qualified: 'Kvalificeret', customer: 'Kunde', lost: 'Tabt' };
+const S_COLOR: Record<string, string> = {
+  cold: 'bg-blue-500', contacted: 'bg-yellow-400', qualified: 'bg-green-500',
+  customer: 'bg-purple-500', lost: 'bg-red-400',
+};
 
 interface LeadRow { id: string; name: string; email?: string; company?: string; status: string; leadScore: number; source?: string; createdAt: string; }
 
 function PipelineBar({ leads }: { leads: LeadRow[] }) {
+  const { t } = useI18n();
   const stages = ['cold', 'contacted', 'qualified', 'customer'];
   const counts = stages.map(s => leads.filter(l => l.status === s).length);
   const max = Math.max(...counts, 1);
   const colors = ['bg-blue-400', 'bg-yellow-400', 'bg-green-400', 'bg-purple-500'];
-  const labels = ['Kold', 'Kontaktet', 'Kvalif.', 'Kunde'];
+  const labels = [
+    t('dashboard.statusCold'),
+    t('dashboard.statusContacted'),
+    t('dashboard.statusQualifiedShort'),
+    t('dashboard.statusCustomer'),
+  ];
   return (
     <div className="flex gap-2 items-end h-14">
       {stages.map((_, i) => (
@@ -84,8 +86,8 @@ function StatCard({ icon, label, value, sub, color, onClick, rawValue, suffix }:
   );
 }
 
-// ─── Månedsmål widget ────────────────────────────────────────────────────────
 function MonthlyGoalCard({ paymentTotal, onClick }: { paymentTotal: number | null; onClick: () => void }) {
+  const { t } = useI18n();
   const [goal, setGoal] = useState<number>(() => {
     const s = localStorage.getItem('monthly_goal');
     return s ? parseInt(s, 10) : 0;
@@ -122,7 +124,7 @@ function MonthlyGoalCard({ paymentTotal, onClick }: { paymentTotal: number | nul
         <Target className="h-5 w-5 text-white" />
       </div>
       <div className="flex items-center justify-between">
-        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">Månedsmål</p>
+        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">{t('dashboard.monthlyGoal')}</p>
         <button
           className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-muted"
           onClick={e => { e.stopPropagation(); startEdit(); }}
@@ -147,17 +149,17 @@ function MonthlyGoalCard({ paymentTotal, onClick }: { paymentTotal: number | nul
         </div>
       ) : (
         <p className="text-3xl font-bold mt-0.5 tabular-nums">
-          {goal > 0 ? `${fmtAmount(current)} kr` : <span className="text-lg text-muted-foreground">Sæt mål</span>}
+          {goal > 0 ? `${fmtAmount(current)} kr` : <span className="text-lg text-muted-foreground">{t('dashboard.setGoal')}</span>}
         </p>
       )}
       {goal > 0 && !editing && (
         <>
-          <p className="text-xs text-muted-foreground mt-1">af {fmtAmount(goal)} kr mål</p>
+          <p className="text-xs text-muted-foreground mt-1">{t('dashboard.goalOf')} {fmtAmount(goal)} kr {t('dashboard.goalKrTarget')}</p>
           <div className="mt-3 h-1.5 rounded-full bg-muted overflow-hidden">
             <div className={`h-full rounded-full transition-all duration-700 ${progressColor}`} style={{ width: `${progress}%` }} />
           </div>
           <p className="text-xs font-semibold mt-1.5" style={{ color: progress >= 100 ? 'rgb(34 197 94)' : undefined }}>
-            {progress >= 100 ? 'Mål nået!' : `${Math.round(progress)}% nået`}
+            {progress >= 100 ? t('dashboard.goalReached') : `${Math.round(progress)}${t('dashboard.goalPercent')}`}
           </p>
         </>
       )}
@@ -165,7 +167,6 @@ function MonthlyGoalCard({ paymentTotal, onClick }: { paymentTotal: number | nul
   );
 }
 
-// ─── Dagens Overblik ─────────────────────────────────────────────────────────
 interface OverblikItem {
   key: string;
   icon: React.ReactNode;
@@ -178,6 +179,7 @@ interface OverblikItem {
 }
 
 function DagensOverblik({ items }: { items: OverblikItem[] }) {
+  const { t } = useI18n();
   if (items.length === 0) return null;
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
@@ -185,8 +187,8 @@ function DagensOverblik({ items }: { items: OverblikItem[] }) {
         <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center">
           <Bell className="h-4 w-4 text-primary-foreground" />
         </div>
-        <h3 className="font-semibold text-sm">Dagens overblik</h3>
-        <Badge variant="secondary" className="ml-auto">{items.length} handling{items.length !== 1 ? 'er' : ''}</Badge>
+        <h3 className="font-semibold text-sm">{t('dashboard.todayOverview')}</h3>
+        <Badge variant="secondary" className="ml-auto">{items.length} {t('dashboard.actions')}</Badge>
       </div>
       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {items.map(item => (
@@ -214,6 +216,7 @@ export default function DashboardPage() {
   const params = useParams();
   const locale = isLocale(params.locale) ? params.locale : 'en';
   const { user } = useAuth();
+  const { t } = useI18n();
 
   const [totals, setTotals] = useState<{ leads: number; leads_today: number; active_clowdbot_jobs: number } | null>(null);
   const [recent, setRecent] = useState<LeadRow[]>([]);
@@ -241,7 +244,6 @@ export default function DashboardPage() {
     api.listTodos({ status: 'pending' })
       .then(d => { if (active) setPendingTodos((d as { data?: unknown[]; todos?: unknown[] }).data ?? (d as { todos?: unknown[] }).todos ?? []); })
       .catch(() => undefined);
-    // Opfølgnings-alarm: leads der ikke er fulgt op på i 5+ dage
     api.listLeads().then(d => {
       if (!active) return;
       const now = Date.now();
@@ -288,15 +290,28 @@ export default function DashboardPage() {
   const hasOverdue = (invoiceStats?.overdue ?? 0) > 0;
   const pipelineLeads = recent.filter(l => l.status !== 'lost');
   const pipelineValue = pipelineLeads.reduce((s, l) => s + l.leadScore * 1000, 0);
-  const today = new Date().toLocaleDateString('da-DK', { weekday: 'long', day: 'numeric', month: 'long' });
 
-  // Dagens Overblik items
+  const dateLocale = locale === 'da' ? 'da-DK' : locale === 'de' ? 'de-DE' : 'en-GB';
+  const today = new Date().toLocaleDateString(dateLocale, { weekday: 'long', day: 'numeric', month: 'long' });
+
+  const h = new Date().getHours();
+  const greeting = h < 12 ? t('dashboard.greetMorning') : h < 18 ? t('dashboard.greetAfternoon') : t('dashboard.greetEvening');
+  const greetName = user?.full_name ? `${greeting}, ${user.full_name.split(' ')[0]}` : greeting;
+
+  const sLabel: Record<string, string> = {
+    cold: t('dashboard.statusCold'),
+    contacted: t('dashboard.statusContacted'),
+    qualified: t('dashboard.statusQualified'),
+    customer: t('dashboard.statusCustomer'),
+    lost: t('dashboard.statusLost'),
+  };
+
   const overblikItems: OverblikItem[] = [
     ...(hasOverdue ? [{
       key: 'overdue',
       icon: <AlertCircle className="h-5 w-5" />,
-      label: `${invoiceStats!.overdue} forfaldne fakturaer`,
-      sub: 'Kræver øjeblikkelig handling',
+      label: `${invoiceStats!.overdue} ${t('dashboard.overdueInvoicesSuffix')}`,
+      sub: t('dashboard.requiresAction'),
       color: 'text-red-700 dark:text-red-300',
       bg: 'bg-red-50 dark:bg-red-900/20',
       border: 'border-red-200 dark:border-red-800',
@@ -305,8 +320,8 @@ export default function DashboardPage() {
     ...(staleLeads.length > 0 ? [{
       key: 'stale',
       icon: <AlertTriangle className="h-5 w-5" />,
-      label: `${staleLeads.length} lead${staleLeads.length !== 1 ? 's' : ''} mangler opfølgning`,
-      sub: 'Ikke kontaktet i 5+ dage',
+      label: `${staleLeads.length} ${t('dashboard.leadFollowupSuffix')}`,
+      sub: t('dashboard.notContactedDays'),
       color: 'text-orange-700 dark:text-orange-300',
       bg: 'bg-orange-50 dark:bg-orange-900/20',
       border: 'border-orange-200 dark:border-orange-800',
@@ -315,8 +330,8 @@ export default function DashboardPage() {
     ...(openTasks.length > 0 ? [{
       key: 'tasks',
       icon: <CheckSquare className="h-5 w-5" />,
-      label: `${openTasks.length} åbne opgaver`,
-      sub: 'Afventer færdiggørelse',
+      label: `${openTasks.length} ${t('dashboard.openTasksSuffix')}`,
+      sub: t('dashboard.awaitingCompletion'),
       color: 'text-blue-700 dark:text-blue-300',
       bg: 'bg-blue-50 dark:bg-blue-900/20',
       border: 'border-blue-200 dark:border-blue-800',
@@ -325,8 +340,8 @@ export default function DashboardPage() {
     ...(pendingTodos.length > 0 ? [{
       key: 'todos',
       icon: <ListTodo className="h-5 w-5" />,
-      label: `${pendingTodos.length} ventende to-dos`,
-      sub: 'På din liste',
+      label: `${pendingTodos.length} ${t('dashboard.pendingTodosSuffix')}`,
+      sub: t('dashboard.onYourList'),
       color: 'text-violet-700 dark:text-violet-300',
       bg: 'bg-violet-50 dark:bg-violet-900/20',
       border: 'border-violet-200 dark:border-violet-800',
@@ -334,30 +349,57 @@ export default function DashboardPage() {
     }] : []),
   ];
 
+  const quickLinks = [
+    { icon: <Mail className="h-4 w-4" />, label: t('nav.inbox'), path: '/app/inbox' },
+    { icon: <FileText className="h-4 w-4" />, label: t('nav.invoices'), path: '/app/finance/invoices' },
+    { icon: <Zap className="h-4 w-4" />, label: t('nav.workflows'), path: '/app/workflows' },
+    { icon: <BarChart2 className="h-4 w-4" />, label: t('nav.metaAds'), path: '/app/meta/ads' },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Dagens Overblik */}
+      {/* Today's overview */}
       <DagensOverblik items={overblikItems} />
 
       {/* Greeting */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold">{greet(user?.full_name)}</h1>
+          <h1 className="text-2xl font-bold">{greetName}</h1>
           <p className="text-sm text-muted-foreground capitalize mt-0.5">{today}</p>
         </div>
         <div className="flex gap-2 shrink-0">
           <Button size="sm" variant="outline" onClick={() => go('/app/crm/leads')}><Plus className="h-3.5 w-3.5 mr-1" />Lead</Button>
-          <Button size="sm" variant="outline" onClick={() => go('/app/finance/invoices')}><Plus className="h-3.5 w-3.5 mr-1" />Faktura</Button>
-          <Button size="sm" onClick={() => go('/app/todos')}><Plus className="h-3.5 w-3.5 mr-1" />To-do</Button>
+          <Button size="sm" variant="outline" onClick={() => go('/app/finance/invoices')}><Plus className="h-3.5 w-3.5 mr-1" />{t('dashboard.btnAddInvoice')}</Button>
+          <Button size="sm" onClick={() => go('/app/todos')}><Plus className="h-3.5 w-3.5 mr-1" />{t('dashboard.btnAddTodo')}</Button>
         </div>
       </div>
 
-      {/* Stat cards + Månedsmål */}
+      {/* Stat cards + Monthly Goal */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard icon={<Users className="h-5 w-5 text-white" />} color="bg-blue-500" label="Leads i alt" value={totals ? fmt(totals.leads) : '—'} rawValue={totals?.leads} sub={totals ? `+${totals.leads_today} i dag` : undefined} onClick={() => go('/app/crm/leads')} />
-        <StatCard icon={<TrendingUp className="h-5 w-5 text-white" />} color="bg-violet-500" label="Pipeline" value={`${fmtAmount(pipelineValue)} kr`} rawValue={pipelineValue} suffix=" kr" sub={`${pipelineLeads.length} aktive leads`} onClick={() => go('/app/crm/deals')} />
-        <StatCard icon={<FileText className="h-5 w-5 text-white" />} color="bg-amber-500" label="Sendte fakturaer" value={invoiceStats ? fmt(invoiceStats.sent) : '—'} rawValue={invoiceStats?.sent} sub={invoiceStats ? `${fmtAmount(invoiceStats.total_sent_amount)} kr udestående` : undefined} onClick={() => go('/app/finance/invoices')} />
-        <StatCard icon={<CreditCard className="h-5 w-5 text-white" />} color="bg-green-500" label="Betaling modtaget" value={paymentTotal !== null ? `${fmtAmount(paymentTotal)} kr` : '—'} rawValue={paymentTotal ?? undefined} suffix=" kr" sub={invoiceStats ? `${invoiceStats.paid} betalte fakturaer` : undefined} onClick={() => go('/app/finance/payments')} />
+        <StatCard
+          icon={<Users className="h-5 w-5 text-white" />} color="bg-blue-500"
+          label={t('dashboard.statLeadsTotal')} value={totals ? fmt(totals.leads) : '—'} rawValue={totals?.leads}
+          sub={totals ? `+${totals.leads_today} ${t('dashboard.statLeadsTodaySuffix')}` : undefined}
+          onClick={() => go('/app/crm/leads')}
+        />
+        <StatCard
+          icon={<TrendingUp className="h-5 w-5 text-white" />} color="bg-violet-500"
+          label={t('dashboard.statPipeline')} value={`${fmtAmount(pipelineValue)} kr`} rawValue={pipelineValue} suffix=" kr"
+          sub={`${pipelineLeads.length} ${t('dashboard.statPipelineActiveSuffix')}`}
+          onClick={() => go('/app/crm/deals')}
+        />
+        <StatCard
+          icon={<FileText className="h-5 w-5 text-white" />} color="bg-amber-500"
+          label={t('dashboard.statInvoicesSent')} value={invoiceStats ? fmt(invoiceStats.sent) : '—'} rawValue={invoiceStats?.sent}
+          sub={invoiceStats ? `${fmtAmount(invoiceStats.total_sent_amount)} ${t('dashboard.statInvoicesOutstandingSuffix')}` : undefined}
+          onClick={() => go('/app/finance/invoices')}
+        />
+        <StatCard
+          icon={<CreditCard className="h-5 w-5 text-white" />} color="bg-green-500"
+          label={t('dashboard.statPaymentReceived')} value={paymentTotal !== null ? `${fmtAmount(paymentTotal)} kr` : '—'} rawValue={paymentTotal ?? undefined} suffix=" kr"
+          sub={invoiceStats ? `${invoiceStats.paid} ${t('dashboard.statInvoicesPaidSuffix')}` : undefined}
+          onClick={() => go('/app/finance/payments')}
+        />
         <div className="col-span-2 lg:col-span-1">
           <MonthlyGoalCard paymentTotal={paymentTotal} onClick={() => go('/app/finance/payments')} />
         </div>
@@ -365,19 +407,21 @@ export default function DashboardPage() {
 
       {/* Main grid */}
       <div className="grid gap-5 lg:grid-cols-3">
-        {/* Hot leads + stale alarm */}
+        {/* Hot leads + pipeline */}
         <div className="lg:col-span-2 rounded-2xl border bg-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
               <Flame className="h-4 w-4 text-orange-500" />
-              <h3 className="font-semibold text-sm">Varme leads</h3>
+              <h3 className="font-semibold text-sm">{t('dashboard.hotLeads')}</h3>
               {staleLeads.length > 0 && (
                 <Badge variant="destructive" className="text-xs ml-1">
-                  {staleLeads.length} mangler opfølgning
+                  {staleLeads.length} {t('dashboard.hotLeadsNeedFollowup')}
                 </Badge>
               )}
             </div>
-            <button onClick={() => go('/app/crm/leads')} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">Se alle <ArrowRight className="h-3 w-3" /></button>
+            <button onClick={() => go('/app/crm/leads')} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+              {t('dashboard.seeAll')} <ArrowRight className="h-3 w-3" />
+            </button>
           </div>
           {hotLeads.length > 0 ? (
             <div className="space-y-1">
@@ -405,13 +449,13 @@ export default function DashboardPage() {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-20 gap-2 text-muted-foreground">
-              <p className="text-sm">Ingen varme leads endnu</p>
-              <Button size="sm" variant="outline" onClick={() => go('/app/crm/leads')}><Plus className="h-3 w-3 mr-1" />Tilføj lead</Button>
+              <p className="text-sm">{t('dashboard.noHotLeads')}</p>
+              <Button size="sm" variant="outline" onClick={() => go('/app/crm/leads')}><Plus className="h-3 w-3 mr-1" />{t('crm.addLead')}</Button>
             </div>
           )}
           {recent.length > 0 && (
             <div className="mt-4 pt-4 border-t">
-              <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wide">Pipeline fordeling</p>
+              <p className="text-xs text-muted-foreground mb-3 font-medium uppercase tracking-wide">{t('dashboard.pipelineDistribution')}</p>
               <PipelineBar leads={recent} />
             </div>
           )}
@@ -419,14 +463,19 @@ export default function DashboardPage() {
 
         {/* Right column */}
         <div className="space-y-4">
-          {/* AI Fokus */}
+          {/* AI Focus */}
           <div className="rounded-2xl border bg-card p-5">
             <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2"><Zap className="h-4 w-4 text-yellow-500" /><h3 className="font-semibold text-sm">AI Fokus i dag</h3></div>
-              <button className={`text-muted-foreground hover:text-foreground transition-colors ${focusLoading ? 'animate-spin' : ''}`} onClick={refreshFocus} disabled={focusLoading}><RefreshCw className="h-3.5 w-3.5" /></button>
+              <div className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-yellow-500" />
+                <h3 className="font-semibold text-sm">{t('dashboard.aiFocusTitle')}</h3>
+              </div>
+              <button className={`text-muted-foreground hover:text-foreground transition-colors ${focusLoading ? 'animate-spin' : ''}`} onClick={refreshFocus} disabled={focusLoading}>
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
             </div>
             {dailyFocus.length === 0 ? (
-              <p className="text-xs text-muted-foreground">Klik på opdater for AI-fokus</p>
+              <p className="text-xs text-muted-foreground">{t('dashboard.aiFocusEmpty')}</p>
             ) : (
               <div className="space-y-2">
                 {dailyFocus.slice(0, 3).map((item, i) => (
@@ -444,17 +493,17 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <CheckSquare className="h-4 w-4 text-blue-500" />
-                <h3 className="font-semibold text-sm">Åbne opgaver</h3>
+                <h3 className="font-semibold text-sm">{t('dashboard.openTasksTitle')}</h3>
               </div>
               <button onClick={() => go('/app/tasks')} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-                Se alle <ArrowRight className="h-3 w-3" />
+                {t('dashboard.seeAll')} <ArrowRight className="h-3 w-3" />
               </button>
             </div>
             {openTasks.length === 0 ? (
               <div className="text-center py-3 space-y-2">
-                <p className="text-xs text-muted-foreground">Ingen åbne opgaver</p>
+                <p className="text-xs text-muted-foreground">{t('dashboard.noOpenTasks')}</p>
                 <Button size="sm" variant="outline" onClick={() => go('/app/tasks')}>
-                  <Plus className="h-3 w-3 mr-1" />Opret opgave
+                  <Plus className="h-3 w-3 mr-1" />{t('dashboard.createTaskBtn')}
                 </Button>
               </div>
             ) : (
@@ -466,14 +515,14 @@ export default function DashboardPage() {
                     onClick={() => go('/app/tasks')}
                   >
                     <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-xs truncate flex-1">{String((task as Record<string, unknown>).title ?? (task as Record<string, unknown>).name ?? 'Opgave')}</span>
+                    <span className="text-xs truncate flex-1">{String((task as Record<string, unknown>).title ?? (task as Record<string, unknown>).name ?? t('dashboard.taskFallback'))}</span>
                     {(task as Record<string, unknown>).status && (
                       <Badge variant="outline" className="text-xs shrink-0">{String((task as Record<string, unknown>).status)}</Badge>
                     )}
                   </button>
                 ))}
                 {openTasks.length > 4 && (
-                  <p className="text-xs text-muted-foreground text-center pt-1">+{openTasks.length - 4} flere</p>
+                  <p className="text-xs text-muted-foreground text-center pt-1">+{openTasks.length - 4} {t('dashboard.moreItems')}</p>
                 )}
               </div>
             )}
@@ -484,20 +533,20 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <ListTodo className="h-4 w-4 text-purple-500" />
-                <h3 className="font-semibold text-sm">To-dos</h3>
+                <h3 className="font-semibold text-sm">{t('dashboard.todosTitle')}</h3>
                 {pendingTodos.length > 0 && (
                   <Badge variant="secondary" className="text-xs">{pendingTodos.length}</Badge>
                 )}
               </div>
               <button onClick={() => go('/app/todos')} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-                Se alle <ArrowRight className="h-3 w-3" />
+                {t('dashboard.seeAll')} <ArrowRight className="h-3 w-3" />
               </button>
             </div>
             {pendingTodos.length === 0 ? (
               <div className="text-center py-3 space-y-2">
-                <p className="text-xs text-muted-foreground">Ingen ventende to-dos</p>
+                <p className="text-xs text-muted-foreground">{t('dashboard.noPendingTodos')}</p>
                 <Button size="sm" variant="outline" onClick={() => go('/app/todos')}>
-                  <Plus className="h-3 w-3 mr-1" />Tilføj to-do
+                  <Plus className="h-3 w-3 mr-1" />{t('dashboard.addTodoBtn')}
                 </Button>
               </div>
             ) : (
@@ -513,7 +562,7 @@ export default function DashboardPage() {
                   </button>
                 ))}
                 {pendingTodos.length > 4 && (
-                  <p className="text-xs text-muted-foreground text-center pt-1">+{pendingTodos.length - 4} flere</p>
+                  <p className="text-xs text-muted-foreground text-center pt-1">+{pendingTodos.length - 4} {t('dashboard.moreItems')}</p>
                 )}
               </div>
             )}
@@ -525,10 +574,10 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <BarChart2 className="h-4 w-4 text-blue-500" />
-                  <h3 className="font-semibold text-sm">Meta Ads</h3>
+                  <h3 className="font-semibold text-sm">{t('dashboard.metaAdsTitle')}</h3>
                 </div>
                 <button onClick={() => go('/app/meta/ads')} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-                  Detaljer <ArrowRight className="h-3 w-3" />
+                  {t('dashboard.metaAdsDetails')} <ArrowRight className="h-3 w-3" />
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-2 text-center">
@@ -550,14 +599,9 @@ export default function DashboardPage() {
 
           {/* Quick links */}
           <div className="rounded-2xl border bg-card p-5">
-            <h3 className="font-semibold text-sm mb-3">Genveje</h3>
+            <h3 className="font-semibold text-sm mb-3">{t('dashboard.shortcuts')}</h3>
             <div className="space-y-0.5">
-              {[
-                { icon: <Mail className="h-4 w-4" />, label: 'Indbakke', path: '/app/inbox' },
-                { icon: <FileText className="h-4 w-4" />, label: 'Fakturaer', path: '/app/finance/invoices' },
-                { icon: <Zap className="h-4 w-4" />, label: 'Workflows', path: '/app/workflows' },
-                { icon: <BarChart2 className="h-4 w-4" />, label: 'Meta Ads', path: '/app/meta/ads' },
-              ].map(link => (
+              {quickLinks.map(link => (
                 <button key={link.path} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted transition-colors text-left text-sm" onClick={() => go(link.path)}>
                   <span className="text-muted-foreground">{link.icon}</span>
                   {link.label}
@@ -573,8 +617,10 @@ export default function DashboardPage() {
       {recent.length > 0 && (
         <div className="rounded-2xl border bg-card overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b">
-            <h3 className="font-semibold text-sm">Seneste leads</h3>
-            <button onClick={() => go('/app/crm/leads')} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">Alle leads <ArrowRight className="h-3 w-3" /></button>
+            <h3 className="font-semibold text-sm">{t('dashboard.recentLeads')}</h3>
+            <button onClick={() => go('/app/crm/leads')} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+              {t('dashboard.allLeads')} <ArrowRight className="h-3 w-3" />
+            </button>
           </div>
           <div className="divide-y">
             {recent.slice(0, 5).map(lead => {
@@ -584,8 +630,8 @@ export default function DashboardPage() {
                   <div className={`h-2 w-2 rounded-full shrink-0 ${S_COLOR[lead.status] || 'bg-muted'}`} />
                   <span className="flex-1 text-sm font-medium truncate">{lead.name}</span>
                   <span className="text-sm text-muted-foreground hidden md:block truncate max-w-[150px]">{lead.company || lead.email || '—'}</span>
-                  {isStale && <AlertTriangle className="h-3.5 w-3.5 text-orange-500 shrink-0" title="Mangler opfølgning" />}
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">{S_LABEL[lead.status] || lead.status}</span>
+                  {isStale && <AlertTriangle className="h-3.5 w-3.5 text-orange-500 shrink-0" title={t('dashboard.hotLeadsNeedFollowup')} />}
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">{sLabel[lead.status] || lead.status}</span>
                   <span className="text-xs font-bold tabular-nums w-6 text-right shrink-0">{lead.leadScore}</span>
                 </div>
               );

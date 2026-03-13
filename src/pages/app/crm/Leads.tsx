@@ -33,6 +33,7 @@ export default function LeadsPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingNotes, setEditingNotes] = useState('');
   const [editingStatus, setEditingStatus] = useState('cold');
@@ -71,13 +72,18 @@ export default function LeadsPage() {
     }
   };
 
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
   const loadLeads = useCallback(async () => {
     setLoading(true);
     try {
       const result = await api.listLeads({
         status: statusFilter || undefined,
         source: sourceFilter || undefined,
-        q: query || undefined,
+        q: debouncedQuery || undefined,
       });
       setLeads(result.data as LeadRow[]);
     } catch (err) {
@@ -85,7 +91,7 @@ export default function LeadsPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, sourceFilter, query, toast]);
+  }, [statusFilter, sourceFilter, debouncedQuery, toast]);
 
   useEffect(() => {
     loadLeads();

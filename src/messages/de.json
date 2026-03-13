@@ -98,6 +98,7 @@
     "adminAi": "KI-Nutzung",
     "adminPhone": "Telefonverbrauch",
     "aiMedia": "KI-Medien",
+    "leadGeneration": "Lead-Generierung",
     "section": {
       "crm": "CRM",
       "finance": "Finanzen",
@@ -117,7 +118,61 @@
     "statTasks": "Offene Aufgaben",
     "statRevenue": "Umsatzprognose",
     "statLeadsToday": "Leads heute",
-    "statActiveJobs": "Aktive Suchen"
+    "statActiveJobs": "Aktive Suchen",
+    "greetMorning": "Guten Morgen",
+    "greetAfternoon": "Guten Tag",
+    "greetEvening": "Guten Abend",
+    "statusCold": "Kalt",
+    "statusContacted": "Kontaktiert",
+    "statusQualified": "Qualifiziert",
+    "statusQualifiedShort": "Qualif.",
+    "statusCustomer": "Kunde",
+    "statusLost": "Verloren",
+    "monthlyGoal": "Monatsziel",
+    "setGoal": "Ziel setzen",
+    "goalOf": "von",
+    "goalKrTarget": "kr Ziel",
+    "goalReached": "Ziel erreicht!",
+    "goalPercent": "% erreicht",
+    "todayOverview": "Tagesübersicht",
+    "actions": "Aktionen",
+    "overdueInvoicesSuffix": "überfällige Rechnungen",
+    "requiresAction": "Sofortige Handlung erforderlich",
+    "leadFollowupSuffix": "Leads benötigen Follow-up",
+    "notContactedDays": "Nicht kontaktiert in 5+ Tagen",
+    "openTasksSuffix": "offene Aufgaben",
+    "awaitingCompletion": "Ausstehend",
+    "pendingTodosSuffix": "ausstehende To-dos",
+    "onYourList": "Auf deiner Liste",
+    "statLeadsTotal": "Leads gesamt",
+    "statLeadsTodaySuffix": "heute",
+    "statPipelineActiveSuffix": "aktive Leads",
+    "statInvoicesSent": "Gesendete Rechnungen",
+    "statInvoicesOutstandingSuffix": "kr ausstehend",
+    "statPaymentReceived": "Zahlungseingang",
+    "statInvoicesPaidSuffix": "bezahlte Rechnungen",
+    "btnAddInvoice": "Rechnung",
+    "btnAddTodo": "To-do",
+    "hotLeads": "Heiße Leads",
+    "hotLeadsNeedFollowup": "benötigt Follow-up",
+    "noHotLeads": "Noch keine heißen Leads",
+    "pipelineDistribution": "Pipeline-Verteilung",
+    "aiFocusTitle": "KI-Fokus heute",
+    "aiFocusEmpty": "Aktualisieren für KI-Fokus klicken",
+    "openTasksTitle": "Offene Aufgaben",
+    "noOpenTasks": "Keine offenen Aufgaben",
+    "createTaskBtn": "Aufgabe erstellen",
+    "taskFallback": "Aufgabe",
+    "moreItems": "mehr",
+    "todosTitle": "To-dos",
+    "noPendingTodos": "Keine ausstehenden To-dos",
+    "addTodoBtn": "To-do hinzufügen",
+    "metaAdsTitle": "Meta Ads",
+    "metaAdsDetails": "Details",
+    "shortcuts": "Schnellzugriff",
+    "recentLeads": "Neueste Leads",
+    "allLeads": "Alle Leads",
+    "seeAll": "Alle anzeigen"
   },
   "crm": {
     "leadsTitle": "Leads",
@@ -159,7 +214,8 @@
     "created": "Erstellt",
     "email": "E-Mail",
     "name": "Name",
-    "refresh": "Aktualisieren"
+    "refresh": "Aktualisieren",
+    "addEmployee": "Mitarbeiter hinzufügen"
   },
   "aiInbox": {
     "title": "AI Inbox",
@@ -460,17 +516,6 @@
       "cancelled": "Storniert"
     }
   },
-  "dashboard": {
-    "greetMorning": "Guten Morgen",
-    "greetAfternoon": "Guten Tag",
-    "greetEvening": "Guten Abend",
-    "statusCold": "Kalt",
-    "statusContacted": "Kontaktiert",
-    "statusQualified": "Qualifiziert",
-    "statusQualifiedShort": "Qualif.",
-    "statusCustomer": "Kunde",
-    "statusLost": "Verloren"
-  },
   "leadGen": {
     "title": "Lead-Generierung",
     "subtitle": "Suche nach Geschäftskontakten aus öffentlichen Registern und dem Web",
@@ -519,9 +564,6 @@
     "emptyState": "Gib deine Suchkriterien oben ein und klicke auf Suchen.",
     "bulkSaved": "{{count}} Leads gespeichert",
     "bulkSaveError": "Leads konnten nicht gespeichert werden"
-  },
-  "hr": {
-    "addEmployee": "Mitarbeiter hinzufügen"
   },
   "notFound": {
     "title": "404",
