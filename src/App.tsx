@@ -54,6 +54,7 @@ import LeadGenerationPage from "@/pages/app/crm/LeadGeneration";
 import AdminAiUsagePage from "@/pages/app/admin/AiUsage";
 import AdminPhoneUsagePage from "@/pages/app/admin/PhoneUsage";
 import AppShell from "@/components/AppShell";
+import { BackgroundPrefetch } from "@/components/BackgroundPrefetch";
 import { I18nProvider, isLocale } from "@/lib/i18n";
 import { TenantProvider } from "@/contexts/TenantContext";
 import RoleGate from "@/components/RoleGate";
@@ -86,6 +87,7 @@ const AppRouteLayout = () => {
 
   return (
     <AppShell basePath={`/${locale}/app`}>
+      <BackgroundPrefetch />
       <Outlet />
     </AppShell>
   );

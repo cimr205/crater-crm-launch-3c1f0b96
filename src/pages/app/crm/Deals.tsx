@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import KanbanPipeline, { type KanbanColumn } from '@/components/KanbanPipeline';
 import { useI18n } from '@/lib/i18n';
-import { supabase } from '@/lib/supabase';
+import { useDeals, useCreateDeal, useUpdateDeal } from '@/hooks/api/useDeals';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/components/ui/use-toast';
 import { RefreshCw, Plus, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { useQueryClient } from '@tanstack/react-query';
 
 type Deal = {
   id: string;
@@ -68,71 +69,62 @@ const STAGES = [
 export default function DealsPage() {
   const { t } = useI18n();
   const { toast } = useToast();
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
+
+  const { data: dealsData, isLoading } = useDeals();
+  const createDeal = useCreateDeal();
+  const updateDeal = useUpdateDeal();
+
+  const deals: Deal[] = useMemo(() => {
+    const raw = (dealsData as { data?: unknown[] } | undefined)?.data ?? [];
+    return raw.map((d) => {
+      const deal = d as Record<string, unknown>;
+      return {
+        id: String(deal.id ?? ''),
+        title: String(deal.title ?? ''),
+        value: Number(deal.value ?? 0),
+        stage_id: String(deal.stage_id ?? 'new_lead'),
+        notes: deal.notes != null ? String(deal.notes) : null,
+        created_at: String(deal.created_at ?? ''),
+      };
+    }).filter(d => !['won', 'lost'].includes(d.stage_id));
+  }, [dealsData]);
+
   const [showCreate, setShowCreate] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newValue, setNewValue] = useState('');
   const [newStage, setNewStage] = useState<string>('new_lead');
-  const [saving, setSaving] = useState(false);
 
-  const loadDeals = useCallback(async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('deals')
-        .select('id, title, value, stage_id, notes, created_at')
-        .not('stage_id', 'in', '(won,lost)')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setDeals(data ?? []);
-    } catch (err) {
-      toast({
-        title: err instanceof Error ? err.message : 'Kunne ikke hente deals',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
-
-  useEffect(() => { void loadDeals(); }, [loadDeals]);
-
-  const handleMove = async (itemId: string, fromStage: string, toStage: string) => {
-    setDeals(prev => prev.map(d => d.id === itemId ? { ...d, stage_id: toStage } : d));
-    const { error } = await supabase
-      .from('deals')
-      .update({ stage_id: toStage, stage_entered_at: new Date().toISOString() })
-      .eq('id', itemId);
-
-    if (error) {
-      setDeals(prev => prev.map(d => d.id === itemId ? { ...d, stage_id: fromStage } : d));
-      toast({ title: 'Kunne ikke flytte deal', variant: 'destructive' });
-    }
+  const handleMove = (itemId: string, _fromStage: string, toStage: string) => {
+    updateDeal.mutate(
+      { id: itemId, stage_id: toStage },
+      {
+        onError: () => toast({ title: 'Kunne ikke flytte deal', variant: 'destructive' }),
+      },
+    );
   };
 
-  const handleCreate = async () => {
+  const handleCreate = () => {
     if (!newTitle.trim()) return;
-    setSaving(true);
-    try {
-      const { error } = await supabase.from('deals').insert({
+    createDeal.mutate(
+      {
         title: newTitle.trim(),
         value: parseFloat(newValue) || 0,
         stage_id: newStage,
-      });
-      if (error) throw error;
-      toast({ title: 'Deal oprettet' });
-      setShowCreate(false);
-      setNewTitle('');
-      setNewValue('');
-      setNewStage('new_lead');
-      await loadDeals();
-    } catch (err) {
-      toast({ title: err instanceof Error ? err.message : 'Kunne ikke oprette deal', variant: 'destructive' });
-    } finally {
-      setSaving(false);
-    }
+      },
+      {
+        onSuccess: () => {
+          toast({ title: 'Deal oprettet' });
+          setShowCreate(false);
+          setNewTitle('');
+          setNewValue('');
+          setNewStage('new_lead');
+        },
+        onError: (err) => {
+          toast({ title: err instanceof Error ? err.message : 'Kunne ikke oprette deal', variant: 'destructive' });
+        },
+      },
+    );
   };
 
   const totalValue = deals.reduce((s, d) => s + (d.value ?? 0), 0);
@@ -169,8 +161,14 @@ export default function DealsPage() {
             <Plus className="h-3.5 w-3.5" />
             Ny deal
           </Button>
-          <Button variant="outline" size="sm" onClick={() => void loadDeals()} disabled={loading} className="gap-1.5">
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => void queryClient.invalidateQueries({ queryKey: ['deals'] })}
+            disabled={isLoading}
+            className="gap-1.5"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             {t('crm.refresh')}
           </Button>
         </div>
@@ -217,8 +215,8 @@ export default function DealsPage() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button onClick={handleCreate} disabled={saving || !newTitle.trim()}>
-              {saving ? 'Opretter…' : 'Opret deal'}
+            <Button onClick={handleCreate} disabled={createDeal.isPending || !newTitle.trim()}>
+              {createDeal.isPending ? 'Opretter…' : 'Opret deal'}
             </Button>
             <Button variant="ghost" onClick={() => setShowCreate(false)}>Annuller</Button>
           </div>

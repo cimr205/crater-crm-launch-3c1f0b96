@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api, type InvoiceStats } from '@/lib/api';
 import { isLocale, useI18n } from '@/lib/i18n';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -11,6 +12,10 @@ import {
   BarChart2, ListTodo, Clock, Target, AlertTriangle, ChevronRight,
   Bell, Edit2, Check, X,
 } from 'lucide-react';
+import { useLeadDashboard, useInvoiceStats, usePaymentStats, useDailyFocus, useMetaStatus, useMetaCampaigns } from '@/hooks/api/useDashboard';
+import { useTasks } from '@/hooks/api/useTasks';
+import { useTodos } from '@/hooks/api/useTodos';
+import { useLeads } from '@/hooks/api/useLeads';
 
 function fmt(n: number) { return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 function fmtAmount(n: number) {
@@ -217,69 +222,93 @@ export default function DashboardPage() {
   const locale = isLocale(params.locale) ? params.locale : 'en';
   const { user } = useAuth();
   const { t } = useI18n();
+  const queryClient = useQueryClient();
 
-  const [totals, setTotals] = useState<{ leads: number; leads_today: number; active_clowdbot_jobs: number } | null>(null);
-  const [recent, setRecent] = useState<LeadRow[]>([]);
-  const [invoiceStats, setInvoiceStats] = useState<InvoiceStats | null>(null);
-  const [paymentTotal, setPaymentTotal] = useState<number | null>(null);
-  const [dailyFocus, setDailyFocus] = useState<Array<Record<string, unknown>>>([]);
   const [focusLoading, setFocusLoading] = useState(false);
-  const [openTasks, setOpenTasks] = useState<Array<Record<string, unknown>>>([]);
-  const [pendingTodos, setPendingTodos] = useState<Array<Record<string, unknown>>>([]);
-  const [metaConnected, setMetaConnected] = useState(false);
-  const [metaCampaigns, setMetaCampaigns] = useState<Array<{ spend: number; leads: number; ctr: number }>>([]);
-  const [staleLeads, setStaleLeads] = useState<LeadRow[]>([]);
 
+  // ── React Query hooks (reads from BackgroundPrefetch cache = instant) ─────
+  const leadDashboard = useLeadDashboard();
+  const invoiceStatsQ = useInvoiceStats();
+  const paymentStatsQ = usePaymentStats();
+  const dailyFocusQ = useDailyFocus();
+  const tasksQ = useTasks({ status: 'open' });
+  const todosQ = useTodos({ status: 'pending' });
+  const leadsQ = useLeads();
+  const metaStatusQ = useMetaStatus();
+  const metaConnected = (metaStatusQ.data as { connected?: boolean } | undefined)?.connected ?? false;
+  const metaCampaignsQ = useMetaCampaigns(metaConnected);
+
+  // ── Derived data ──────────────────────────────────────────────────────────
+  const dashData = leadDashboard.data as { totals?: { leads: number; leads_today: number; active_clowdbot_jobs: number }; recent?: LeadRow[] } | undefined;
+  const totals = dashData?.totals ?? null;
+  const recent: LeadRow[] = dashData?.recent ?? [];
+
+  const invoiceStats: InvoiceStats | null = (invoiceStatsQ.data as InvoiceStats | undefined) ?? null;
+  const paymentTotal: number | null = (paymentStatsQ.data as { total?: number } | undefined)?.total ?? null;
+
+  const dailyFocus: Array<Record<string, unknown>> = useMemo(() => {
+    const raw = dailyFocusQ.data as { data?: { json?: Array<Record<string, unknown>> } | null } | undefined;
+    return raw?.data?.json ?? [];
+  }, [dailyFocusQ.data]);
+
+  const openTasks: Array<Record<string, unknown>> = useMemo(() => {
+    const raw = tasksQ.data as { data?: unknown[] } | undefined;
+    return (raw?.data ?? []) as Array<Record<string, unknown>>;
+  }, [tasksQ.data]);
+
+  const pendingTodos: Array<Record<string, unknown>> = useMemo(() => {
+    const raw = todosQ.data as { data?: unknown[] } | undefined;
+    return (raw?.data ?? []) as Array<Record<string, unknown>>;
+  }, [todosQ.data]);
+
+  const allLeads: LeadRow[] = useMemo(() => {
+    const raw = leadsQ.data as { data?: unknown[] } | undefined;
+    return (raw?.data ?? []).map((l) => {
+      const r = l as Record<string, unknown>;
+      return {
+        id: String(r.id ?? ''),
+        name: String(r.name ?? ''),
+        email: r.email != null ? String(r.email) : undefined,
+        company: r.company != null ? String(r.company) : undefined,
+        status: String(r.status ?? 'cold'),
+        leadScore: Number(r.leadScore ?? 0),
+        source: r.source != null ? String(r.source) : undefined,
+        createdAt: String(r.createdAt ?? ''),
+      };
+    });
+  }, [leadsQ.data]);
+
+  const staleLeads: LeadRow[] = useMemo(() => {
+    const now = Date.now();
+    return allLeads.filter(l => {
+      if (!['cold', 'contacted'].includes(l.status)) return false;
+      const daysSince = (now - new Date(l.createdAt).getTime()) / 86400000;
+      return daysSince >= 5;
+    });
+  }, [allLeads]);
+
+  const metaCampaigns: Array<{ spend: number; leads: number; ctr: number }> = useMemo(() => {
+    const raw = metaCampaignsQ.data as { data?: unknown[] } | undefined;
+    return (raw?.data ?? []).map((c) => {
+      const r = c as Record<string, unknown>;
+      return { spend: Number(r.spend ?? 0), leads: Number(r.leads ?? 0), ctr: Number(r.ctr ?? 0) };
+    });
+  }, [metaCampaignsQ.data]);
+
+  // ── Actions ───────────────────────────────────────────────────────────────
   const go = (path: string) => navigate(`/${locale}${path}`);
-
-  const loadAll = useCallback(() => {
-    let active = true;
-    api.getLeadDashboard().then(d => { if (active) { setTotals(d.totals); setRecent(d.recent || []); } }).catch(() => undefined);
-    api.getDailyFocus().then(d => { if (active) setDailyFocus(d.data?.json || []); }).catch(() => undefined);
-    api.getInvoiceStats().then(d => { if (active) setInvoiceStats(d); }).catch(() => undefined);
-    api.getPaymentStats().then(d => { if (active) setPaymentTotal(d.total); }).catch(() => undefined);
-    api.listTasks({ status: 'open' })
-      .then(d => { if (active) setOpenTasks((d as { data?: unknown[]; tasks?: unknown[] }).data ?? (d as { tasks?: unknown[] }).tasks ?? []); })
-      .catch(() => undefined);
-    api.listTodos({ status: 'pending' })
-      .then(d => { if (active) setPendingTodos((d as { data?: unknown[]; todos?: unknown[] }).data ?? (d as { todos?: unknown[] }).todos ?? []); })
-      .catch(() => undefined);
-    api.listLeads().then(d => {
-      if (!active) return;
-      const now = Date.now();
-      const stale = (d.data as LeadRow[]).filter(l => {
-        if (!['cold', 'contacted'].includes(l.status)) return false;
-        const daysSince = (now - new Date(l.createdAt).getTime()) / 86400000;
-        return daysSince >= 5;
-      });
-      setStaleLeads(stale);
-    }).catch(() => undefined);
-    api.getMetaStatus()
-      .then(d => {
-        if (!active) return;
-        setMetaConnected(d.connected);
-        if (d.connected) {
-          api.getMetaCampaigns()
-            .then(c => { if (active) setMetaCampaigns((c as { data?: Array<{ spend: number; leads: number; ctr: number }> }).data ?? []); })
-            .catch(() => undefined);
-        }
-      })
-      .catch(() => undefined);
-    return () => { active = false; };
-  }, []);
-
-  useEffect(() => {
-    const cleanup = loadAll();
-    const interval = setInterval(() => loadAll(), 30_000);
-    return () => { cleanup?.(); clearInterval(interval); };
-  }, [loadAll]);
 
   const refreshFocus = async () => {
     setFocusLoading(true);
-    try { const d = await api.refreshDailyFocus(); setDailyFocus(d.data?.json || []); }
-    finally { setFocusLoading(false); }
+    try {
+      await api.refreshDailyFocus();
+      await queryClient.invalidateQueries({ queryKey: ['daily-focus'] });
+    } finally {
+      setFocusLoading(false);
+    }
   };
 
+  // ── Computed ──────────────────────────────────────────────────────────────
   const metaTotalSpend = metaCampaigns.reduce((s, c) => s + c.spend, 0);
   const metaTotalLeads = metaCampaigns.reduce((s, c) => s + c.leads, 0);
   const metaAvgCtr = metaCampaigns.length
@@ -515,9 +544,9 @@ export default function DashboardPage() {
                     onClick={() => go('/app/tasks')}
                   >
                     <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-xs truncate flex-1">{String((task as Record<string, unknown>).title ?? (task as Record<string, unknown>).name ?? t('dashboard.taskFallback'))}</span>
-                    {(task as Record<string, unknown>).status && (
-                      <Badge variant="outline" className="text-xs shrink-0">{String((task as Record<string, unknown>).status)}</Badge>
+                    <span className="text-xs truncate flex-1">{String(task.title ?? task.name ?? t('dashboard.taskFallback'))}</span>
+                    {task.status && (
+                      <Badge variant="outline" className="text-xs shrink-0">{String(task.status)}</Badge>
                     )}
                   </button>
                 ))}
@@ -558,7 +587,7 @@ export default function DashboardPage() {
                     onClick={() => go('/app/todos')}
                   >
                     <div className="h-3.5 w-3.5 rounded-full border-2 border-muted-foreground/40 shrink-0" />
-                    <span className="text-xs truncate">{String((todo as Record<string, unknown>).title ?? (todo as Record<string, unknown>).name ?? 'To-do')}</span>
+                    <span className="text-xs truncate">{String(todo.title ?? todo.name ?? 'To-do')}</span>
                   </button>
                 ))}
                 {pendingTodos.length > 4 && (
