@@ -55,6 +55,7 @@ const navSections: NavSection[] = [
       { href: 'inbox',            labelKey: 'nav.inbox',          icon: Inbox },
       { href: 'emails',           labelKey: 'nav.emails',         icon: Mail },
       { href: 'phone/calls',      labelKey: 'nav.phoneCalls',     icon: Phone },
+      { href: 'phone/softphone',  labelKey: 'nav.softphone',      icon: Phone },
       { href: 'email/campaigns',  labelKey: 'nav.emailCampaigns', icon: Send },
       { href: 'email/bulk',       labelKey: 'nav.bulkEmail',      icon: Users },
       { href: 'email/tracking',   labelKey: 'nav.emailTracking',  icon: BarChart2 },
