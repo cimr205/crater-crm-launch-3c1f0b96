@@ -1809,9 +1809,60 @@ class ApiClient {
   async adminUpdatePhonePlan(tenantId: string, data: { minutes_limit: number; plan: string }) {
     return this.request<{ success: boolean }>(`/v1/admin/phone/${tenantId}`, { method: 'PATCH', body: data });
   }
+
+  // ── Twilio Voice Token (multi-tenant) ──────────────────────────────────────
+  // The Railway API generates a Twilio Access Token using the company's
+  // own stored Twilio credentials (account SID / API key / TwiML App SID).
+  // If the endpoint doesn't exist yet on the Railway API, the Softphone falls
+  // back to the local twilio-server which also accepts the JWT.
+
+  async getTwilioVoiceToken(identity?: string) {
+    const qs = identity ? `?identity=${encodeURIComponent(identity)}` : '';
+    return this.request<{ token: string; identity: string; expires: string }>(
+      `/v1/phone/voice-token${qs}`,
+    );
+  }
+
+  // ── Twilio Credentials (per-company settings) ──────────────────────────────
+  // Admins enter their own Twilio SID / API key / TwiML App SID here.
+  // Stored encrypted on the Railway API — never returned in plaintext
+  // except the non-secret fields (account_sid, phone_number, twiml_app_sid).
+
+  async getTwilioSettings() {
+    return this.request<TwilioSettings>('/v1/phone/twilio-settings');
+  }
+
+  async saveTwilioSettings(input: {
+    account_sid: string;
+    auth_token?: string;
+    api_key: string;
+    api_secret: string;
+    twiml_app_sid: string;
+    phone_number: string;
+  }) {
+    return this.request<{ ok: true }>('/v1/phone/twilio-settings', { method: 'PUT', body: input });
+  }
+
+  async deleteTwilioSettings() {
+    return this.request<{ ok: true }>('/v1/phone/twilio-settings', { method: 'DELETE' });
+  }
 }
 
 // Types
+
+/**
+ * Per-company Twilio credentials stored on the Railway backend.
+ * api_secret and auth_token are write-only — the backend never returns them.
+ */
+export interface TwilioSettings {
+  account_sid: string;
+  api_key: string;
+  twiml_app_sid: string;
+  phone_number: string;
+  is_configured: boolean;
+  webhook_base_url?: string | null;
+}
+
 export interface User {
   id: string;
   email: string;

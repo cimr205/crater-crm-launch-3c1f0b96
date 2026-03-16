@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Device, type Call } from '@twilio/voice-sdk';
 import { useI18n } from '@/lib/i18n';
+import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -94,9 +95,25 @@ export default function SoftphonePage() {
     ].slice(0, 100));
   }, []);
 
-  // ── Fetch token from twilio-server ────────────────────────────────────────
+  // ── Fetch token (multi-tenant) ────────────────────────────────────────────
+  // Priority:
+  //   1. Railway API /v1/phone/voice-token — uses company's own Twilio creds
+  //   2. twilio-server /api/twilio/token   — JWT-aware fallback
   const fetchToken = useCallback(async (): Promise<{ token: string; identity: string }> => {
-    const res = await fetch(`${TWILIO_API}/token`);
+    // 1. Try Railway API (company-specific credentials)
+    try {
+      const data = await api.getTwilioVoiceToken();
+      return { token: data.token, identity: data.identity };
+    } catch {
+      // endpoint not yet implemented on Railway API → fall through
+    }
+
+    // 2. Fall back to twilio-server with JWT so it can look up company creds
+    const jwt = api.getToken();
+    const headers: Record<string, string> = {};
+    if (jwt) headers['Authorization'] = `Bearer ${jwt}`;
+
+    const res = await fetch(`${TWILIO_API}/token`, { headers });
     if (!res.ok) {
       const body = await res.text();
       throw new Error(`Token fetch failed (${res.status}): ${body}`);

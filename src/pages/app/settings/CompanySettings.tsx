@@ -6,7 +6,8 @@ import { useI18n } from '@/lib/i18n';
 import { api, TenantSettings, type PhoneProvision } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { ImagePlus, X, Phone, Loader2 } from 'lucide-react';
+import { ImagePlus, X, Phone, Loader2, KeyRound, CheckCircle2 } from 'lucide-react';
+import type { TwilioSettings } from '@/lib/api';
 
 const LOGO_KEY = 'crater_invoice_logo';
 
@@ -28,6 +29,19 @@ export default function CompanySettingsPage() {
   const [phoneLoading, setPhoneLoading] = useState(true);
   const [phoneProvisioning, setPhoneProvisioning] = useState(false);
   const [phoneReleasing, setPhoneReleasing] = useState(false);
+
+  const [twilioSettings, setTwilioSettings] = useState<TwilioSettings | null>(null);
+  const [twilioLoading, setTwilioLoading] = useState(true);
+  const [twilioSaving, setTwilioSaving] = useState(false);
+  const [twilioDeleting, setTwilioDeleting] = useState(false);
+  const [twilioForm, setTwilioForm] = useState({
+    account_sid: '',
+    api_key: '',
+    api_secret: '',
+    twiml_app_sid: '',
+    phone_number: '',
+    auth_token: '',
+  });
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -73,6 +87,23 @@ export default function CompanySettingsPage() {
       .catch(() => setPhoneProvision(null))
       .finally(() => { if (active) setPhoneLoading(false); });
 
+    api
+      .getTwilioSettings()
+      .then((data) => {
+        if (!active) return;
+        setTwilioSettings(data);
+        if (data.is_configured) {
+          setTwilioForm(f => ({
+            ...f,
+            account_sid: data.account_sid ?? '',
+            twiml_app_sid: data.twiml_app_sid ?? '',
+            phone_number: data.phone_number ?? '',
+          }));
+        }
+      })
+      .catch(() => setTwilioSettings(null))
+      .finally(() => { if (active) setTwilioLoading(false); });
+
     return () => {
       active = false;
     };
@@ -102,6 +133,39 @@ export default function CompanySettingsPage() {
       toast({ title: err instanceof Error ? err.message : 'Kunne ikke frigive nummer', variant: 'destructive' });
     } finally {
       setPhoneReleasing(false);
+    }
+  };
+
+  const handleSaveTwilio = async () => {
+    if (!twilioForm.account_sid || !twilioForm.api_key || !twilioForm.api_secret || !twilioForm.twiml_app_sid || !twilioForm.phone_number) {
+      toast({ title: 'Udfyld alle Twilio-felter', variant: 'destructive' });
+      return;
+    }
+    setTwilioSaving(true);
+    try {
+      await api.saveTwilioSettings(twilioForm);
+      const updated = await api.getTwilioSettings();
+      setTwilioSettings(updated);
+      toast({ title: 'Twilio-indstillinger gemt' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Kunne ikke gemme', variant: 'destructive' });
+    } finally {
+      setTwilioSaving(false);
+    }
+  };
+
+  const handleDeleteTwilio = async () => {
+    if (!confirm('Er du sikker? Dette fjerner alle Twilio-legitimationsoplysninger for din virksomhed.')) return;
+    setTwilioDeleting(true);
+    try {
+      await api.deleteTwilioSettings();
+      setTwilioSettings(null);
+      setTwilioForm({ account_sid: '', api_key: '', api_secret: '', twiml_app_sid: '', phone_number: '', auth_token: '' });
+      toast({ title: 'Twilio-integration frakobles' });
+    } catch (err) {
+      toast({ title: err instanceof Error ? err.message : 'Kunne ikke frakoble', variant: 'destructive' });
+    } finally {
+      setTwilioDeleting(false);
     }
   };
 
@@ -330,6 +394,112 @@ export default function CompanySettingsPage() {
               {phoneProvisioning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Phone className="h-4 w-4" />}
               {phoneProvisioning ? t('common.loading') : t('phone.activateNumber')}
             </Button>
+          </div>
+        )}
+      </Card>
+
+      {/* Twilio Integration card */}
+      <Card className="p-6 space-y-4 bg-card/70 backdrop-blur border-border">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <KeyRound className="h-5 w-5 text-primary" />
+            <div>
+              <h2 className="text-base font-semibold">Twilio Integration</h2>
+              <p className="text-sm text-muted-foreground">Tilslut din egen Twilio-konto for at bruge Softphone og Cold Caller.</p>
+            </div>
+          </div>
+          {twilioSettings?.is_configured && (
+            <div className="flex items-center gap-1.5 text-sm text-emerald-500 font-medium">
+              <CheckCircle2 className="h-4 w-4" />
+              Tilsluttet
+            </div>
+          )}
+        </div>
+
+        {twilioLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Indlæser…
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Account SID</div>
+                <Input
+                  placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  value={twilioForm.account_sid}
+                  onChange={e => setTwilioForm(f => ({ ...f, account_sid: e.target.value }))}
+                />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Auth Token <span className="text-muted-foreground/60">(kun nødvendigt ved opkald via REST API)</span></div>
+                <Input
+                  type="password"
+                  placeholder="••••••••••••••••"
+                  value={twilioForm.auth_token}
+                  onChange={e => setTwilioForm(f => ({ ...f, auth_token: e.target.value }))}
+                />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">API Key SID</div>
+                <Input
+                  placeholder="SKxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  value={twilioForm.api_key}
+                  onChange={e => setTwilioForm(f => ({ ...f, api_key: e.target.value }))}
+                />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">API Secret</div>
+                <Input
+                  type="password"
+                  placeholder="••••••••••••••••"
+                  value={twilioForm.api_secret}
+                  onChange={e => setTwilioForm(f => ({ ...f, api_secret: e.target.value }))}
+                />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">TwiML App SID</div>
+                <Input
+                  placeholder="APxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  value={twilioForm.twiml_app_sid}
+                  onChange={e => setTwilioForm(f => ({ ...f, twiml_app_sid: e.target.value }))}
+                />
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground mb-1">Twilio telefonnummer (E.164)</div>
+                <Input
+                  placeholder="+4500000000"
+                  value={twilioForm.phone_number}
+                  onChange={e => setTwilioForm(f => ({ ...f, phone_number: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-muted/40 border border-border px-4 py-3 text-xs text-muted-foreground space-y-1">
+              <p className="font-medium text-foreground">Opsætningsvejledning</p>
+              <p>1. Opret en <strong>TwiML App</strong> i Twilio Console → Voice Request URL: <code className="bg-muted px-1 rounded">https://&lt;din-server&gt;/voice/outgoing?company_id=&lt;id&gt;</code></p>
+              <p>2. Angiv dette som webhook på dit Twilio-nummer: <code className="bg-muted px-1 rounded">https://&lt;din-server&gt;/voice/incoming?company_id=&lt;id&gt;</code></p>
+              <p>3. Gem dine legitimationsoplysninger herunder — de bruges til token-generering i browseren.</p>
+            </div>
+
+            <div className="flex gap-3">
+              <Button onClick={handleSaveTwilio} disabled={twilioSaving}>
+                {twilioSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Gem Twilio-indstillinger
+              </Button>
+              {twilioSettings?.is_configured && (
+                <Button
+                  variant="outline"
+                  className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                  onClick={handleDeleteTwilio}
+                  disabled={twilioDeleting}
+                >
+                  {twilioDeleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                  Frakobl Twilio
+                </Button>
+              )}
+            </div>
           </div>
         )}
       </Card>

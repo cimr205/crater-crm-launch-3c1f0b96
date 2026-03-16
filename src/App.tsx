@@ -49,6 +49,7 @@ import AiTasksPage from "@/pages/app/tasks/Tasks";
 import AiMediaPage from "@/pages/app/ai/AiMedia";
 import PhonePage from "@/pages/app/phone/PhonePage";
 import SoftphonePage from "@/pages/app/phone/Softphone";
+import ColdCallerPage from "@/pages/app/phone/ColdCaller";
 import CvrProspectorPage from "@/pages/app/crm/CvrProspector";
 import ProspectEnginePage from "@/pages/app/crm/ProspectEngine";
 import LeadGenerationPage from "@/pages/app/crm/LeadGeneration";
@@ -162,6 +163,7 @@ const App = () => (
                   <Route path="emails" element={<EmailsPage />} />
                   <Route path="phone/calls" element={<PhonePage />} />
                   <Route path="phone/softphone" element={<SoftphonePage />} />
+                  <Route path="phone/cold-caller" element={<ColdCallerPage />} />
 
                   {/* AI */}
                   <Route path="ai/media" element={<AiMediaPage />} />
