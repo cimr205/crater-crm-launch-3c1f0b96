@@ -286,3 +286,45 @@ async def delete_saved(
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "lead-gen"}
+
+
+# ─────────────────────────────────────────────
+# Catch-all proxy → Railway backend
+# Everything that is NOT /v1/lead-gen/* gets
+# forwarded transparently to the real API so
+# the CRM can point VITE_API_BASE_URL at this
+# service and all other features keep working.
+# ─────────────────────────────────────────────
+
+@app.api_route(
+    "/{path:path}",
+    methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    include_in_schema=False,
+)
+async def proxy_to_railway(path: str, request: Request):
+    url = f"{RAILWAY_API}/{path}"
+    if request.url.query:
+        url = f"{url}?{request.url.query}"
+
+    body = await request.body()
+    headers = {
+        k: v for k, v in request.headers.items()
+        if k.lower() not in ("host", "content-length")
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.request(
+                method=request.method,
+                url=url,
+                content=body,
+                headers=headers,
+            )
+        return JSONResponse(
+            content=resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {},
+            status_code=resp.status_code,
+            headers=dict(resp.headers),
+        )
+    except Exception as exc:
+        logger.error(f"Proxy error [{path}]: {exc}")
+        raise HTTPException(status_code=502, detail=f"Upstream error: {exc}")
