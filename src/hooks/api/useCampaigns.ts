@@ -5,6 +5,8 @@ export function useCampaigns() {
   return useQuery({
     queryKey: ['campaigns'],
     queryFn: () => api.listCampaigns(),
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
   });
 }
 
@@ -13,6 +15,8 @@ export function useCampaign(id: string) {
     queryKey: ['campaigns', id],
     queryFn: () => api.getCampaign(id),
     enabled: !!id,
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
   });
 }
 

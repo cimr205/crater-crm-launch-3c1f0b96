@@ -30,7 +30,7 @@ export default function LoginPage() {
     try {
       await loginWithGoogle();
     } catch (e) {
-      showError(e instanceof Error ? e.message : 'Google login fejlede');
+      showError(e instanceof Error ? e.message : t('auth.loginError'));
     } finally {
       setLoading(false);
     }
@@ -48,7 +48,7 @@ export default function LoginPage() {
       const { needsOnboarding } = await login(email, password);
       navigate(`/${locale}/${needsOnboarding ? 'app/onboarding' : 'app/dashboard'}`);
     } catch (e) {
-      showError(e instanceof Error ? e.message : 'Login fejlede');
+      showError(e instanceof Error ? e.message : t('auth.loginError'));
     } finally {
       setLoading(false);
     }
@@ -90,13 +90,13 @@ export default function LoginPage() {
         <div className="mt-6 flex flex-col gap-2 text-sm text-center text-muted-foreground">
           <span>
             <Link to={`/${locale}/auth/forgot-password`} className="text-primary underline underline-offset-4">
-              Glemt adgangskode?
+              {t('auth.forgotPassword')}
             </Link>
           </span>
           <span>
-            Ingen konto?{' '}
+            {t('auth.noAccount')}{' '}
             <Link to={`/${locale}/auth/signup`} className="text-primary underline underline-offset-4">
-              Opret konto
+              {t('auth.signupCta')}
             </Link>
           </span>
           <span>

@@ -11,6 +11,16 @@ export default defineConfig(({ mode }) => ({
     hmr: {
       overlay: false,
     },
+    proxy: {
+      // Proxy Twilio API calls to the local twilio-server (port 3001).
+      // In production, set VITE_TWILIO_SERVER_URL to your deployed server URL
+      // and this proxy is not needed.
+      '/api/twilio': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/twilio/, ''),
+      },
+    },
   },
   optimizeDeps: {
     entries: ["index.html"],

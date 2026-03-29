@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { isLocale } from '@/lib/i18n';
+import { isLocale, useI18n } from '@/lib/i18n';
 import { api } from '@/lib/api';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
@@ -39,6 +39,7 @@ export default function OnboardingPage() {
   const locale = isLocale(params.locale) ? params.locale : 'en';
   const navigate = useNavigate();
   const { refreshGate, user } = useAuth();
+  const { t } = useI18n();
 
   const [step, setStep] = useState<Step>(1);
   const [companyName, setCompanyName] = useState('');
@@ -78,7 +79,7 @@ export default function OnboardingPage() {
       await refreshGate();
       navigate(`/${locale}/app/dashboard`, { replace: true });
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Noget gik galt. Prøv igen.');
+      setError(e instanceof Error ? e.message : t('onboarding.errorGeneric'));
     } finally {
       setSaving(false);
     }
@@ -89,9 +90,9 @@ export default function OnboardingPage() {
       <div className="w-full max-w-lg space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-semibold">Velkommen – opsæt din virksomhed</h1>
+          <h1 className="text-2xl font-semibold">{t('onboarding.welcome')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Trin {step} af 2
+            {t('onboarding.stepProgress').replace('{{step}}', String(step))}
           </p>
         </div>
 
@@ -107,17 +108,17 @@ export default function OnboardingPage() {
         {step === 1 && (
           <Card className="p-6 space-y-5 bg-card/70 backdrop-blur border-border">
             <div>
-              <h2 className="text-lg font-semibold">Om virksomheden</h2>
-              <p className="text-sm text-muted-foreground">Fortæl os lidt om dit firma</p>
+              <h2 className="text-lg font-semibold">{t('onboarding.step1Title')}</h2>
+              <p className="text-sm text-muted-foreground">{t('onboarding.step1Subtitle')}</p>
             </div>
 
             <div className="space-y-3">
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground font-medium">
-                  Virksomhedens navn <span className="text-destructive">*</span>
+                  {t('onboarding.companyNameLabel')} <span className="text-destructive">*</span>
                 </label>
                 <Input
-                  placeholder="f.eks. Acme ApS"
+                  placeholder={t('onboarding.companyNamePlaceholder')}
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
                   autoFocus
@@ -126,14 +127,14 @@ export default function OnboardingPage() {
 
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground font-medium">
-                  Branche <span className="text-destructive">*</span>
+                  {t('onboarding.industryLabel')} <span className="text-destructive">*</span>
                 </label>
                 <select
                   className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
                   value={industry}
                   onChange={(e) => setIndustry(e.target.value)}
                 >
-                  <option value="">Vælg branche…</option>
+                  <option value="">{t('onboarding.industryPlaceholder')}</option>
                   {INDUSTRY_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>{opt}</option>
                   ))}
@@ -143,7 +144,7 @@ export default function OnboardingPage() {
 
             <div className="flex justify-end">
               <Button onClick={() => setStep(2)} disabled={!step1Valid}>
-                Næste →
+                {t('onboarding.nextArrow')}
               </Button>
             </div>
           </Card>
@@ -153,14 +154,14 @@ export default function OnboardingPage() {
         {step === 2 && (
           <Card className="p-6 space-y-5 bg-card/70 backdrop-blur border-border">
             <div>
-              <h2 className="text-lg font-semibold">Størrelse & mål</h2>
-              <p className="text-sm text-muted-foreground">Hjælper os med at skræddersy oplevelsen</p>
+              <h2 className="text-lg font-semibold">{t('onboarding.step2Title')}</h2>
+              <p className="text-sm text-muted-foreground">{t('onboarding.step2Subtitle')}</p>
             </div>
 
             <div className="space-y-3">
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground font-medium">
-                  Antal ansatte <span className="text-destructive">*</span>
+                  {t('onboarding.sizeLabel')} <span className="text-destructive">*</span>
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {SIZE_OPTIONS.map((opt) => (
@@ -182,14 +183,14 @@ export default function OnboardingPage() {
 
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground font-medium">
-                  Primært mål <span className="text-destructive">*</span>
+                  {t('onboarding.goalLabel')} <span className="text-destructive">*</span>
                 </label>
                 <select
                   className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
                   value={goal}
                   onChange={(e) => setGoal(e.target.value)}
                 >
-                  <option value="">Vælg dit primære mål…</option>
+                  <option value="">{t('onboarding.goalPlaceholder')}</option>
                   {GOAL_OPTIONS.map((opt) => (
                     <option key={opt} value={opt}>{opt}</option>
                   ))}
@@ -203,10 +204,10 @@ export default function OnboardingPage() {
 
             <div className="flex justify-between">
               <Button variant="ghost" onClick={() => setStep(1)} disabled={saving}>
-                ← Tilbage
+                {t('onboarding.backArrow')}
               </Button>
               <Button onClick={handleFinish} disabled={!step2Valid || saving}>
-                {saving ? 'Gemmer…' : 'Færdig'}
+                {saving ? t('onboarding.saving') : t('onboarding.done')}
               </Button>
             </div>
           </Card>

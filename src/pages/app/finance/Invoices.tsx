@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useI18n } from '@/lib/i18n';
 import { api, type InvoiceSummary, type InvoiceDetail, type InvoiceStats, type CreateInvoiceItem, type Customer } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -51,6 +52,7 @@ const PAYMENT_METHODS = [
 function fmt(n: number) { return n.toLocaleString('da-DK', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
 function StatusBadge({ status }: { status: string }) {
+  const { t } = useI18n();
   const cls: Record<string, string> = {
     draft: 'bg-muted text-muted-foreground',
     sent: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
@@ -58,7 +60,13 @@ function StatusBadge({ status }: { status: string }) {
     overdue: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300',
     cancelled: 'bg-muted text-muted-foreground',
   };
-  const labels: Record<string, string> = { draft: 'Kladde', sent: 'Sendt', paid: 'Betalt', overdue: 'Forfalden', cancelled: 'Annulleret' };
+  const labels: Record<string, string> = {
+    draft: t('pages.invoices.draft'),
+    sent: t('pages.invoices.sent'),
+    paid: t('pages.invoices.paid'),
+    overdue: t('pages.invoices.overdue'),
+    cancelled: t('pages.invoices.cancelled'),
+  };
   return <span className={`px-2 py-0.5 rounded text-xs font-medium ${cls[status] || cls.draft}`}>{labels[status] || status}</span>;
 }
 

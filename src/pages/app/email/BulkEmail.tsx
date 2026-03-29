@@ -9,8 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import {
   Mail, Upload, Users, Send, Pause, Play, XCircle, CheckCircle2,
   Loader2, RefreshCw, Eye, ChevronRight, ChevronLeft, AlertTriangle,
-  BarChart2, Clock, Zap, FileText, Trash2,
+  BarChart2, Clock, Zap, FileText, Trash2, Paperclip,
 } from 'lucide-react';
+
+// ── Attachment type ────────────────────────────────────────────────────────────
+
+type Attachment = {
+  filename: string;
+  content_type: string;
+  data: string; // base64
+  size: number;
+};
 
 // ── CSV parser (ingen deps) ───────────────────────────────────────────────────
 
@@ -273,11 +282,15 @@ type View = 'composer' | 'preview' | 'history';
 export default function BulkEmailPage() {
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
+  const attachRef = useRef<HTMLInputElement>(null);
 
   // CSV state
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [csvRows, setCsvRows] = useState<Array<Record<string, string>>>([]);
   const [csvFileName, setCsvFileName] = useState('');
+
+  // Attachment state
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
 
   // Composer state
   const [jobName, setJobName] = useState('');
@@ -342,6 +355,31 @@ export default function BulkEmailPage() {
     if (file?.name.endsWith('.csv')) handleCsvFile(file);
   };
 
+  // Attachment handler
+  const handleAttachFiles = (files: FileList | null) => {
+    if (!files) return;
+    Array.from(files).forEach((file) => {
+      if (file.size > 10 * 1024 * 1024) {
+        toast({ title: `${file.name} er for stor (maks 10 MB)`, variant: 'destructive' });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        // Strip "data:...;base64," prefix
+        const base64 = dataUrl.split(',')[1] ?? '';
+        setAttachments((prev) => [
+          ...prev.filter((a) => a.filename !== file.name),
+          { filename: file.name, content_type: file.type || 'application/octet-stream', data: base64, size: file.size },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeAttachment = (filename: string) =>
+    setAttachments((prev) => prev.filter((a) => a.filename !== filename));
+
   // Load skabelon
   const loadTemplate = (tpl: typeof BODY_TEMPLATES[0]) => {
     setSubject(tpl.subject);
@@ -371,6 +409,7 @@ export default function BulkEmailPage() {
         sendIntervalSeconds: intervalSec,
         trackOpens,
         trackClicks,
+        attachments: attachments.length > 0 ? attachments : undefined,
       });
       toast({
         title: `${res.queued} emails sat i kø`,
@@ -607,7 +646,7 @@ export default function BulkEmailPage() {
                 <Select value={String(dailyLimit)} onValueChange={(v) => setDailyLimit(Number(v))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {[100, 200, 300, 500, 700, 1000, 2000].map((n) => (
+                    {[100, 200, 300, 500, 700, 1000, 2000, 5000, 10000, 25000, 50000].map((n) => (
                       <SelectItem key={n} value={String(n)}>{n.toLocaleString()} emails/dag</SelectItem>
                     ))}
                   </SelectContent>
@@ -663,6 +702,61 @@ export default function BulkEmailPage() {
                   Interval: {intervalSec}s → ca. {Math.round(3600 / intervalSec)} emails/time
                   · {Math.min(dailyLimit, Math.round((3600 / intervalSec) * 12)).toLocaleString()} emails pr. 12-timer blok
                 </p>
+              </div>
+            )}
+          </div>
+
+          {/* Fil-vedhæftninger */}
+          <div className="rounded-2xl border bg-card p-5 space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold flex items-center gap-2">
+                <Paperclip className="h-4 w-4 text-primary" />
+                Vedhæftede filer
+                {attachments.length > 0 && (
+                  <Badge variant="secondary">{attachments.length}</Badge>
+                )}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => attachRef.current?.click()}
+              >
+                <Upload className="h-3.5 w-3.5 mr-1.5" />
+                Tilføj fil
+              </Button>
+              <input
+                ref={attachRef}
+                type="file"
+                multiple
+                className="sr-only"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.txt,.csv"
+                onChange={(e) => { handleAttachFiles(e.target.files); e.target.value = ''; }}
+              />
+            </div>
+            {attachments.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                Ingen vedhæftninger endnu — tilføj PDF, billeder, Word-filer osv. (maks 10 MB pr. fil).
+                Filen sendes med til <em>alle</em> modtagere.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {attachments.map((att) => (
+                  <div key={att.filename} className="flex items-center justify-between rounded-lg border border-border bg-muted/20 px-3 py-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <FileText className="h-4 w-4 text-primary shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate">{att.filename}</p>
+                        <p className="text-xs text-muted-foreground">{(att.size / 1024).toFixed(1)} KB</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => removeAttachment(att.filename)}
+                      className="ml-2 shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <XCircle className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -735,17 +829,20 @@ export default function BulkEmailPage() {
                 {/* Email header */}
                 <div className="border-b px-5 py-4 space-y-2 bg-muted/20">
                   <div className="flex items-start gap-3">
-                    <div className="h-9 w-9 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                    <div className="h-10 w-10 rounded-full bg-primary flex items-center justify-center text-sm font-bold text-primary-foreground shrink-0 shadow-sm">
                       {previewRow?.['_initials'] || '?'}
                     </div>
                     <div className="flex-1 min-w-0 space-y-0.5">
                       <p className="text-xs text-muted-foreground">Til:</p>
-                      <p className="text-sm font-medium">
+                      <p className="text-sm font-semibold">
                         {previewRow?.['_full_name'] || previewRow?.['_first_name'] || '—'}
-                        {previewRow?.['_email'] && <span className="text-muted-foreground ml-2 font-normal">&lt;{previewRow['_email']}&gt;</span>}
+                        {previewRow?.['_email'] && <span className="text-muted-foreground ml-2 font-normal text-xs">&lt;{previewRow['_email']}&gt;</span>}
                       </p>
                       {previewRow?.['_company'] && (
                         <p className="text-xs text-muted-foreground">{previewRow['_company']}</p>
+                      )}
+                      {previewRow?.['_initials'] && (
+                        <p className="text-xs text-primary font-medium">Initialer: {previewRow['_initials']}</p>
                       )}
                     </div>
                   </div>
@@ -759,6 +856,23 @@ export default function BulkEmailPage() {
                 <div className="px-5 py-5">
                   <pre className="text-sm leading-relaxed whitespace-pre-wrap font-sans">{previewBody}</pre>
                 </div>
+
+                {/* Attachments in preview */}
+                {attachments.length > 0 && (
+                  <div className="border-t px-5 py-3 space-y-1.5">
+                    <p className="text-xs text-muted-foreground font-medium flex items-center gap-1.5">
+                      <Paperclip className="h-3 w-3" />
+                      Vedhæftede filer ({attachments.length})
+                    </p>
+                    {attachments.map((att) => (
+                      <div key={att.filename} className="flex items-center gap-2 text-xs text-foreground">
+                        <FileText className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <span className="font-medium">{att.filename}</span>
+                        <span className="text-muted-foreground">({(att.size / 1024).toFixed(1)} KB)</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Raw data */}

@@ -42,5 +42,6 @@ export const env = {
   integrationsHubspotClientSecret: process.env.INTEGRATIONS_HUBSPOT_CLIENT_SECRET || '',
   integrationsApolloClientId: process.env.INTEGRATIONS_APOLLO_CLIENT_ID || '',
   integrationsApolloClientSecret: process.env.INTEGRATIONS_APOLLO_CLIENT_SECRET || '',
+  companiesHouseApiKey: process.env.COMPANIES_HOUSE_API_KEY || '',
 };
 

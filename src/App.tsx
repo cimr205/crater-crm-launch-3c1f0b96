@@ -44,15 +44,34 @@ import WorkflowsPage from "@/pages/app/Workflows";
 import MetaAdsPage from "@/pages/app/meta/MetaAds";
 import EmailCampaignsPage from "@/pages/app/email/EmailCampaigns";
 import BulkEmailPage from "@/pages/app/email/BulkEmail";
+import EmailTrackingPage from "@/pages/app/email/EmailTracking";
 import AiTasksPage from "@/pages/app/tasks/Tasks";
 import AiMediaPage from "@/pages/app/ai/AiMedia";
+import PhonePage from "@/pages/app/phone/PhonePage";
+import SoftphonePage from "@/pages/app/phone/Softphone";
+import ColdCallerPage from "@/pages/app/phone/ColdCaller";
+import CvrProspectorPage from "@/pages/app/crm/CvrProspector";
+import ProspectEnginePage from "@/pages/app/crm/ProspectEngine";
+import LeadGenerationPage from "@/pages/app/crm/LeadGeneration";
 import AdminAiUsagePage from "@/pages/app/admin/AiUsage";
+import AdminPhoneUsagePage from "@/pages/app/admin/PhoneUsage";
 import AppShell from "@/components/AppShell";
+import { BackgroundPrefetch } from "@/components/BackgroundPrefetch";
 import { I18nProvider, isLocale } from "@/lib/i18n";
 import { TenantProvider } from "@/contexts/TenantContext";
 import RoleGate from "@/components/RoleGate";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 10,
+      retry: 1,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+    },
+  },
+});
 
 const LocaleLayout = () => {
   const params = useParams();
@@ -70,6 +89,7 @@ const AppRouteLayout = () => {
 
   return (
     <AppShell basePath={`/${locale}/app`}>
+      <BackgroundPrefetch />
       <Outlet />
     </AppShell>
   );
@@ -116,6 +136,9 @@ const App = () => (
                   {/* CRM */}
                   <Route path="crm/leads" element={<LeadsPage />} />
                   <Route path="crm/deals" element={<DealsPage />} />
+                  <Route path="crm/prospector" element={<CvrProspectorPage />} />
+                  <Route path="crm/prospect-engine" element={<ProspectEnginePage />} />
+                  <Route path="crm/lead-generation" element={<LeadGenerationPage />} />
                   <Route path="customers" element={<CustomersPage />} />
                   <Route path="campaigns" element={<CampaignsPage />} />
 
@@ -138,6 +161,9 @@ const App = () => (
                   {/* Communication */}
                   <Route path="inbox" element={<InboxPage />} />
                   <Route path="emails" element={<EmailsPage />} />
+                  <Route path="phone/calls" element={<PhonePage />} />
+                  <Route path="phone/softphone" element={<SoftphonePage />} />
+                  <Route path="phone/cold-caller" element={<ColdCallerPage />} />
 
                   {/* AI */}
                   <Route path="ai/media" element={<AiMediaPage />} />
@@ -150,6 +176,7 @@ const App = () => (
                   <Route path="meta/ads" element={<MetaAdsPage />} />
                   <Route path="email/campaigns" element={<EmailCampaignsPage />} />
                   <Route path="email/bulk" element={<BulkEmailPage />} />
+                  <Route path="email/tracking" element={<EmailTrackingPage />} />
                   <Route path="settings/company" element={<CompanySettingsPage />} />
 
                   {/* Admin */}
@@ -190,6 +217,14 @@ const App = () => (
                     element={
                       <RoleGate role="global_admin">
                         <AdminAiUsagePage />
+                      </RoleGate>
+                    }
+                  />
+                  <Route
+                    path="admin/phone"
+                    element={
+                      <RoleGate role="global_admin">
+                        <AdminPhoneUsagePage />
                       </RoleGate>
                     }
                   />

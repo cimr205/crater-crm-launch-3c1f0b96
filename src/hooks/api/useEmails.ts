@@ -5,6 +5,8 @@ export function useEmails(params?: { folder?: string; q?: string; page?: number;
   return useQuery({
     queryKey: ['emails', params],
     queryFn: () => api.listEmails(params),
+    staleTime: 1000 * 60 * 3,
+    gcTime: 1000 * 60 * 8,
   });
 }
 

@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Briefcase, Settings, UserSquare2, ShieldCheck,
   History, Bot, Megaphone, FileText, CreditCard, Clock, Palmtree, Banknote,
   UserPlus, CheckSquare, CalendarDays, ListTodo, Inbox, Mail, Building2,
-  BarChart2, Send, X, Sparkles, Video,
+  BarChart2, Send, X, Sparkles, Video, Crosshair, Zap, Phone, Search,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,10 +17,11 @@ const navSections: NavSection[] = [
     titleKey: 'nav.section.crm',
     items: [
       { href: 'dashboard',    labelKey: 'nav.dashboard',   icon: LayoutDashboard },
-      { href: 'crm/leads',    labelKey: 'nav.leads',       icon: Users },
-      { href: 'crm/deals',    labelKey: 'nav.deals',       icon: Briefcase },
-      { href: 'customers',    labelKey: 'nav.customers',   icon: Users },
-      { href: 'campaigns',    labelKey: 'nav.campaigns',   icon: Megaphone },
+      { href: 'crm/leads',            labelKey: 'nav.leads',           icon: Users },
+      { href: 'crm/deals',            labelKey: 'nav.deals',           icon: Briefcase },
+      { href: 'crm/lead-generation',  labelKey: 'nav.leadGeneration',  icon: Search },
+      { href: 'customers',            labelKey: 'nav.customers',       icon: Users },
+      { href: 'campaigns',            labelKey: 'nav.campaigns',       icon: Megaphone },
     ],
   },
   {
@@ -53,8 +54,12 @@ const navSections: NavSection[] = [
     items: [
       { href: 'inbox',            labelKey: 'nav.inbox',          icon: Inbox },
       { href: 'emails',           labelKey: 'nav.emails',         icon: Mail },
+      { href: 'phone/calls',      labelKey: 'nav.phoneCalls',     icon: Phone },
+      { href: 'phone/softphone',  labelKey: 'nav.softphone',      icon: Phone },
+      { href: 'phone/cold-caller', labelKey: 'nav.coldCaller',   icon: Phone },
       { href: 'email/campaigns',  labelKey: 'nav.emailCampaigns', icon: Send },
       { href: 'email/bulk',       labelKey: 'nav.bulkEmail',      icon: Users },
+      { href: 'email/tracking',   labelKey: 'nav.emailTracking',  icon: BarChart2 },
       { href: 'meta/ads',         labelKey: 'nav.metaAds',        icon: BarChart2 },
     ],
   },
@@ -84,6 +89,7 @@ const adminSection: NavSection = {
     { href: 'admin/company',    labelKey: 'nav.adminCompany',    icon: Building2 },
     { href: 'admin/employees',  labelKey: 'nav.adminEmployees',  icon: UserSquare2 },
     { href: 'admin/ai',         labelKey: 'nav.adminAi',         icon: Sparkles },
+    { href: 'admin/phone',      labelKey: 'nav.adminPhone',      icon: Phone },
     { href: 'admin/settings',   labelKey: 'nav.adminSettings',   icon: Settings },
   ],
 };

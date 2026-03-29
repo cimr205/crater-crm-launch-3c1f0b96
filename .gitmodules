@@ -1,0 +1,3 @@
+[submodule "scraper/google-maps-scraper"]
+	path = scraper/google-maps-scraper
+	url = https://github.com/omkarcloud/google-maps-scraper.git

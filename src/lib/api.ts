@@ -9,6 +9,40 @@ interface ApiOptions {
   headers?: Record<string, string>;
 }
 
+// Prospect Engine internal types (used in ApiClient method signatures)
+interface ProspectJobResponse {
+  id: string;
+  query: string;
+  source: string;
+  status: string;
+  progress: number;
+  results_count: number;
+  imported_count: number;
+  created_at: string;
+  completed_at?: string;
+  error?: string;
+}
+
+interface ProspectResultResponse {
+  id: string;
+  job_id: string;
+  company_name: string;
+  website?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  industry?: string;
+  employees?: string;
+  rating?: number;
+  reviews?: number;
+  source_url?: string;
+  source: string;
+  imported: boolean;
+  created_at: string;
+}
+
 class ApiClient {
   private token: string | null = null;
   private refreshToken: string | null = null;
@@ -186,7 +220,8 @@ class ApiClient {
       if (response.status === 401) {
         this.setSession(null);
         localStorage.removeItem('tenant_defaults');
-        window.location.href = '/en/auth/login';
+        const locale = window.location.pathname.split('/')[1] || 'en';
+        window.location.href = `/${locale}/auth/login`;
       }
       const error = await response.json().catch(() => ({ message: 'An error occurred' })) as {
         message?: string;
@@ -1155,6 +1190,28 @@ class ApiClient {
     return this.request<{ ok: true }>(`/v1/todos/${id}`, { method: 'DELETE' });
   }
 
+  // ── Deals ───────────────────────────────────────────────────────────────────
+
+  async listDeals(params?: { stage?: string; q?: string }) {
+    const qs = new URLSearchParams();
+    if (params?.stage) qs.set('stage', params.stage);
+    if (params?.q) qs.set('q', params.q);
+    const query = qs.toString();
+    return this.request<{ data: unknown[] }>(`/v1/deals${query ? `?${query}` : ''}`);
+  }
+
+  async createDeal(input: { title: string; value?: number; stage_id?: string; customer_id?: string; lead_id?: string }) {
+    return this.request<{ data: unknown }>('/v1/deals', { method: 'POST', body: input });
+  }
+
+  async updateDeal(id: string, input: { stage_id?: string; value?: number; title?: string }) {
+    return this.request<{ data: unknown }>(`/v1/deals/${id}`, { method: 'PATCH', body: input });
+  }
+
+  async deleteDeal(id: string) {
+    return this.request<{ ok: true }>(`/v1/deals/${id}`, { method: 'DELETE' });
+  }
+
   // ── AI Tasks ────────────────────────────────────────────────────────────────
   async listTasks(params?: { status?: string }) {
     const q = params?.status ? `?status=${encodeURIComponent(params.status)}` : '';
@@ -1229,6 +1286,11 @@ class ApiClient {
     scheduledAt?: string;                        // ISO — eller straks
     trackOpens: boolean;
     trackClicks: boolean;
+    attachments?: Array<{                        // vedhæftede filer (base64)
+      filename: string;
+      content_type: string;
+      data: string;
+    }>;
   }) {
     return this.request<{ job_id: string; queued: number; estimated_minutes: number }>(
       '/v1/bulk-email/jobs',
@@ -1246,6 +1308,7 @@ class ApiClient {
           scheduled_at: input.scheduledAt,
           track_opens: input.trackOpens,
           track_clicks: input.trackClicks,
+          attachments: input.attachments,
         },
       }
     );
@@ -1572,9 +1635,234 @@ class ApiClient {
       failedToday: number;
     }>('/admin/ai/usage');
   }
+
+  // ── Prospect Engine ──────────────────────────────────────────────────────────
+
+  /** Create a new background scraping job */
+  async createProspectJob(input: {
+    query: string;
+    source: string;
+    country?: string;
+    city?: string;
+    industry?: string;
+  }) {
+    return this.request<{ data: { job: ProspectJobResponse } }>('/v1/prospect/jobs', {
+      method: 'POST',
+      body: input,
+    });
+  }
+
+  /** List all prospect jobs for this tenant */
+  async listProspectJobs() {
+    return this.request<{ data: { jobs: ProspectJobResponse[] } }>('/v1/prospect/jobs');
+  }
+
+  /** Get a single job + its results */
+  async getProspectJob(id: string) {
+    return this.request<{ data: { job: ProspectJobResponse; results: ProspectResultResponse[] } }>(`/v1/prospect/jobs/${id}`);
+  }
+
+  /** Delete / cancel a job */
+  async deleteProspectJob(id: string) {
+    return this.request<{ ok: boolean }>(`/v1/prospect/jobs/${id}`, { method: 'DELETE' });
+  }
+
+  /** Import selected results as CRM leads */
+  async importProspectResults(jobId: string, resultIds: string[]) {
+    return this.request<{ data: { imported: number; failed: string[] } }>(
+      `/v1/prospect/jobs/${jobId}/import`,
+      { method: 'POST', body: { result_ids: resultIds } }
+    );
+  }
+
+  // ── Lead Generation Engine ──────────────────────────────────────────────────
+
+  /** Start a new lead gen search session */
+  async createLeadGenSession(input: {
+    query: string;
+    filters: {
+      country?: string;
+      city?: string;
+      industry?: string;
+      industry_keywords?: string[];
+      employee_size?: string;
+      must_have_email?: boolean;
+      must_have_phone?: boolean;
+      must_have_website?: boolean;
+      must_be_active?: boolean;
+      keywords?: string;
+      exclude_keywords?: string;
+      score_threshold?: number;
+    };
+  }) {
+    return this.request<{ data: { session: LeadGenSession } }>('/v1/lead-gen/sessions', {
+      method: 'POST',
+      body: input,
+    });
+  }
+
+  /** List lead gen sessions for current tenant */
+  async listLeadGenSessions(params?: { page?: number; limit?: number }) {
+    const qs = new URLSearchParams();
+    if (params?.page) qs.set('page', String(params.page));
+    if (params?.limit) qs.set('limit', String(params.limit));
+    const query = qs.toString();
+    return this.request<{ data: { sessions: LeadGenSession[]; total: number } }>(
+      `/v1/lead-gen/sessions${query ? `?${query}` : ''}`
+    );
+  }
+
+  /** Get a single session + its results */
+  async getLeadGenSession(id: string) {
+    return this.request<{ data: { session: LeadGenSession; results: LeadGenResult[] } }>(
+      `/v1/lead-gen/sessions/${id}`
+    );
+  }
+
+  /** Cancel a running session */
+  async cancelLeadGenSession(id: string) {
+    return this.request<{ ok: boolean }>(`/v1/lead-gen/sessions/${id}/cancel`, {
+      method: 'POST',
+    });
+  }
+
+  /** Import selected lead gen results as CRM leads */
+  async importLeadGenResults(sessionId: string, resultIds: string[]) {
+    return this.request<{ data: { imported: number; failed: string[] } }>(
+      `/v1/lead-gen/sessions/${sessionId}/import`,
+      { method: 'POST', body: { result_ids: resultIds } }
+    );
+  }
+
+  /** Get saved searches for current tenant */
+  async listLeadGenSavedSearches() {
+    return this.request<{ data: { saved: LeadGenSavedSearch[] } }>('/v1/lead-gen/saved');
+  }
+
+  /** Save a search for reuse */
+  async saveLeadGenSearch(input: { name: string; query: string; filters: Record<string, unknown> }) {
+    return this.request<{ data: { saved: LeadGenSavedSearch } }>('/v1/lead-gen/saved', {
+      method: 'POST',
+      body: input,
+    });
+  }
+
+  /** Delete a saved search */
+  async deleteLeadGenSavedSearch(id: string) {
+    return this.request<{ ok: boolean }>(`/v1/lead-gen/saved/${id}`, { method: 'DELETE' });
+  }
+
+  // ── Call Logging (free — no telephony provider needed) ─────────────────────
+
+  async listCallLogs(params?: { lead_id?: string; limit?: number }) {
+    const qs = new URLSearchParams();
+    if (params?.lead_id) qs.set('lead_id', params.lead_id);
+    if (params?.limit) qs.set('limit', String(params.limit));
+    const query = qs.toString();
+    return this.request<{ data: { calls: CallLog[] } }>(
+      `/v1/calls${query ? `?${query}` : ''}`
+    );
+  }
+
+  async logCall(data: {
+    lead_id?: string;
+    to_number: string;
+    outcome: CallOutcome;
+    duration_seconds?: number;
+    notes?: string;
+  }) {
+    return this.request<{ data: { call: CallLog } }>(
+      '/v1/calls',
+      { method: 'POST', body: data }
+    );
+  }
+
+  async updateCallLog(id: string, data: { outcome?: CallOutcome; duration_seconds?: number; notes?: string }) {
+    return this.request<{ data: { call: CallLog } }>(
+      `/v1/calls/${id}`,
+      { method: 'PATCH', body: data }
+    );
+  }
+
+  async deleteCallLog(id: string) {
+    return this.request<{ success: boolean }>(`/v1/calls/${id}`, { method: 'DELETE' });
+  }
+
+  // ── Phone provisioning + usage ─────────────────────────────────────────────
+
+  async getPhoneProvision() {
+    return this.request<{ data: PhoneProvision }>('/v1/phone/provision');
+  }
+
+  async provisionPhoneNumber() {
+    return this.request<{ data: PhoneProvision }>('/v1/phone/provision', { method: 'POST' });
+  }
+
+  async releasePhoneNumber() {
+    return this.request<{ success: boolean }>('/v1/phone/provision', { method: 'DELETE' });
+  }
+
+  async adminListPhoneUsage() {
+    return this.request<{ data: { tenants: AdminPhoneUsage[] } }>('/v1/admin/phone/usage');
+  }
+
+  async adminUpdatePhonePlan(tenantId: string, data: { minutes_limit: number; plan: string }) {
+    return this.request<{ success: boolean }>(`/v1/admin/phone/${tenantId}`, { method: 'PATCH', body: data });
+  }
+
+  // ── Twilio Voice Token (multi-tenant) ──────────────────────────────────────
+  // The Railway API generates a Twilio Access Token using the company's
+  // own stored Twilio credentials (account SID / API key / TwiML App SID).
+  // If the endpoint doesn't exist yet on the Railway API, the Softphone falls
+  // back to the local twilio-server which also accepts the JWT.
+
+  async getTwilioVoiceToken(identity?: string) {
+    const qs = identity ? `?identity=${encodeURIComponent(identity)}` : '';
+    return this.request<{ token: string; identity: string; expires: string }>(
+      `/v1/phone/voice-token${qs}`,
+    );
+  }
+
+  // ── Twilio Credentials (per-company settings) ──────────────────────────────
+  // Admins enter their own Twilio SID / API key / TwiML App SID here.
+  // Stored encrypted on the Railway API — never returned in plaintext
+  // except the non-secret fields (account_sid, phone_number, twiml_app_sid).
+
+  async getTwilioSettings() {
+    return this.request<TwilioSettings>('/v1/phone/twilio-settings');
+  }
+
+  async saveTwilioSettings(input: {
+    account_sid: string;
+    auth_token?: string;
+    api_key: string;
+    api_secret: string;
+    twiml_app_sid: string;
+    phone_number: string;
+  }) {
+    return this.request<{ ok: true }>('/v1/phone/twilio-settings', { method: 'PUT', body: input });
+  }
+
+  async deleteTwilioSettings() {
+    return this.request<{ ok: true }>('/v1/phone/twilio-settings', { method: 'DELETE' });
+  }
 }
 
 // Types
+
+/**
+ * Per-company Twilio credentials stored on the Railway backend.
+ * api_secret and auth_token are write-only — the backend never returns them.
+ */
+export interface TwilioSettings {
+  account_sid: string;
+  api_key: string;
+  twiml_app_sid: string;
+  phone_number: string;
+  is_configured: boolean;
+  webhook_base_url?: string | null;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -1934,6 +2222,78 @@ export interface AdminAiCompanyUsage {
   lastActivityAt?: string;
 }
 
+// ── Prospect Engine types ──────────────────────────────────────────────────────
+
+export type ProspectSource = 'google_maps' | 'companies_house' | 'combined';
+export type ProspectJobStatus = 'queued' | 'running' | 'done' | 'failed';
+
+export interface ProspectJob {
+  id: string;
+  query: string;
+  source: ProspectSource;
+  status: ProspectJobStatus;
+  progress: number; // 0–100
+  results_count: number;
+  imported_count: number;
+  created_at: string;
+  completed_at?: string;
+  error?: string;
+}
+
+export interface ProspectResult {
+  id: string;
+  job_id: string;
+  company_name: string;
+  website?: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  industry?: string;
+  employees?: string;
+  rating?: number;
+  reviews?: number;
+  source_url?: string;
+  source: string;
+  imported: boolean;
+  created_at: string;
+}
+
+// ── Phone / Calling types ──────────────────────────────────────────────────────
+
+export type CallOutcome = 'answered' | 'no_answer' | 'voicemail' | 'busy' | 'failed';
+
+export interface PhoneProvision {
+  phone_number: string | null;
+  plan: string;
+  minutes_used: number;
+  minutes_limit: number;
+  active: boolean;
+}
+
+export interface AdminPhoneUsage {
+  company_id: string;
+  company_name: string;
+  phone_number: string | null;
+  plan: string;
+  minutes_used: number;
+  minutes_limit: number;
+  active: boolean;
+}
+
+export interface CallLog {
+  id: string;
+  lead_id?: string;
+  lead_name?: string;
+  to_number: string;
+  outcome: CallOutcome;
+  duration_seconds?: number;
+  notes?: string;
+  created_at: string;
+  created_by_name?: string;
+}
+
 export const api = new ApiClient();
 
 // Aliases for backward compatibility
@@ -1942,3 +2302,62 @@ export const adminApi = api;
 
 // Lead and Task types re-exported from crm types
 export type { Lead, Task } from '@/lib/crm/types';
+
+// ── Lead Generation types ───────────────────────────────────────────────────
+
+export interface LeadGenSession {
+  id: string;
+  company_id: string;
+  user_id?: string;
+  query: string;
+  filters: Record<string, unknown>;
+  status: 'pending' | 'running' | 'done' | 'failed' | 'cancelled';
+  progress: number;
+  progress_label?: string;
+  results_count: number;
+  error_message?: string;
+  started_at?: string;
+  completed_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeadGenResult {
+  id: string;
+  search_session_id: string;
+  company_name: string;
+  website?: string;
+  domain?: string;
+  business_email?: string;
+  email_status: 'verified' | 'likely_valid' | 'unverified' | 'missing';
+  phone?: string;
+  country?: string;
+  city?: string;
+  region?: string;
+  industry?: string;
+  sub_industry?: string;
+  description?: string;
+  employee_estimate?: string;
+  active_status: 'active_likely' | 'uncertain' | 'inactive_likely';
+  lead_score: number;
+  source_url?: string;
+  contact_page_url?: string;
+  linkedin_url?: string;
+  facebook_url?: string;
+  instagram_url?: string;
+  owner_name?: string;
+  decision_maker_name?: string;
+  decision_maker_role?: string;
+  notes?: string;
+  imported: boolean;
+  imported_lead_id?: string;
+  created_at: string;
+}
+
+export interface LeadGenSavedSearch {
+  id: string;
+  name: string;
+  query: string;
+  filters: Record<string, unknown>;
+  created_at: string;
+}
