@@ -711,6 +711,7 @@ export default function InvoicesPage() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load(); }, []);
 
   const handleView = async (id: string) => {

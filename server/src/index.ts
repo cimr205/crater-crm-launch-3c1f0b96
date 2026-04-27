@@ -46,17 +46,14 @@ app.use((req, res, next) => {
 registerRoutes(app);
 
 const server = app.listen(env.port, () => {
-  // eslint-disable-next-line no-console
   console.log(`Railway backend running on port ${env.port}`);
 });
 
 process.on('unhandledRejection', (reason) => {
-  // eslint-disable-next-line no-console
   console.error('Unhandled promise rejection:', reason);
 });
 
 process.on('uncaughtException', (error) => {
-  // eslint-disable-next-line no-console
   console.error('Uncaught exception:', error);
 });
 

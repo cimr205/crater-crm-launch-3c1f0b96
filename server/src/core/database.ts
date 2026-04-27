@@ -3,7 +3,6 @@ import { env } from '../config/env';
 import { ServiceUnavailableError } from './serviceUnavailable';
 
 if (!env.databaseUrl) {
-  // eslint-disable-next-line no-console
   console.log('DATABASE_URL is not set. Database-backed routes will return 503 until configured.');
 }
 
