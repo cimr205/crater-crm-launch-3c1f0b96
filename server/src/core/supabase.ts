@@ -7,7 +7,6 @@ type SupabaseClient = ReturnType<typeof createClient>;
 const hasSupabaseConfig = Boolean(env.supabaseUrl && env.supabaseAnonKey && env.supabaseServiceRoleKey);
 
 if (!hasSupabaseConfig) {
-  // eslint-disable-next-line no-console
   console.log('Supabase env vars missing: SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY');
 }
 
@@ -36,7 +35,6 @@ function createSupabaseClientOrFallback(
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    // eslint-disable-next-line no-console
     console.log(`Supabase client ${clientName} init failed: ${message}`);
     return createMissingClient(clientName, `invalid Supabase configuration: ${message}`);
   }

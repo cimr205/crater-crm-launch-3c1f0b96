@@ -354,6 +354,7 @@ export default function ColdCallerPage() {
 
     setShowOutcome(false);
     advanceQueue();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLead, currentIndex, outcomeValue, outcomeNotes]);
 
   const skipLead = useCallback(() => {
@@ -361,6 +362,7 @@ export default function ColdCallerPage() {
     setQueue(q => q.map((l, i) => i === currentIndex ? { ...l, status: 'skipped' } : l));
     setStats(s => ({ ...s, skipped: s.skipped + 1 }));
     advanceQueue();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLead, currentIndex]);
 
   function advanceQueue() {

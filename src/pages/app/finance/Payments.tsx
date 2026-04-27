@@ -160,6 +160,7 @@ export default function PaymentsPage() {
     }
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load(); }, []);
 
   return (

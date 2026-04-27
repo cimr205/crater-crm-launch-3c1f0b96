@@ -18,7 +18,7 @@ import type { ExtractedEmail, EmailPriority } from '../types.js';
 
 // ── Regex ─────────────────────────────────────────────────────────────────────
 
-const EMAIL_RE = /\b[A-Za-z0-9._%+\-]{1,64}@[A-Za-z0-9.\-]{1,255}\.[A-Za-z]{2,}\b/g;
+const EMAIL_RE = /\b[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,255}\.[A-Za-z]{2,}\b/g;
 
 const MAILTO_RE = /href=["']mailto:([^"'?\s]+)/gi;
 

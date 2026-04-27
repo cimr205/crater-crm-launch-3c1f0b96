@@ -19,7 +19,7 @@
 import dns from 'dns/promises';
 import type { ExtractedEmail, ValidatedEmail, ValidationStatus } from '../types.js';
 
-const SYNTAX_RE = /^[A-Za-z0-9._%+\-]{1,64}@[A-Za-z0-9.\-]{1,255}\.[A-Za-z]{2,}$/;
+const SYNTAX_RE = /^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,255}\.[A-Za-z]{2,}$/;
 
 // Free/consumer email domains → lower confidence for B2B
 const CONSUMER_DOMAINS = new Set([
