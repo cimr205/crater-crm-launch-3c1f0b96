@@ -79,6 +79,9 @@ docs/_build/
 /site
 target/
 
+# Supabase CLI cache
+supabase/.temp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
