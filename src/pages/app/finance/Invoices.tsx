@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useWorkspaceEvents } from '@/hooks/useWorkspaceEvents';
 import { useI18n } from '@/lib/i18n';
 import { api, type InvoiceSummary, type InvoiceDetail, type InvoiceStats, type CreateInvoiceItem, type Customer } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -690,6 +691,14 @@ export default function InvoicesPage() {
     seller?: Partial<CompanyInfo>;
     logoUrl?: string;
   } | null>(null);
+
+  // Realtime: refetch when invoice.paid event arrives
+  useWorkspaceEvents(useCallback((event) => {
+    if (event.type === 'invoice.paid') {
+      void load();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []));
 
   const load = async () => {
     setLoading(true);

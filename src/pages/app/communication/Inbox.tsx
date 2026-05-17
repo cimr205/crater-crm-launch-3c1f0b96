@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, type GmailMessage } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { isLocale } from '@/lib/i18n';
+import { useWorkspaceEvents } from '@/hooks/useWorkspaceEvents';
 import { isConfigured, getServiceConfig } from '@/lib/serviceConfig';
 import * as ee from '@/lib/emailengine';
 import * as ac from '@/lib/emailclassify';
@@ -161,6 +162,28 @@ export default function InboxPage() {
   const [todoSyncEnabled, setTodoSyncEnabled] = useState(true);
 
   const [dismissedTodos, setDismissedTodos] = useState<Set<string>>(new Set());
+
+  // Realtime: toast when a deal is won
+  useWorkspaceEvents(useCallback((event) => {
+    if (event.type === 'deal.won') {
+      const customer = (event.payload?.customer_name as string | undefined)
+        ?? (event.payload?.title as string | undefined)
+        ?? 'kunden';
+      toast({
+        title: `Skriv tak-mail til ${customer}?`,
+        description: 'Deal markeret som vundet',
+        action: (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => navigate(`/${locale}/app/emails`)}
+          >
+            Skriv mail
+          </Button>
+        ),
+      });
+    }
+  }, [toast, navigate, locale]));
   const [addingTodo, setAddingTodo] = useState<string | null>(null);
 
   const _classifyCache = useRef<Record<string, 'high' | 'normal'>>({});

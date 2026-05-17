@@ -55,6 +55,8 @@ import ProspectEnginePage from "@/pages/app/crm/ProspectEngine";
 import LeadGenerationPage from "@/pages/app/crm/LeadGeneration";
 import AdminAiUsagePage from "@/pages/app/admin/AiUsage";
 import AdminPhoneUsagePage from "@/pages/app/admin/PhoneUsage";
+import AutopilotPage from "@/pages/app/AutopilotPage";
+import AutomationsPage from "@/pages/app/settings/AutomationsPage";
 import AppShell from "@/components/AppShell";
 import { BackgroundPrefetch } from "@/components/BackgroundPrefetch";
 import { I18nProvider, isLocale } from "@/lib/i18n";
@@ -178,6 +180,8 @@ const App = () => (
                   <Route path="email/bulk" element={<BulkEmailPage />} />
                   <Route path="email/tracking" element={<EmailTrackingPage />} />
                   <Route path="settings/company" element={<CompanySettingsPage />} />
+                  <Route path="settings/automations" element={<AutomationsPage />} />
+                  <Route path="autopilot" element={<AutopilotPage />} />
 
                   {/* Admin */}
                   <Route

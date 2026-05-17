@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import KanbanPipeline, { type KanbanColumn } from '@/components/KanbanPipeline';
 import { useI18n } from '@/lib/i18n';
 import { useDeals, useCreateDeal, useUpdateDeal } from '@/hooks/api/useDeals';
@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { RefreshCw, Plus, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useQueryClient } from '@tanstack/react-query';
+import { useWorkspaceEvents } from '@/hooks/useWorkspaceEvents';
 
 type Deal = {
   id: string;
@@ -74,6 +75,19 @@ export default function DealsPage() {
   const { data: dealsData, isLoading } = useDeals();
   const createDeal = useCreateDeal();
   const updateDeal = useUpdateDeal();
+
+  const [pulsingIds, setPulsingIds] = useState<Set<string>>(new Set());
+
+  useWorkspaceEvents(useCallback((event) => {
+    if (event.entity_type === 'deal' && event.entity_id) {
+      const id = event.entity_id;
+      setPulsingIds(prev => new Set(prev).add(id));
+      setTimeout(() => {
+        setPulsingIds(prev => { const n = new Set(prev); n.delete(id); return n; });
+      }, 2000);
+      queryClient.invalidateQueries({ queryKey: ['deals'] });
+    }
+  }, [queryClient]));
 
   const deals: Deal[] = useMemo(() => {
     const raw = (dealsData as { data?: unknown[] } | undefined)?.data ?? [];
@@ -227,7 +241,7 @@ export default function DealsPage() {
         <span>Træk et deal til en anden kolonne for at ændre stage</span>
       </div>
 
-      <KanbanPipeline columns={columns} onMove={handleMove} />
+      <KanbanPipeline columns={columns} onMove={handleMove} pulsingIds={pulsingIds} />
     </div>
   );
 }

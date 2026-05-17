@@ -22,6 +22,7 @@ export type KanbanColumn = {
 type Props = {
   columns: KanbanColumn[];
   onMove?: (itemId: string, fromStatus: string, toStatus: string) => Promise<void>;
+  pulsingIds?: Set<string>;
 };
 
 function ScoreBar({ score }: { score: number }) {
@@ -37,7 +38,7 @@ function ScoreBar({ score }: { score: number }) {
   );
 }
 
-export default function KanbanPipeline({ columns, onMove }: Props) {
+export default function KanbanPipeline({ columns, onMove, pulsingIds }: Props) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragFrom, setDragFrom] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
@@ -120,6 +121,7 @@ export default function KanbanPipeline({ columns, onMove }: Props) {
               {col.items.map(item => {
                 const isBeingDragged = item.id === dragId;
                 const isMoving = movingIds.has(item.id);
+                const isPulsing = pulsingIds?.has(item.id) ?? false;
 
                 return (
                   <div
@@ -133,6 +135,7 @@ export default function KanbanPipeline({ columns, onMove }: Props) {
                       'hover:shadow-md hover:-translate-y-0.5 transition-all duration-150',
                       isBeingDragged ? 'opacity-30 scale-95' : '',
                       isMoving ? 'opacity-60 animate-pulse cursor-wait' : '',
+                      isPulsing ? 'ring-2 ring-primary animate-pulse' : '',
                     ].join(' ')}
                   >
                     <div className="flex items-start justify-between gap-2">

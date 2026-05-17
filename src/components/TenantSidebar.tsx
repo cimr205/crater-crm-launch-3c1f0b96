@@ -66,9 +66,11 @@ const navSections: NavSection[] = [
   {
     titleKey: 'nav.section.ai',
     items: [
-      { href: 'ai/media',  labelKey: 'nav.aiMedia',  icon: Sparkles },
-      { href: 'clowdbot',  labelKey: 'nav.clowdbot', icon: Bot },
-      { href: 'workflows', labelKey: 'nav.workflows', icon: Video },
+      { href: 'autopilot',            labelKey: 'nav.autopilot',    icon: Zap },
+      { href: 'ai/media',             labelKey: 'nav.aiMedia',      icon: Sparkles },
+      { href: 'clowdbot',             labelKey: 'nav.clowdbot',     icon: Bot },
+      { href: 'workflows',            labelKey: 'nav.workflows',    icon: Video },
+      { href: 'settings/automations', labelKey: 'nav.automations',  icon: Crosshair },
     ],
   },
   {
