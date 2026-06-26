@@ -60,6 +60,7 @@ import { BackgroundPrefetch } from "@/components/BackgroundPrefetch";
 import { I18nProvider, isLocale } from "@/lib/i18n";
 import { TenantProvider } from "@/contexts/TenantContext";
 import RoleGate from "@/components/RoleGate";
+import LandingPage from "@/pages/Landing";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -107,7 +108,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Navigate to="/en" replace />} />
               <Route path="/:locale" element={<LocaleLayout />}>
-                <Route path="" element={<Navigate to="auth/login" replace />} />
+                <Route path="" element={<LandingPage />} />
                 <Route path="auth/login" element={<LoginPage />} />
                 <Route path="auth/signup" element={<SignupPage />} />
                 <Route path="auth/register-company" element={<RegisterCompanyPage />} />
