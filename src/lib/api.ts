@@ -985,6 +985,33 @@ class ApiClient {
     return r.data;
   }
 
+  // WhatsApp (via Twilio)
+  async listWhatsappConversations() {
+    const r = await this.request<{ ok: true; data: WhatsappConversation[] }>('/v1/whatsapp/conversations');
+    return r.data;
+  }
+
+  async startWhatsappConversation(input: { phone: string; name?: string }) {
+    const r = await this.request<{ ok: true; data: WhatsappConversation }>('/v1/whatsapp/conversations', {
+      method: 'POST',
+      body: input,
+    });
+    return r.data;
+  }
+
+  async getWhatsappMessages(conversationId: string) {
+    const r = await this.request<{ ok: true; data: WhatsappMessage[] }>(`/v1/whatsapp/conversations/${conversationId}/messages`);
+    return r.data;
+  }
+
+  async sendWhatsappMessage(conversationId: string, body: string) {
+    const r = await this.request<{ ok: true; data: WhatsappMessage }>(`/v1/whatsapp/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      body: { body },
+    });
+    return r.data;
+  }
+
   // Gmail
   async getGmailStatus() {
     const r = await this.request<{ ok: true; data: { connected: boolean; gmail_email?: string; todo_sync_enabled?: boolean } }>('/v1/gmail/status');
@@ -2037,6 +2064,23 @@ export interface WebhookSubscription {
   created_by: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface WhatsappConversation {
+  id: string;
+  contact_phone: string;
+  contact_name: string | null;
+  last_message_at: string;
+  created_at: string;
+}
+
+export interface WhatsappMessage {
+  id: string;
+  conversation_id: string;
+  direction: 'inbound' | 'outbound';
+  body: string;
+  status: string;
+  created_at: string;
 }
 
 export interface InvoiceStats {

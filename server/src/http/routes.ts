@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto';
-import type { Application, NextFunction, Request, Response } from 'express';
+import express, { type Application, type NextFunction, type Request, type Response } from 'express';
 import { z } from 'zod';
 import type { Session } from '@supabase/supabase-js';
 import { query, withTransaction } from '../core/database';
@@ -20,6 +20,18 @@ import {
   serializeWebhookSubscription,
   updateWebhookSubscription,
 } from '../services/webhooks/webhookService';
+import {
+  getConversation,
+  getOrCreateConversation,
+  isValidTwilioSignature,
+  listConversations,
+  listMessages,
+  recordInboundWhatsappMessage,
+  sendWhatsappMessage,
+  serializeConversation,
+  serializeMessage,
+  WhatsappNotConfiguredError,
+} from '../services/whatsapp/whatsappService';
 
 // In-memory store for Gmail OAuth state tokens (maps state → userId, expires after 10 min)
 const gmailAuthStates = new Map<string, { userId: string; expiresAt: number }>();
@@ -1349,6 +1361,84 @@ export function registerRoutes(app: Application) {
     });
     ok(res, { ok: true });
   });
+
+  // ── WHATSAPP (via Twilio) ──────────────────────────────────────────────────
+
+  app.get('/api/v1/whatsapp/conversations', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+    const conversations = await listConversations(authUser.companyId);
+    ok(res, conversations.map(serializeConversation));
+  });
+
+  const whatsappStartSchema = z.object({
+    phone: z.string().min(6).max(32),
+    name: z.string().max(255).optional(),
+  });
+
+  app.post('/api/v1/whatsapp/conversations', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+    const parsed = whatsappStartSchema.safeParse(req.body);
+    if (!parsed.success) { fail(res, 400, 'invalid_payload', 'Invalid payload', parsed.error.flatten()); return; }
+    const conversation = await getOrCreateConversation(authUser.companyId, parsed.data.phone, parsed.data.name);
+    ok(res, serializeConversation(conversation), 201);
+  });
+
+  app.get('/api/v1/whatsapp/conversations/:id/messages', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+    const conversation = await getConversation(authUser.companyId, req.params.id);
+    if (!conversation) { fail(res, 404, 'not_found', 'Conversation not found'); return; }
+    const messages = await listMessages(authUser.companyId, req.params.id);
+    ok(res, messages.map(serializeMessage));
+  });
+
+  const whatsappSendSchema = z.object({ body: z.string().min(1).max(4096) });
+
+  app.post('/api/v1/whatsapp/conversations/:id/messages', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+    const parsed = whatsappSendSchema.safeParse(req.body);
+    if (!parsed.success) { fail(res, 400, 'invalid_payload', 'Invalid payload', parsed.error.flatten()); return; }
+    const conversation = await getConversation(authUser.companyId, req.params.id);
+    if (!conversation) { fail(res, 404, 'not_found', 'Conversation not found'); return; }
+    try {
+      const message = await sendWhatsappMessage(authUser.companyId, req.params.id, parsed.data.body);
+      ok(res, serializeMessage(message), 201);
+    } catch (error) {
+      if (error instanceof WhatsappNotConfiguredError) {
+        fail(res, 503, 'whatsapp_not_configured', error.message);
+        return;
+      }
+      fail(res, 502, 'whatsapp_send_failed', (error as Error).message);
+    }
+  });
+
+  // POST /api/v1/whatsapp/webhook/inbound — Twilio's "A Message Comes In" webhook.
+  // Twilio always POSTs application/x-www-form-urlencoded, never JSON, so this route
+  // needs its own body parser ahead of the global express.json() middleware.
+  app.post(
+    '/api/v1/whatsapp/webhook/inbound',
+    express.urlencoded({ extended: false }),
+    async (req: Request, res: Response) => {
+      const from = String(req.body.From || '').replace(/^whatsapp:/, '');
+      const body = String(req.body.Body || '');
+      const messageSid = req.body.MessageSid ? String(req.body.MessageSid) : null;
+      const signature = req.header('X-Twilio-Signature');
+      const webhookUrl = `${env.backendBaseUrl}/api/v1/whatsapp/webhook/inbound`;
+
+      if (!isValidTwilioSignature(webhookUrl, req.body, signature)) {
+        fail(res, 403, 'invalid_signature', 'Invalid Twilio signature');
+        return;
+      }
+
+      if (from && body) {
+        await recordInboundWhatsappMessage(from, body, messageSid);
+      }
+      res.type('text/xml').send('<Response/>');
+    }
+  );
 
   // ── GMAIL ──────────────────────────────────────────────────────────────────
 

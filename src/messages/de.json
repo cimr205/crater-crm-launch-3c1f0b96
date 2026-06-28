@@ -111,7 +111,8 @@
       "ai": "KI & Automatisierung",
       "system": "System",
       "admin": "Admin"
-    }
+    },
+    "whatsapp": "WhatsApp"
   },
   "dashboard": {
     "title": "Übersicht",
@@ -316,6 +317,18 @@
     "testSent": "Test-Event gesendet",
     "emptyTitle": "Noch keine Webhooks",
     "emptyHint": "Verbinde Zapier, Make oder deinen eigenen Server, um Workflows durch Leads, Deals und Rechnungen auszulösen."
+  },
+  "whatsapp": {
+    "title": "WhatsApp",
+    "subtitle": "Chatten Sie mit Leads und Kunden über WhatsApp Business, unterstützt von Twilio.",
+    "newConversation": "Neue Unterhaltung",
+    "phoneLabel": "Telefonnummer",
+    "nameLabel": "Name (optional)",
+    "start": "Chat starten",
+    "selectConversation": "Wählen Sie eine Unterhaltung, um Nachrichten anzuzeigen",
+    "noMessages": "Noch keine Nachrichten",
+    "messagePlaceholder": "Nachricht eingeben…",
+    "emptyHint": "Starten Sie eine neue Unterhaltung, um einen Kontakt auf WhatsApp zu schreiben."
   },
   "admin": {
     "title": "Admin-Übersicht",

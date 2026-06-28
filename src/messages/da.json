@@ -111,7 +111,8 @@
       "ai": "AI & Automatisering",
       "system": "System",
       "admin": "Admin"
-    }
+    },
+    "whatsapp": "WhatsApp"
   },
   "dashboard": {
     "title": "Overblik",
@@ -316,6 +317,18 @@
     "testSent": "Test-event sendt",
     "emptyTitle": "Ingen webhooks endnu",
     "emptyHint": "Forbind Zapier, Make eller din egen server for at automatisere workflows udløst af leads, deals og fakturaer."
+  },
+  "whatsapp": {
+    "title": "WhatsApp",
+    "subtitle": "Chat med leads og kunder via WhatsApp Business, drevet af Twilio.",
+    "newConversation": "Ny samtale",
+    "phoneLabel": "Telefonnummer",
+    "nameLabel": "Navn (valgfrit)",
+    "start": "Start chat",
+    "selectConversation": "Vælg en samtale for at se beskeder",
+    "noMessages": "Ingen beskeder endnu",
+    "messagePlaceholder": "Skriv en besked…",
+    "emptyHint": "Start en ny samtale for at skrive til en kontakt på WhatsApp."
   },
   "admin": {
     "title": "Admin overblik",

@@ -29,6 +29,7 @@ import RecruitmentPage from "@/pages/app/hr/Recruitment";
 import CalendarPage from "@/pages/app/productivity/Calendar";
 import TodosPage from "@/pages/app/productivity/Todos";
 import InboxPage from "@/pages/app/communication/Inbox";
+import WhatsAppPage from "@/pages/app/communication/WhatsApp";
 import EmailsPage from "@/pages/app/communication/Emails";
 import HistoryPage from "@/pages/app/History";
 import ClowdBotPage from "@/pages/app/ClowdBot";
@@ -162,6 +163,7 @@ const App = () => (
 
                   {/* Communication */}
                   <Route path="inbox" element={<InboxPage />} />
+                  <Route path="whatsapp" element={<WhatsAppPage />} />
                   <Route path="emails" element={<EmailsPage />} />
                   <Route path="phone/calls" element={<PhonePage />} />
                   <Route path="phone/softphone" element={<SoftphonePage />} />

@@ -43,5 +43,10 @@ export const env = {
   integrationsApolloClientId: process.env.INTEGRATIONS_APOLLO_CLIENT_ID || '',
   integrationsApolloClientSecret: process.env.INTEGRATIONS_APOLLO_CLIENT_SECRET || '',
   companiesHouseApiKey: process.env.COMPANIES_HOUSE_API_KEY || '',
+
+  twilioAccountSid: process.env.TWILIO_ACCOUNT_SID || '',
+  twilioAuthToken: process.env.TWILIO_AUTH_TOKEN || '',
+  // E.164 number enabled for WhatsApp on the Twilio account (sandbox or approved sender), without the "whatsapp:" prefix.
+  twilioWhatsappFrom: process.env.TWILIO_WHATSAPP_FROM || '',
 };
 
