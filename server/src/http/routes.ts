@@ -11,6 +11,7 @@ import { env } from '../config/env';
 import { isServiceUnavailableError } from '../core/serviceUnavailable';
 import { buildGmailAuthUrl, exchangeGmailCode } from '../services/email/gmailClient';
 import {
+  WEBHOOK_CHANNELS,
   WEBHOOK_EVENT_TYPES,
   createWebhookSubscription,
   deleteWebhookSubscription,
@@ -1287,6 +1288,7 @@ export function registerRoutes(app: Application) {
   const webhookCreateSchema = z.object({
     url: z.string().url(),
     events: z.array(z.enum(WEBHOOK_EVENT_TYPES)).min(1),
+    channel: z.enum(WEBHOOK_CHANNELS).optional(),
   });
 
   app.post('/api/v1/webhooks', authMiddleware, async (req: Request, res: Response) => {
@@ -1298,6 +1300,7 @@ export function registerRoutes(app: Application) {
       companyId: authUser.companyId,
       url: parsed.data.url,
       events: parsed.data.events,
+      channel: parsed.data.channel,
       createdBy: authUser.id,
     });
     ok(res, { ...serializeWebhookSubscription(sub), secret: sub.secret }, 201);
@@ -1306,6 +1309,7 @@ export function registerRoutes(app: Application) {
   const webhookUpdateSchema = z.object({
     url: z.string().url().optional(),
     events: z.array(z.enum(WEBHOOK_EVENT_TYPES)).min(1).optional(),
+    channel: z.enum(WEBHOOK_CHANNELS).optional(),
     is_active: z.boolean().optional(),
   });
 
@@ -1317,6 +1321,7 @@ export function registerRoutes(app: Application) {
     const updated = await updateWebhookSubscription(authUser.companyId, req.params.id, {
       url: parsed.data.url,
       events: parsed.data.events,
+      channel: parsed.data.channel,
       isActive: parsed.data.is_active,
     });
     if (!updated) { fail(res, 404, 'not_found', 'Webhook not found'); return; }

@@ -12,10 +12,23 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useI18n } from '@/lib/i18n';
-import { api, type WebhookSubscription } from '@/lib/api';
+import { api, type WebhookChannel, type WebhookSubscription } from '@/lib/api';
 import { useToast } from '@/components/ui/use-toast';
 import { Webhook, Plus, Trash2, Send, Copy, Loader2 } from 'lucide-react';
+
+const CHANNEL_PLACEHOLDERS: Record<WebhookChannel, string> = {
+  generic: 'https://hooks.zapier.com/hooks/catch/...',
+  slack: 'https://hooks.slack.com/services/...',
+  teams: 'https://outlook.office.com/webhook/...',
+};
 
 export default function WebhooksPage() {
   const { t } = useI18n();
@@ -28,6 +41,7 @@ export default function WebhooksPage() {
   const [creating, setCreating] = useState(false);
   const [newUrl, setNewUrl] = useState('');
   const [newEvents, setNewEvents] = useState<string[]>([]);
+  const [newChannel, setNewChannel] = useState<WebhookChannel>('generic');
   const [revealedSecret, setRevealedSecret] = useState<{ id: string; secret: string } | null>(null);
   const [testingId, setTestingId] = useState<string | null>(null);
 
@@ -55,13 +69,14 @@ export default function WebhooksPage() {
     if (!newUrl.trim() || newEvents.length === 0) return;
     setCreating(true);
     api
-      .createWebhook({ url: newUrl.trim(), events: newEvents })
+      .createWebhook({ url: newUrl.trim(), events: newEvents, channel: newChannel })
       .then((sub) => {
         setWebhooks((prev) => [sub, ...prev]);
         if (sub.secret) setRevealedSecret({ id: sub.id, secret: sub.secret });
         setDialogOpen(false);
         setNewUrl('');
         setNewEvents([]);
+        setNewChannel('generic');
         toast({ title: t('webhooks.created') });
       })
       .catch((err) => toast({ title: err.message, variant: 'destructive' }))
@@ -141,7 +156,12 @@ export default function WebhooksPage() {
             <Card key={sub.id} className="p-4 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-1 min-w-0">
-                  <p className="font-medium break-all">{sub.url}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium break-all">{sub.url}</p>
+                    {sub.channel !== 'generic' && (
+                      <Badge variant="outline" className="capitalize shrink-0">{sub.channel}</Badge>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">{t('webhooks.secret')}: {sub.secret_preview}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
@@ -171,9 +191,22 @@ export default function WebhooksPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
+              <label className="text-sm font-medium">{t('webhooks.channelLabel')}</label>
+              <Select value={newChannel} onValueChange={(v) => setNewChannel(v as WebhookChannel)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="generic">{t('webhooks.channelGeneric')}</SelectItem>
+                  <SelectItem value="slack">{t('webhooks.channelSlack')}</SelectItem>
+                  <SelectItem value="teams">{t('webhooks.channelTeams')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
               <label className="text-sm font-medium">{t('webhooks.urlLabel')}</label>
               <Input
-                placeholder="https://hooks.zapier.com/hooks/catch/..."
+                placeholder={CHANNEL_PLACEHOLDERS[newChannel]}
                 value={newUrl}
                 onChange={(e) => setNewUrl(e.target.value)}
               />

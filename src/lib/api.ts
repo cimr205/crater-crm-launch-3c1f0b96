@@ -955,7 +955,7 @@ class ApiClient {
     return r.data;
   }
 
-  async createWebhook(input: { url: string; events: string[] }) {
+  async createWebhook(input: { url: string; events: string[]; channel?: WebhookChannel }) {
     const r = await this.request<{ ok: true; data: WebhookSubscription }>('/v1/webhooks', {
       method: 'POST',
       body: input,
@@ -963,7 +963,7 @@ class ApiClient {
     return r.data;
   }
 
-  async updateWebhook(id: string, input: { url?: string; events?: string[]; is_active?: boolean }) {
+  async updateWebhook(id: string, input: { url?: string; events?: string[]; channel?: WebhookChannel; is_active?: boolean }) {
     const r = await this.request<{ ok: true; data: WebhookSubscription }>(`/v1/webhooks/${id}`, {
       method: 'PATCH',
       body: input,
@@ -2023,11 +2023,14 @@ export interface Payment {
   notes?: string;
 }
 
+export type WebhookChannel = 'generic' | 'slack' | 'teams';
+
 export interface WebhookSubscription {
   id: string;
   company_id: string;
   url: string;
   events: string[];
+  channel: WebhookChannel;
   is_active: boolean;
   secret_preview: string;
   secret?: string;
