@@ -174,7 +174,18 @@
     "shortcuts": "Schnellzugriff",
     "recentLeads": "Neueste Leads",
     "allLeads": "Alle Leads",
-    "seeAll": "Alle anzeigen"
+    "seeAll": "Alle anzeigen",
+    "teamMarketingTitle": "Team & Marketing",
+    "teamTab": "Team",
+    "marketingTab": "Marketing",
+    "headcount": "Teammitglieder",
+    "activeEmployees": "Aktiv im gesamten Unternehmen",
+    "viewTeam": "Team ansehen",
+    "adSpend": "Werbeausgaben",
+    "adLeads": "Leads aus Anzeigen",
+    "avgCtr": "Durchschn. CTR",
+    "noMetaData": "Meta Ads verbinden, um Marketingdaten hier zu sehen",
+    "viewMarketing": "Marketing ansehen"
   },
   "crm": {
     "leadsTitle": "Leads",

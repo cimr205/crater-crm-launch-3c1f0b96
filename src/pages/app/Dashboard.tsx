@@ -16,6 +16,8 @@ import { useLeadDashboard, useInvoiceStats, usePaymentStats, useDailyFocus, useM
 import { useTasks } from '@/hooks/api/useTasks';
 import { useTodos } from '@/hooks/api/useTodos';
 import { useLeads } from '@/hooks/api/useLeads';
+import { useEmployees } from '@/hooks/api/useEmployees';
+import { BarChart, Bar, ResponsiveContainer, XAxis, Tooltip } from 'recharts';
 
 function fmt(n: number) { return n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 }); }
 function fmtAmount(n: number) {
@@ -215,6 +217,111 @@ function DagensOverblik({ items }: { items: OverblikItem[] }) {
   );
 }
 
+interface RoleCount { role: string; count: number }
+interface CampaignRow { name: string; spend: number; leads: number }
+
+function TeamMarketingPulse({
+  employeeCount, roleCounts, metaConnected, campaigns, totalSpend, totalLeads, avgCtr, onViewTeam, onViewMarketing,
+}: {
+  employeeCount: number;
+  roleCounts: RoleCount[];
+  metaConnected: boolean;
+  campaigns: CampaignRow[];
+  totalSpend: number;
+  totalLeads: number;
+  avgCtr: number;
+  onViewTeam: () => void;
+  onViewMarketing: () => void;
+}) {
+  const { t } = useI18n();
+  const [tab, setTab] = useState<'team' | 'marketing'>('team');
+  const roleColors = ['bg-indigo-500', 'bg-violet-500', 'bg-blue-500', 'bg-sky-500', 'bg-purple-500'];
+  const maxRole = Math.max(...roleCounts.map(r => r.count), 1);
+
+  return (
+    <div className="rounded-2xl border bg-card p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center shrink-0">
+            <Users className="h-3.5 w-3.5 text-primary-foreground" />
+          </div>
+          <h3 className="font-semibold text-sm">{t('dashboard.teamMarketingTitle')}</h3>
+        </div>
+        <div className="flex items-center gap-0.5 rounded-lg bg-muted p-0.5 shrink-0">
+          <button
+            onClick={() => setTab('team')}
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${tab === 'team' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
+          >
+            {t('dashboard.teamTab')}
+          </button>
+          <button
+            onClick={() => setTab('marketing')}
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${tab === 'marketing' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
+          >
+            {t('dashboard.marketingTab')}
+          </button>
+        </div>
+      </div>
+
+      {tab === 'team' ? (
+        <div>
+          <p className="text-3xl font-bold tabular-nums">{employeeCount}</p>
+          <p className="text-xs text-muted-foreground mb-3">{t('dashboard.activeEmployees')}</p>
+          {roleCounts.length > 0 && (
+            <div className="flex gap-1.5 items-end h-10 mb-3">
+              {roleCounts.map((r, i) => (
+                <div key={r.role} className="flex-1 flex flex-col items-center gap-1">
+                  <div className={`w-full rounded-sm ${roleColors[i % roleColors.length]} transition-all duration-500`} style={{ height: `${Math.max(4, (r.count / maxRole) * 28)}px` }} />
+                  <span className="text-[10px] text-muted-foreground truncate w-full text-center capitalize">{r.role}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <button onClick={onViewTeam} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+            {t('dashboard.viewTeam')} <ArrowRight className="h-3 w-3" />
+          </button>
+        </div>
+      ) : metaConnected ? (
+        <div>
+          <div className="grid grid-cols-3 gap-2 text-center mb-3">
+            <div className="rounded-lg bg-muted/50 p-2">
+              <div className="text-base font-bold">DKK {totalSpend >= 1000 ? `${(totalSpend / 1000).toFixed(0)}k` : totalSpend.toFixed(0)}</div>
+              <div className="text-[10px] text-muted-foreground">{t('dashboard.adSpend')}</div>
+            </div>
+            <div className="rounded-lg bg-muted/50 p-2">
+              <div className="text-base font-bold">{totalLeads}</div>
+              <div className="text-[10px] text-muted-foreground">{t('dashboard.adLeads')}</div>
+            </div>
+            <div className="rounded-lg bg-muted/50 p-2">
+              <div className="text-base font-bold">{avgCtr.toFixed(1)}%</div>
+              <div className="text-[10px] text-muted-foreground">{t('dashboard.avgCtr')}</div>
+            </div>
+          </div>
+          {campaigns.length > 0 && (
+            <div className="h-24 -mx-1 mb-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={campaigns.slice(0, 5)}>
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} tickFormatter={(v: string) => (v.length > 8 ? `${v.slice(0, 8)}…` : v)} />
+                  <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} contentStyle={{ fontSize: 12, borderRadius: 8 }} />
+                  <Bar dataKey="spend" radius={[4, 4, 0, 0]} fill="hsl(var(--primary))" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+          <button onClick={onViewMarketing} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
+            {t('dashboard.viewMarketing')} <ArrowRight className="h-3 w-3" />
+          </button>
+        </div>
+      ) : (
+        <div className="text-center py-4 space-y-2">
+          <p className="text-xs text-muted-foreground">{t('dashboard.noMetaData')}</p>
+          <Button size="sm" variant="outline" onClick={onViewMarketing}>{t('dashboard.marketingTab')}</Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Dashboard ──────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -237,6 +344,7 @@ export default function DashboardPage() {
   const metaStatusQ = useMetaStatus();
   const metaConnected = (metaStatusQ.data as { connected?: boolean } | undefined)?.connected ?? false;
   const metaCampaignsQ = useMetaCampaigns(metaConnected);
+  const employeesQ = useEmployees();
 
   // ── Derived data ──────────────────────────────────────────────────────────
   const dashData = leadDashboard.data as { totals?: { leads: number; leads_today: number; active_clowdbot_jobs: number }; recent?: LeadRow[] } | undefined;
@@ -287,13 +395,30 @@ export default function DashboardPage() {
     });
   }, [allLeads]);
 
-  const metaCampaigns: Array<{ spend: number; leads: number; ctr: number }> = useMemo(() => {
+  const metaCampaigns: Array<{ name: string; spend: number; leads: number; ctr: number }> = useMemo(() => {
     const raw = metaCampaignsQ.data as { data?: unknown[] } | undefined;
     return (raw?.data ?? []).map((c) => {
       const r = c as Record<string, unknown>;
-      return { spend: Number(r.spend ?? 0), leads: Number(r.leads ?? 0), ctr: Number(r.ctr ?? 0) };
+      return {
+        name: String(r.name ?? r.campaign_name ?? t('dashboard.metaAdsTitle')),
+        spend: Number(r.spend ?? 0), leads: Number(r.leads ?? 0), ctr: Number(r.ctr ?? 0),
+      };
     });
-  }, [metaCampaignsQ.data]);
+  }, [metaCampaignsQ.data, t]);
+
+  const employees: Array<{ id: string; role: string }> = useMemo(() => {
+    const raw = (employeesQ.data ?? []) as unknown[];
+    return raw.map((e) => {
+      const r = e as Record<string, unknown>;
+      return { id: String(r.id ?? ''), role: String(r.role ?? 'employee') };
+    });
+  }, [employeesQ.data]);
+
+  const roleCounts: RoleCount[] = useMemo(() => {
+    const counts: Record<string, number> = {};
+    employees.forEach(e => { counts[e.role] = (counts[e.role] ?? 0) + 1; });
+    return Object.entries(counts).map(([role, count]) => ({ role, count }));
+  }, [employees]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const go = (path: string) => navigate(`/${locale}${path}`);
@@ -597,34 +722,18 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Meta Ads quick snapshot */}
-          {metaConnected && (
-            <div className="rounded-2xl border bg-card p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <BarChart2 className="h-4 w-4 text-blue-500" />
-                  <h3 className="font-semibold text-sm">{t('dashboard.metaAdsTitle')}</h3>
-                </div>
-                <button onClick={() => go('/app/meta/ads')} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1">
-                  {t('dashboard.metaAdsDetails')} <ArrowRight className="h-3 w-3" />
-                </button>
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                <div className="rounded-lg bg-muted/50 p-2">
-                  <div className="text-lg font-bold">DKK {metaTotalSpend >= 1000 ? `${(metaTotalSpend/1000).toFixed(0)}k` : metaTotalSpend.toFixed(0)}</div>
-                  <div className="text-xs text-muted-foreground">Spend</div>
-                </div>
-                <div className="rounded-lg bg-muted/50 p-2">
-                  <div className="text-lg font-bold">{metaTotalLeads}</div>
-                  <div className="text-xs text-muted-foreground">Leads</div>
-                </div>
-                <div className="rounded-lg bg-muted/50 p-2">
-                  <div className="text-lg font-bold">{metaAvgCtr.toFixed(1)}%</div>
-                  <div className="text-xs text-muted-foreground">CTR</div>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Team & Marketing — combined so HR and marketing surface in one calm widget */}
+          <TeamMarketingPulse
+            employeeCount={employees.length}
+            roleCounts={roleCounts}
+            metaConnected={metaConnected}
+            campaigns={metaCampaigns}
+            totalSpend={metaTotalSpend}
+            totalLeads={metaTotalLeads}
+            avgCtr={metaAvgCtr}
+            onViewTeam={() => go('/app/hr/employees')}
+            onViewMarketing={() => go('/app/meta/ads')}
+          />
 
           {/* Quick links */}
           <div className="rounded-2xl border bg-card p-5">

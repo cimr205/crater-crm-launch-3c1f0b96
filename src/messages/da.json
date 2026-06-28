@@ -174,7 +174,18 @@
     "shortcuts": "Genveje",
     "recentLeads": "Seneste leads",
     "allLeads": "Alle leads",
-    "seeAll": "Se alle"
+    "seeAll": "Se alle",
+    "teamMarketingTitle": "Team & Marketing",
+    "teamTab": "Team",
+    "marketingTab": "Marketing",
+    "headcount": "Teammedlemmer",
+    "activeEmployees": "Aktive i hele virksomheden",
+    "viewTeam": "Se team",
+    "adSpend": "Annonceforbrug",
+    "adLeads": "Leads fra annoncer",
+    "avgCtr": "Gns. CTR",
+    "noMetaData": "Forbind Meta Ads for at se marketingdata her",
+    "viewMarketing": "Se marketing"
   },
   "crm": {
     "leadsTitle": "Leads",
