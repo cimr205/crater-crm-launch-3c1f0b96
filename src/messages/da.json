@@ -70,6 +70,7 @@
     "payments": "Betalinger",
     "clowdbot": "ClowdBot",
     "integrations": "Integrationer",
+    "webhooks": "Webhooks",
     "workflows": "Workflows",
     "hr": "HR",
     "employees": "Medarbejdere",
@@ -295,6 +296,22 @@
     "statusActive": "Aktiv",
     "statusInactive": "Inaktiv",
     "userLimitLabel": "Brugergrænse"
+  },
+  "webhooks": {
+    "title": "Webhooks",
+    "subtitle": "Send live-events til Zapier, Make eller en valgfri URL, når der sker noget i dit CRM.",
+    "add": "Tilføj webhook",
+    "urlLabel": "Endpoint-URL",
+    "eventsLabel": "Events",
+    "secret": "Secret",
+    "secretRevealTitle": "Gem din signerings-secret",
+    "secretRevealHint": "Den vises kun denne ene gang. Brug den til at verificere X-Crater-Signature-headeren på indkommende requests.",
+    "secretRevealDismiss": "Jeg har gemt den",
+    "secretCopied": "Secret kopieret",
+    "created": "Webhook oprettet",
+    "testSent": "Test-event sendt",
+    "emptyTitle": "Ingen webhooks endnu",
+    "emptyHint": "Forbind Zapier, Make eller din egen server for at automatisere workflows udløst af leads, deals og fakturaer."
   },
   "admin": {
     "title": "Admin overblik",
@@ -584,4 +601,3 @@
     "back": "Tilbage til forsiden"
   }
 }
-

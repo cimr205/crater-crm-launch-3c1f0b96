@@ -944,6 +944,47 @@ class ApiClient {
     return r.data;
   }
 
+  // Webhooks (Zapier / Make / generic outgoing automations)
+  async getWebhookEvents() {
+    const r = await this.request<{ ok: true; data: string[] }>('/v1/webhooks/events');
+    return r.data;
+  }
+
+  async listWebhooks() {
+    const r = await this.request<{ ok: true; data: WebhookSubscription[] }>('/v1/webhooks');
+    return r.data;
+  }
+
+  async createWebhook(input: { url: string; events: string[] }) {
+    const r = await this.request<{ ok: true; data: WebhookSubscription }>('/v1/webhooks', {
+      method: 'POST',
+      body: input,
+    });
+    return r.data;
+  }
+
+  async updateWebhook(id: string, input: { url?: string; events?: string[]; is_active?: boolean }) {
+    const r = await this.request<{ ok: true; data: WebhookSubscription }>(`/v1/webhooks/${id}`, {
+      method: 'PATCH',
+      body: input,
+    });
+    return r.data;
+  }
+
+  async deleteWebhook(id: string) {
+    const r = await this.request<{ ok: true; data: { ok: boolean } }>(`/v1/webhooks/${id}`, {
+      method: 'DELETE',
+    });
+    return r.data;
+  }
+
+  async testWebhook(id: string) {
+    const r = await this.request<{ ok: true; data: { ok: boolean } }>(`/v1/webhooks/${id}/test`, {
+      method: 'POST',
+    });
+    return r.data;
+  }
+
   // Gmail
   async getGmailStatus() {
     const r = await this.request<{ ok: true; data: { connected: boolean; gmail_email?: string; todo_sync_enabled?: boolean } }>('/v1/gmail/status');
@@ -1980,6 +2021,19 @@ export interface Payment {
   payment_date: string;
   payment_method?: string;
   notes?: string;
+}
+
+export interface WebhookSubscription {
+  id: string;
+  company_id: string;
+  url: string;
+  events: string[];
+  is_active: boolean;
+  secret_preview: string;
+  secret?: string;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface InvoiceStats {

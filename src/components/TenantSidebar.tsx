@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, Briefcase, Settings, UserSquare2, ShieldCheck,
   History, Bot, Megaphone, FileText, CreditCard, Clock, Palmtree, Banknote,
   UserPlus, CheckSquare, CalendarDays, ListTodo, Inbox, Mail, Building2,
-  BarChart2, Send, X, Sparkles, Video, Zap, Phone, Search,
+  BarChart2, Send, X, Sparkles, Video, Zap, Phone, Search, Webhook,
 } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { useAuth } from '@/contexts/AuthContext';
@@ -76,6 +76,7 @@ const navSections: NavSection[] = [
     items: [
       { href: 'history',          labelKey: 'nav.history',      icon: History },
       { href: 'integrations',     labelKey: 'nav.integrations', icon: Settings },
+      { href: 'settings/webhooks', labelKey: 'nav.webhooks',    icon: Webhook },
       { href: 'settings/company', labelKey: 'nav.settings',     icon: Settings },
     ],
   },

@@ -40,6 +40,7 @@ import AdminEmployeesPage from "@/pages/app/admin/AdminEmployees";
 import AdminSettingsPage from "@/pages/app/admin/AdminSettings";
 import OnboardingPage from "@/pages/app/Onboarding";
 import IntegrationsPage from "@/pages/app/Integrations";
+import WebhooksPage from "@/pages/app/settings/Webhooks";
 import WorkflowsPage from "@/pages/app/Workflows";
 import MetaAdsPage from "@/pages/app/meta/MetaAds";
 import EmailCampaignsPage from "@/pages/app/email/EmailCampaigns";
@@ -179,6 +180,7 @@ const App = () => (
                   <Route path="email/bulk" element={<BulkEmailPage />} />
                   <Route path="email/tracking" element={<EmailTrackingPage />} />
                   <Route path="settings/company" element={<CompanySettingsPage />} />
+                  <Route path="settings/webhooks" element={<WebhooksPage />} />
 
                   {/* Admin */}
                   <Route

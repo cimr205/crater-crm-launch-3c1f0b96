@@ -66,6 +66,7 @@
     "prospectEngine": "Prospect Engine",
     "clowdbot": "ClowdBot",
     "integrations": "Integrationen",
+    "webhooks": "Webhooks",
     "workflows": "Workflows",
     "hr": "HR",
     "employees": "Mitarbeiter",
@@ -295,6 +296,22 @@
     "statusActive": "Aktiv",
     "statusInactive": "Inaktiv",
     "userLimitLabel": "Benutzerlimit"
+  },
+  "webhooks": {
+    "title": "Webhooks",
+    "subtitle": "Sende Live-Events an Zapier, Make oder eine beliebige URL, wenn in deinem CRM etwas passiert.",
+    "add": "Webhook hinzufügen",
+    "urlLabel": "Endpoint-URL",
+    "eventsLabel": "Events",
+    "secret": "Secret",
+    "secretRevealTitle": "Signatur-Secret speichern",
+    "secretRevealHint": "Wird nur einmal angezeigt. Damit kannst du den X-Crater-Signature-Header eingehender Requests verifizieren.",
+    "secretRevealDismiss": "Gespeichert",
+    "secretCopied": "Secret kopiert",
+    "created": "Webhook erstellt",
+    "testSent": "Test-Event gesendet",
+    "emptyTitle": "Noch keine Webhooks",
+    "emptyHint": "Verbinde Zapier, Make oder deinen eigenen Server, um Workflows durch Leads, Deals und Rechnungen auszulösen."
   },
   "admin": {
     "title": "Admin-Übersicht",

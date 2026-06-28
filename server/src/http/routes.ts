@@ -10,6 +10,15 @@ import { supabaseAdmin, supabaseAnon } from '../core/supabase';
 import { env } from '../config/env';
 import { isServiceUnavailableError } from '../core/serviceUnavailable';
 import { buildGmailAuthUrl, exchangeGmailCode } from '../services/email/gmailClient';
+import {
+  WEBHOOK_EVENT_TYPES,
+  createWebhookSubscription,
+  deleteWebhookSubscription,
+  dispatchWebhookEvent,
+  listWebhookSubscriptions,
+  serializeWebhookSubscription,
+  updateWebhookSubscription,
+} from '../services/webhooks/webhookService';
 
 // In-memory store for Gmail OAuth state tokens (maps state → userId, expires after 10 min)
 const gmailAuthStates = new Map<string, { userId: string; expiresAt: number }>();
@@ -1173,7 +1182,9 @@ export function registerRoutes(app: Application) {
          where i.id=$1 group by i.id`,
         [invoiceId!]
       );
-      ok(res, { ...newInv[0], subtotal: Number((newInv[0] as Record<string, unknown>).subtotal), vat_amount: Number((newInv[0] as Record<string, unknown>).vat_amount), total: Number((newInv[0] as Record<string, unknown>).total) }, 201);
+      const invoiceOut = { ...newInv[0], subtotal: Number((newInv[0] as Record<string, unknown>).subtotal), vat_amount: Number((newInv[0] as Record<string, unknown>).vat_amount), total: Number((newInv[0] as Record<string, unknown>).total) };
+      dispatchWebhookEvent(authUser.companyId, 'invoice.created', invoiceOut);
+      ok(res, invoiceOut, 201);
     } catch (error) {
       fail(res, 500, 'invoice_create_failed', (error as Error).message);
     }
@@ -1196,6 +1207,9 @@ export function registerRoutes(app: Application) {
       values
     );
     if (!rows[0]) { fail(res, 404, 'not_found', 'Invoice not found'); return; }
+    if (parsed.data.status === 'paid' || parsed.data.status === 'overdue') {
+      dispatchWebhookEvent(authUser.companyId, parsed.data.status === 'paid' ? 'invoice.paid' : 'invoice.overdue', rows[0]);
+    }
     ok(res, rows[0]);
   });
 
@@ -1250,10 +1264,85 @@ export function registerRoutes(app: Application) {
           await client.query(`update invoices set status='paid', updated_at=now() where id=$1 and company_id=$2`, [d.invoice_id, authUser.companyId]);
         }
       });
+      dispatchWebhookEvent(authUser.companyId, 'payment.received', { ...d, company_id: authUser.companyId });
       ok(res, { ok: true }, 201);
     } catch (error) {
       fail(res, 500, 'payment_create_failed', (error as Error).message);
     }
+  });
+
+  // ── WEBHOOKS (Zapier / Make / generic outgoing automations) ─────────────────
+
+  app.get('/api/v1/webhooks/events', authMiddleware, async (_req: Request, res: Response) => {
+    ok(res, WEBHOOK_EVENT_TYPES);
+  });
+
+  app.get('/api/v1/webhooks', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+    const subs = await listWebhookSubscriptions(authUser.companyId);
+    ok(res, subs.map(serializeWebhookSubscription));
+  });
+
+  const webhookCreateSchema = z.object({
+    url: z.string().url(),
+    events: z.array(z.enum(WEBHOOK_EVENT_TYPES)).min(1),
+  });
+
+  app.post('/api/v1/webhooks', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+    const parsed = webhookCreateSchema.safeParse(req.body);
+    if (!parsed.success) { fail(res, 400, 'invalid_payload', 'Invalid payload', parsed.error.flatten()); return; }
+    const sub = await createWebhookSubscription({
+      companyId: authUser.companyId,
+      url: parsed.data.url,
+      events: parsed.data.events,
+      createdBy: authUser.id,
+    });
+    ok(res, { ...serializeWebhookSubscription(sub), secret: sub.secret }, 201);
+  });
+
+  const webhookUpdateSchema = z.object({
+    url: z.string().url().optional(),
+    events: z.array(z.enum(WEBHOOK_EVENT_TYPES)).min(1).optional(),
+    is_active: z.boolean().optional(),
+  });
+
+  app.patch('/api/v1/webhooks/:id', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+    const parsed = webhookUpdateSchema.safeParse(req.body);
+    if (!parsed.success) { fail(res, 400, 'invalid_payload', 'Invalid payload', parsed.error.flatten()); return; }
+    const updated = await updateWebhookSubscription(authUser.companyId, req.params.id, {
+      url: parsed.data.url,
+      events: parsed.data.events,
+      isActive: parsed.data.is_active,
+    });
+    if (!updated) { fail(res, 404, 'not_found', 'Webhook not found'); return; }
+    ok(res, serializeWebhookSubscription(updated));
+  });
+
+  app.delete('/api/v1/webhooks/:id', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+    const removed = await deleteWebhookSubscription(authUser.companyId, req.params.id);
+    if (!removed) { fail(res, 404, 'not_found', 'Webhook not found'); return; }
+    ok(res, { ok: true });
+  });
+
+  app.post('/api/v1/webhooks/:id/test', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+    const subs = await listWebhookSubscriptions(authUser.companyId);
+    const sub = subs.find((s) => s.id === req.params.id);
+    if (!sub) { fail(res, 404, 'not_found', 'Webhook not found'); return; }
+    dispatchWebhookEvent(authUser.companyId, sub.events[0] as (typeof WEBHOOK_EVENT_TYPES)[number] ?? 'lead.created', {
+      test: true,
+      message: 'This is a test event from Crater CRM.',
+      sent_at: new Date().toISOString(),
+    });
+    ok(res, { ok: true });
   });
 
   // ── GMAIL ──────────────────────────────────────────────────────────────────
