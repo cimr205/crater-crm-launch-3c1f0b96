@@ -32,6 +32,12 @@ import {
   serializeMessage,
   WhatsappNotConfiguredError,
 } from '../services/whatsapp/whatsappService';
+import {
+  createCheckoutSession,
+  extractCheckoutCompleted,
+  StripeNotConfiguredError,
+  verifyAndParseWebhook,
+} from '../services/stripe/stripeService';
 
 // In-memory store for Gmail OAuth state tokens (maps state → userId, expires after 10 min)
 const gmailAuthStates = new Map<string, { userId: string; expiresAt: number }>();
@@ -1282,6 +1288,136 @@ export function registerRoutes(app: Application) {
     } catch (error) {
       fail(res, 500, 'payment_create_failed', (error as Error).message);
     }
+  });
+
+  // ── STRIPE PAYMENTS ──────────────────────────────────────────────────────────
+
+  app.post('/api/v1/invoices/:id/pay/stripe', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+
+    const rows = await query<{
+      id: string; invoice_number: string; currency: string; total: string;
+      customer_email: string | null; status: string;
+    }>(
+      `select id, invoice_number, currency, total, customer_email, status from invoices where id=$1 and company_id=$2`,
+      [req.params.id, authUser.companyId]
+    );
+    const invoice = rows[0];
+    if (!invoice) { fail(res, 404, 'not_found', 'Invoice not found'); return; }
+    if (invoice.status === 'paid') { fail(res, 409, 'already_paid', 'Invoice is already paid'); return; }
+
+    try {
+      const session = await createCheckoutSession({
+        invoiceId: invoice.id,
+        companyId: authUser.companyId,
+        invoiceNumber: invoice.invoice_number,
+        currency: invoice.currency,
+        totalAmount: Number(invoice.total),
+        customerEmail: invoice.customer_email,
+        successUrl: `${env.publicBaseUrl}/en/app/finance/invoices?stripe=success&invoice=${invoice.id}`,
+        cancelUrl: `${env.publicBaseUrl}/en/app/finance/invoices?stripe=cancelled&invoice=${invoice.id}`,
+      });
+      ok(res, { url: session.url });
+    } catch (error) {
+      if (error instanceof StripeNotConfiguredError) {
+        fail(res, 503, 'stripe_not_configured', error.message);
+        return;
+      }
+      fail(res, 502, 'stripe_checkout_failed', (error as Error).message);
+    }
+  });
+
+  app.post('/api/v1/stripe/webhook', async (req: Request, res: Response) => {
+    const rawBody = (req as Request & { rawBody?: Buffer }).rawBody;
+    if (!rawBody) { fail(res, 400, 'missing_raw_body', 'Missing raw request body'); return; }
+
+    let event: unknown;
+    try {
+      event = verifyAndParseWebhook(rawBody, req.header('stripe-signature'));
+    } catch (error) {
+      if (error instanceof StripeNotConfiguredError) {
+        fail(res, 503, 'stripe_not_configured', error.message);
+        return;
+      }
+      fail(res, 400, 'invalid_signature', (error as Error).message);
+      return;
+    }
+
+    const completed = extractCheckoutCompleted(event);
+    if (completed) {
+      try {
+        await withTransaction(async (client) => {
+          await client.query(
+            `update invoices set status='paid', updated_at=now() where id=$1 and company_id=$2 and status<>'paid'`,
+            [completed.invoiceId, completed.companyId]
+          );
+          await client.query(
+            `insert into payments (company_id, invoice_id, amount, currency, payment_date, payment_method, external_ref)
+             values ($1,$2,$3,$4,current_date,'stripe',$5)`,
+            [completed.companyId, completed.invoiceId, completed.amountTotal, completed.currency, completed.sessionId]
+          );
+        });
+        dispatchWebhookEvent(completed.companyId, 'invoice.paid', { invoice_id: completed.invoiceId });
+        dispatchWebhookEvent(completed.companyId, 'payment.received', {
+          invoice_id: completed.invoiceId,
+          amount: completed.amountTotal,
+          currency: completed.currency,
+          payment_method: 'stripe',
+          company_id: completed.companyId,
+        });
+      } catch (error) {
+        fail(res, 500, 'stripe_webhook_processing_failed', (error as Error).message);
+        return;
+      }
+    }
+
+    ok(res, { received: true });
+  });
+
+  // ── BOOKKEEPING EXPORT (e-conomic / Dinero / Billy CSV import) ──────────────
+
+  app.get('/api/v1/invoices/export/bookkeeping', authMiddleware, async (req: Request, res: Response) => {
+    const authUser = req.authUser!;
+    if (!authUser.companyId) { fail(res, 403, 'no_company', 'No company'); return; }
+
+    const from = typeof req.query.from === 'string' ? req.query.from : undefined;
+    const to = typeof req.query.to === 'string' ? req.query.to : undefined;
+    const conditions = ['company_id=$1'];
+    const params: unknown[] = [authUser.companyId];
+    if (from) { params.push(from); conditions.push(`invoice_date >= $${params.length}`); }
+    if (to) { params.push(to); conditions.push(`invoice_date <= $${params.length}`); }
+
+    const rows = await query<{
+      invoice_number: string; invoice_date: string; due_date: string; status: string;
+      customer_name: string; customer_cvr: string | null; customer_country: string;
+      currency: string; subtotal: string; vat_amount: string; total: string; payment_method: string | null;
+    }>(
+      `select invoice_number, invoice_date, due_date, status, customer_name, customer_cvr, customer_country,
+              currency, subtotal, vat_amount, total, payment_method
+       from invoices where ${conditions.join(' and ')} order by invoice_date asc`,
+      params
+    );
+
+    const header = [
+      'Fakturanr', 'Dato', 'Forfaldsdato', 'Status', 'Kunde', 'CVR', 'Land',
+      'Valuta', 'Beløb ekskl. moms', 'Moms', 'Beløb inkl. moms', 'Betalingsmetode',
+    ];
+    const csvEscape = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    const lines = [header.join(';')];
+    for (const r of rows) {
+      lines.push([
+        r.invoice_number, r.invoice_date, r.due_date, r.status, csvEscape(r.customer_name),
+        r.customer_cvr || '', r.customer_country, r.currency,
+        Number(r.subtotal).toFixed(2), Number(r.vat_amount).toFixed(2), Number(r.total).toFixed(2),
+        r.payment_method || '',
+      ].join(';'));
+    }
+    const csv = `\uFEFF${lines.join('\r\n')}`;
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="bookkeeping-export-${Date.now()}.csv"`);
+    res.send(csv);
   });
 
   // ── WEBHOOKS (Zapier / Make / generic outgoing automations) ─────────────────

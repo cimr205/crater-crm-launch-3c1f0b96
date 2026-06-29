@@ -48,5 +48,8 @@ export const env = {
   twilioAuthToken: process.env.TWILIO_AUTH_TOKEN || '',
   // E.164 number enabled for WhatsApp on the Twilio account (sandbox or approved sender), without the "whatsapp:" prefix.
   twilioWhatsappFrom: process.env.TWILIO_WHATSAPP_FROM || '',
+
+  stripeSecretKey: process.env.STRIPE_SECRET_KEY || '',
+  stripeWebhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
 };
 

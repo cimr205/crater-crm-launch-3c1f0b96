@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useI18n } from '@/lib/i18n';
 import { api, type InvoiceSummary, type InvoiceDetail, type InvoiceStats, type CreateInvoiceItem, type Customer } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -8,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Plus, Download, Eye, Trash2, FileText, TrendingUp, CheckCircle, AlertCircle,
-  Search, UserCheck, Pencil, X, ImagePlus, Mail, CheckCircle2,
+  Search, UserCheck, Pencil, X, ImagePlus, Mail, CheckCircle2, CreditCard, Loader2,
 } from 'lucide-react';
 import CvrSearchInput, { VatSearchInput, type CvrData, type VatData } from '@/components/CvrSearchInput';
 
@@ -680,6 +681,7 @@ function CreateInvoiceDialog({
 
 export default function InvoicesPage() {
   const { toast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [invoices, setInvoices] = useState<InvoiceSummary[]>([]);
   const [stats, setStats] = useState<InvoiceStats | null>(null);
   const [company, setCompany] = useState<CompanyInfo>({ name: '' });
@@ -690,6 +692,8 @@ export default function InvoicesPage() {
     seller?: Partial<CompanyInfo>;
     logoUrl?: string;
   } | null>(null);
+  const [stripeLoadingId, setStripeLoadingId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -714,6 +718,21 @@ export default function InvoicesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { void load(); }, []);
 
+  useEffect(() => {
+    const stripeStatus = searchParams.get('stripe');
+    if (!stripeStatus) return;
+    if (stripeStatus === 'success') {
+      toast({ title: 'Betaling gennemført', description: 'Fakturaen opdateres som betalt, når Stripe har bekræftet betalingen.' });
+    } else if (stripeStatus === 'cancelled') {
+      toast({ title: 'Betaling annulleret', variant: 'destructive' });
+    }
+    const next = new URLSearchParams(searchParams);
+    next.delete('stripe');
+    next.delete('invoice');
+    setSearchParams(next, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const handleView = async (id: string) => {
     try {
       const inv = await api.getInvoice(id);
@@ -729,6 +748,34 @@ export default function InvoicesPage() {
     catch (err) { toast({ title: (err as Error).message, variant: 'destructive' }); }
   };
 
+  const handlePayWithStripe = async (id: string) => {
+    setStripeLoadingId(id);
+    try {
+      const { url } = await api.createStripeCheckout(id);
+      window.location.href = url;
+    } catch (err) {
+      toast({ title: (err as Error).message, variant: 'destructive' });
+      setStripeLoadingId(null);
+    }
+  };
+
+  const handleExportBookkeeping = async () => {
+    setExporting(true);
+    try {
+      const blob = await api.downloadBookkeepingExport();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bogforing-export-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast({ title: (err as Error).message, variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -736,7 +783,13 @@ export default function InvoicesPage() {
           <h1 className="text-2xl font-semibold">Fakturaer</h1>
           <p className="text-sm text-muted-foreground">Opret og administrer fakturaer</p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-2" />Opret faktura</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleExportBookkeeping} disabled={exporting}>
+            {exporting ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Download className="h-4 w-4 mr-2" />}
+            Eksporter til bogføring
+          </Button>
+          <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4 mr-2" />Opret faktura</Button>
+        </div>
       </div>
 
       {stats && (
@@ -797,6 +850,18 @@ export default function InvoicesPage() {
                     <div className="flex items-center gap-1 justify-end">
                       <Button size="sm" variant="ghost" onClick={() => handleView(inv.id)}><Eye className="h-3.5 w-3.5 mr-1" />PDF</Button>
                       {inv.status === 'draft' && <Button size="sm" variant="outline" onClick={() => handleMarkSent(inv.id)}>Marker sendt</Button>}
+                      {(inv.status === 'sent' || inv.status === 'overdue') && (
+                        <Button
+                          size="sm" variant="outline"
+                          disabled={stripeLoadingId === inv.id}
+                          onClick={() => handlePayWithStripe(inv.id)}
+                        >
+                          {stripeLoadingId === inv.id
+                            ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                            : <CreditCard className="h-3.5 w-3.5 mr-1" />}
+                          Betal med kort
+                        </Button>
+                      )}
                     </div>
                   </td>
                 </tr>

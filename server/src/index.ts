@@ -5,7 +5,15 @@ import { registerRoutes } from './http/routes';
 import { pool } from './core/database';
 
 const app = express();
-app.use(express.json({ limit: '5mb' }));
+app.use(
+  express.json({
+    limit: '5mb',
+    // Preserve the raw bytes so the Stripe webhook route can verify the signed payload exactly as sent.
+    verify: (req, _res, buf) => {
+      (req as express.Request & { rawBody?: Buffer }).rawBody = buf;
+    },
+  })
+);
 
 const publicBaseUrl = process.env.PUBLIC_BASE_URL || 'https://aiagencydanmark.dk';
 const allowedOrigins = new Set(

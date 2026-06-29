@@ -918,6 +918,29 @@ class ApiClient {
     return r.data;
   }
 
+  async createStripeCheckout(invoiceId: string) {
+    const r = await this.request<{ ok: true; data: { url: string } }>(`/v1/invoices/${invoiceId}/pay/stripe`, {
+      method: 'POST',
+    });
+    return r.data;
+  }
+
+  async downloadBookkeepingExport(params?: { from?: string; to?: string }) {
+    const token = this.getToken();
+    const search = new URLSearchParams();
+    if (params?.from) search.set('from', params.from);
+    if (params?.to) search.set('to', params.to);
+    const query = search.toString() ? `?${search.toString()}` : '';
+    const headers: Record<string, string> = { Accept: 'text/csv' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const response = await fetch(`${API_BASE_URL}/v1/invoices/export/bookkeeping${query}`, { method: 'GET', headers });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ message: 'Failed to export bookkeeping CSV' }));
+      throw new Error(error.message || `HTTP ${response.status}`);
+    }
+    return response.blob();
+  }
+
   // Payments
   async getPaymentStats() {
     const r = await this.request<{ ok: true; data: { count: number; total: number } }>('/v1/payments/stats');
